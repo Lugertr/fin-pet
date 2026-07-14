@@ -14,4 +14,5 @@ export interface AppSettings {
   soundEnabled: boolean;
   vibrationEnabled?: boolean;
   language?: 'ru' | 'en';
+  isDev?: boolean;
 }

@@ -46,6 +46,7 @@ export default function RootLayout() {
         <Stack.Screen name="settings" />
         <Stack.Screen name="diary" />
         <Stack.Screen name="adventures" />
+        <Stack.Screen name="dev" />
       </Stack>
       <RewardAnimation animation={lastRewardAnimation} onClear={clearRewardAnimation} />
     </>

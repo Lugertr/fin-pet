@@ -1,7 +1,10 @@
+import { useGameStore } from '@/app/providers/store';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 
 export default function TabsLayout() {
+  const isDev = useGameStore((s) => s.settings.isDev);
+
   return (
     <Tabs
       screenOptions={{
@@ -59,6 +62,15 @@ export default function TabsLayout() {
           ),
         }}
       />
+      {isDev && (
+        <Tabs.Screen
+          name="dev"
+          options={{
+            title: 'Debug',
+            tabBarIcon: ({ color, size }) => <Ionicons name="bug" size={size} color={color} />,
+          }}
+        />
+      )}
     </Tabs>
   );
 }

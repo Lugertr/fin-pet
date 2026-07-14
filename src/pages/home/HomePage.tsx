@@ -1,6 +1,6 @@
 import { useGameStore } from '@/app/providers/store';
 import { getStageName } from '@/entities/pet';
-import { mockAdventures } from '@/shared/config/mockData';
+import { mockAdventures, mockShopItems } from '@/shared/config/mockData';
 import { Badge, Card } from '@/shared/ui';
 import { PetDisplay } from '@/widgets/pet-display';
 import { QuickAction } from '@/widgets/quick-action';
@@ -25,8 +25,14 @@ export function HomePage() {
     );
   }
 
-  const foodItem = inventory.find((i) => i.itemId === 'apple');
-  const toyItem = inventory.find((i) => i.itemId === 'ball');
+  const foodItem = inventory.find((i) => {
+    const shopItem = mockShopItems.find((s) => s.id === i.itemId);
+    return shopItem?.category === 'food' && i.quantity > 0;
+  });
+  const toyItem = inventory.find((i) => {
+    const shopItem = mockShopItems.find((s) => s.id === i.itemId);
+    return shopItem?.category === 'toy' && i.quantity > 0;
+  });
 
   const isAdventureReady = activeAdventure && new Date() >= new Date(activeAdventure.endsAt);
 
@@ -81,14 +87,14 @@ export function HomePage() {
               icon="🍎"
               title="Покормить"
               subtitle={foodItem ? `Есть в инвентаре (${foodItem.quantity})` : 'Купи в магазине'}
-              onPress={() => foodItem && useItem('apple')}
+              onPress={() => foodItem && useItem(foodItem.itemId)}
               disabled={!foodItem}
             />
             <QuickAction
               icon="🎾"
               title="Поиграть"
               subtitle={toyItem ? `Есть в инвентаре (${toyItem.quantity})` : 'Купи в магазине'}
-              onPress={() => toyItem && useItem('ball')}
+              onPress={() => toyItem && useItem(toyItem.itemId)}
               disabled={!toyItem}
             />
             <QuickAction

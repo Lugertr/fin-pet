@@ -59,7 +59,9 @@
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\""
+    "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\"",
+    "build": "npx expo export --platform web",
+    "build:docs": "npx expo export --platform web --output-dir docs"
   },
   "private": true
 }

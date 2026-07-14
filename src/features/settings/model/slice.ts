@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { GameStore } from '@/app/providers/store';
+import { mockAchievements, mockQuests } from '@/shared/config/mockData';
 
 export interface SettingsSlice {
   settings: import('@/entities/settings').AppSettings;
@@ -15,6 +16,7 @@ const initialSettings: import('@/entities/settings').AppSettings = {
   },
   reminderTime: '18:00',
   soundEnabled: true,
+  isDev: false,
 };
 
 export const createSettingsSlice: StateCreator<GameStore, [], [], SettingsSlice> = (set, get) => ({
@@ -30,18 +32,17 @@ export const createSettingsSlice: StateCreator<GameStore, [], [], SettingsSlice>
   },
 
   resetGame: () => {
-    // Import initial state from a constants file to avoid circular deps
-    const initialState = {
+    set({
       pet: null,
       finances: { coins: 50, savings: 0, totalEarned: 0, totalSpent: 0, totalSaved: 0 },
       inventory: [],
-      dailyQuests: get().dailyQuests,
+      dailyQuests: mockQuests,
       piggyBank: {
         balance: 0,
         interestRate: 0.05,
         lastInterestCalculatedAt: new Date().toISOString(),
       },
-      achievements: get().achievements,
+      achievements: mockAchievements,
       stats: {
         totalQuestsCompleted: 0,
         totalCoinsEarned: 0,
@@ -51,7 +52,15 @@ export const createSettingsSlice: StateCreator<GameStore, [], [], SettingsSlice>
         longestStreak: 1,
         lastActiveDate: new Date().toISOString().split('T')[0],
       },
-      chatMessages: get().chatMessages,
+      chatMessages: [
+        {
+          id: '1',
+          role: 'system' as const,
+          content:
+            'Привет! Я твой финансовый помощник. Спрашивай меня о деньгах, копилках и покупках!',
+          timestamp: new Date().toISOString(),
+        },
+      ],
       transactions: [
         {
           id: 'tx_initial',
@@ -61,11 +70,10 @@ export const createSettingsSlice: StateCreator<GameStore, [], [], SettingsSlice>
           description: 'Стартовый бонус',
         },
       ],
-      settings: initialSettings,
+      settings: { ...initialSettings, isDev: get().settings.isDev },
       isOnboarded: false,
       lastRewardAnimation: null,
       activeAdventure: null,
-    };
-    set(initialState);
+    });
   },
 });

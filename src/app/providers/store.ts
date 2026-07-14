@@ -11,6 +11,7 @@ import { createChatSlice, ChatSlice } from '@/features/chat-with-llm/model/slice
 import { createAdventureSlice, AdventureSlice } from '@/features/start-adventure/model/slice';
 import { createParentModeSlice, ParentModeSlice } from '@/features/parent-mode/model/slice';
 import { createSettingsSlice, SettingsSlice } from '@/features/settings/model/slice';
+import { createDevSlice, DevSlice } from '@/features/dev-mode/model/slice';
 
 import type { Finances, Stats } from '@/entities/wallet';
 import type { InventoryItem } from '@/entities/inventory';
@@ -25,7 +26,8 @@ export type GameStore = PetSlice &
   ChatSlice &
   AdventureSlice &
   ParentModeSlice &
-  SettingsSlice & {
+  SettingsSlice &
+  DevSlice & {
     finances: Finances;
     inventory: InventoryItem[];
     achievements: Achievement[];
@@ -81,6 +83,7 @@ export const useGameStore = create<GameStore>()(
       ...createAdventureSlice(...a),
       ...createParentModeSlice(...a),
       ...createSettingsSlice(...a),
+      ...createDevSlice(...a),
     }),
     {
       name: 'fin-pet-storage',

@@ -2,7 +2,7 @@ import { useGameStore } from '@/app/providers/store';
 import { validatePin } from '@/entities/settings';
 import { Button, Card, ToggleRow } from '@/shared/ui';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 export function SettingsPage() {
@@ -16,7 +16,30 @@ export function SettingsPage() {
   const [pinError, setPinError] = useState('');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
+  const aboutTapCount = useRef(0);
+  const aboutTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const hasPin = !!settings.parentPinHash;
+  const isDev = !!settings.isDev;
+
+  const handleAboutTap = () => {
+    aboutTapCount.current += 1;
+
+    if (aboutTapTimer.current) clearTimeout(aboutTapTimer.current);
+    aboutTapTimer.current = setTimeout(() => {
+      aboutTapCount.current = 0;
+    }, 2000);
+
+    if (aboutTapCount.current >= 5) {
+      aboutTapCount.current = 0;
+      if (aboutTapTimer.current) clearTimeout(aboutTapTimer.current);
+      updateSettings({ isDev: !isDev });
+      Alert.alert(
+        isDev ? '🔧 Режим разработчика выключен' : '🔧 Режим разработчика включён',
+        isDev ? 'Страница разработчика скрыта' : 'Страница разработчика доступна в настройках'
+      );
+    }
+  };
 
   const handleOpenPinModal = (mode: 'set' | 'change' | 'remove') => {
     setPinMode(mode);
@@ -137,6 +160,21 @@ export function SettingsPage() {
           )}
         </Card>
 
+        {isDev && (
+          <Card className="mb-4 border-2 border-blue-200">
+            <Text className="text-lg font-bold text-blue-600 mb-2">🔧 Режим разработчика</Text>
+            <Text className="text-sm text-gray-500 mb-3">
+              Быстрые действия для отладки приложения
+            </Text>
+            <Pressable
+              onPress={() => router.push('/tabs/dev')}
+              className="bg-blue-500 py-3 rounded-xl active:opacity-80"
+            >
+              <Text className="text-white text-center font-semibold">Открыть Debug</Text>
+            </Pressable>
+          </Card>
+        )}
+
         <Card className="mb-4 border-2 border-red-200">
           <Text className="text-lg font-bold text-red-600 mb-2">⚠️ Опасная зона</Text>
           <Text className="text-sm text-gray-500 mb-3">
@@ -150,14 +188,16 @@ export function SettingsPage() {
           </Pressable>
         </Card>
 
-        <Card>
-          <Text className="text-lg font-bold text-text mb-2">ℹ️ О приложении</Text>
-          <Text className="text-sm text-gray-500">Версия: 1.0.0</Text>
-          <Text className="text-sm text-gray-500">Хакатон LCT 2025</Text>
-          <Text className="text-sm text-gray-500 mt-2">
-            Финансовый питомец — приложение для обучения детей финансовой грамотности через игру.
-          </Text>
-        </Card>
+        <Pressable onPress={handleAboutTap}>
+          <Card>
+            <Text className="text-lg font-bold text-text mb-2">ℹ️ О приложении</Text>
+            <Text className="text-sm text-gray-500">Версия: 1.0.0</Text>
+            <Text className="text-sm text-gray-500">Хакатон LCT 2025</Text>
+            <Text className="text-sm text-gray-500 mt-2">
+              Финансовый питомец — приложение для обучения детей финансовой грамотности через игру.
+            </Text>
+          </Card>
+        </Pressable>
       </View>
 
       <Modal
