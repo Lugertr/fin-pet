@@ -11,7 +11,12 @@ import { useEffect } from 'react';
 import './styles/global.css';
 
 export default function RootLayout() {
-  const { pet, settings, lastRewardAnimation, clearRewardAnimation } = useGameStore();
+  const pet = useGameStore((s) => s.pet);
+  const questNotifications = useGameStore((s) => s.settings.notifications.quests);
+  const motivationNotifications = useGameStore((s) => s.settings.notifications.motivation);
+  const reminderTime = useGameStore((s) => s.settings.reminderTime);
+  const lastRewardAnimation = useGameStore((s) => s.lastRewardAnimation);
+  const clearRewardAnimation = useGameStore((s) => s.clearRewardAnimation);
 
   useEffect(() => {
     if (!pet) return;
@@ -20,20 +25,15 @@ export default function RootLayout() {
       const granted = await registerForPushNotificationsAsync();
       if (!granted) return;
 
-      if (settings.notifications.quests) {
-        await scheduleDailyQuestReminder(settings.reminderTime);
+      if (questNotifications) {
+        await scheduleDailyQuestReminder(reminderTime);
       }
 
-      if (settings.notifications.motivation) {
+      if (motivationNotifications) {
         await scheduleMotivationReminder();
       }
     })();
-  }, [
-    pet,
-    settings.notifications.quests,
-    settings.notifications.motivation,
-    settings.reminderTime,
-  ]);
+  }, [pet, questNotifications, motivationNotifications, reminderTime]);
 
   return (
     <>
@@ -46,9 +46,11 @@ export default function RootLayout() {
         <Stack.Screen name="settings" />
         <Stack.Screen name="diary" />
         <Stack.Screen name="adventures" />
-        <Stack.Screen name="dev" />
+        <Stack.Screen name="+not-found" />
       </Stack>
-      <RewardAnimation animation={lastRewardAnimation} onClear={clearRewardAnimation} />
+      {lastRewardAnimation && (
+        <RewardAnimation animation={lastRewardAnimation} onClear={clearRewardAnimation} />
+      )}
     </>
   );
 }

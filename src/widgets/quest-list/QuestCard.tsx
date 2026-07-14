@@ -1,5 +1,6 @@
 import type { Quest } from '@/entities/quest';
 import { QUEST_CATEGORY_EMOJIS } from '@/entities/quest';
+import { memo } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 export interface QuestCardProps {
@@ -7,7 +8,7 @@ export interface QuestCardProps {
   onPress: () => void;
 }
 
-export function QuestCard({ quest, onPress }: QuestCardProps) {
+export const QuestCard = memo(function QuestCard({ quest, onPress }: QuestCardProps) {
   const difficultyStars = '⭐'.repeat(quest.difficulty);
   const categoryEmoji = QUEST_CATEGORY_EMOJIS[quest.category];
 
@@ -36,4 +37,4 @@ export function QuestCard({ quest, onPress }: QuestCardProps) {
       </View>
     </Pressable>
   );
-}
+});

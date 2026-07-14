@@ -2,13 +2,16 @@ import { useGameStore } from '@/app/providers/store';
 import { validatePin } from '@/entities/settings';
 import { Button, Card, ToggleRow } from '@/shared/ui';
 import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 export function SettingsPage() {
   const router = useRouter();
-  const { settings, updateSettings, setParentPin, removeParentPin, verifyParentPin, resetGame } =
-    useGameStore();
+  const settings = useGameStore((s) => s.settings);
+  const updateSettings = useGameStore((s) => s.updateSettings);
+  const setParentPin = useGameStore((s) => s.setParentPin);
+  const removeParentPin = useGameStore((s) => s.removeParentPin);
+  const resetGame = useGameStore((s) => s.resetGame);
 
   const [showPinModal, setShowPinModal] = useState(false);
   const [pinMode, setPinMode] = useState<'set' | 'change' | 'remove'>('set');
@@ -22,7 +25,7 @@ export function SettingsPage() {
   const hasPin = !!settings.parentPinHash;
   const isDev = !!settings.isDev;
 
-  const handleAboutTap = () => {
+  const handleAboutTap = useCallback(() => {
     aboutTapCount.current += 1;
 
     if (aboutTapTimer.current) clearTimeout(aboutTapTimer.current);
@@ -39,16 +42,16 @@ export function SettingsPage() {
         isDev ? 'Страница разработчика скрыта' : 'Страница разработчика доступна в настройках'
       );
     }
-  };
+  }, [isDev, updateSettings]);
 
-  const handleOpenPinModal = (mode: 'set' | 'change' | 'remove') => {
+  const handleOpenPinModal = useCallback((mode: 'set' | 'change' | 'remove') => {
     setPinMode(mode);
     setPinInput('');
     setPinError('');
     setShowPinModal(true);
-  };
+  }, []);
 
-  const handlePinSubmit = () => {
+  const handlePinSubmit = useCallback(() => {
     const validation = validatePin(pinInput);
     if (!validation.valid) {
       setPinError(validation.error!);
@@ -68,9 +71,9 @@ export function SettingsPage() {
         setPinError('Неверный PIN');
       }
     }
-  };
+  }, [pinInput, pinMode, setParentPin, removeParentPin]);
 
-  const handleResetGame = () => {
+  const handleResetGame = useCallback(() => {
     if (!hasPin) {
       Alert.alert('Требуется PIN', 'Для сброса прогресса сначала установите родительский PIN', [
         { text: 'OK' },
@@ -78,13 +81,33 @@ export function SettingsPage() {
       return;
     }
     setShowResetConfirm(true);
-  };
+  }, [hasPin]);
 
-  const confirmReset = () => {
+  const confirmReset = useCallback(() => {
     resetGame();
     setShowResetConfirm(false);
     router.replace('/auth/welcome');
-  };
+  }, [resetGame, router]);
+
+  const handleToggleQuests = useCallback(
+    (v: boolean) => updateSettings({ notifications: { ...settings.notifications, quests: v } }),
+    [settings.notifications, updateSettings]
+  );
+
+  const handleTogglePetHungry = useCallback(
+    (v: boolean) => updateSettings({ notifications: { ...settings.notifications, petHungry: v } }),
+    [settings.notifications, updateSettings]
+  );
+
+  const handleToggleMotivation = useCallback(
+    (v: boolean) => updateSettings({ notifications: { ...settings.notifications, motivation: v } }),
+    [settings.notifications, updateSettings]
+  );
+
+  const handleToggleSound = useCallback(
+    (v: boolean) => updateSettings({ soundEnabled: v }),
+    [updateSettings]
+  );
 
   return (
     <ScrollView className="flex-1 bg-background">
@@ -101,29 +124,17 @@ export function SettingsPage() {
           <ToggleRow
             label="Напоминания о заданиях"
             value={settings.notifications.quests}
-            onChange={(v) =>
-              updateSettings({
-                notifications: { ...settings.notifications, quests: v },
-              })
-            }
+            onChange={handleToggleQuests}
           />
           <ToggleRow
             label="Питомец голоден"
             value={settings.notifications.petHungry}
-            onChange={(v) =>
-              updateSettings({
-                notifications: { ...settings.notifications, petHungry: v },
-              })
-            }
+            onChange={handleTogglePetHungry}
           />
           <ToggleRow
             label="Мотивационные сообщения"
             value={settings.notifications.motivation}
-            onChange={(v) =>
-              updateSettings({
-                notifications: { ...settings.notifications, motivation: v },
-              })
-            }
+            onChange={handleToggleMotivation}
           />
         </Card>
 
@@ -131,7 +142,7 @@ export function SettingsPage() {
           <ToggleRow
             label="🔊 Звуковые эффекты"
             value={settings.soundEnabled}
-            onChange={(v) => updateSettings({ soundEnabled: v })}
+            onChange={handleToggleSound}
           />
         </Card>
 

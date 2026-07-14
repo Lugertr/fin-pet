@@ -1,29 +1,38 @@
 import { useGameStore } from '@/app/providers/store';
 import { getMockResponse } from '@/features/chat-with-llm';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  FlatList,
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
 
+const QUICK_QUESTIONS = [
+  'Что такое инфляция?',
+  'Зачем копить?',
+  'Что такое бюджет?',
+  'Что такое инвестиции?',
+];
+
 export function ChatPage() {
-  const { chatMessages, addChatMessage, pet, finances } = useGameStore();
+  const chatMessages = useGameStore((s) => s.chatMessages);
+  const addChatMessage = useGameStore((s) => s.addChatMessage);
+
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const scrollViewRef = useRef<ScrollView>(null);
+  const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
     setTimeout(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
+      flatListRef.current?.scrollToEnd({ animated: true });
     }, 100);
   }, [chatMessages, isTyping]);
 
-  const sendMessage = () => {
+  const sendMessage = useCallback(() => {
     if (!input.trim()) return;
 
     const userMessage = input.trim();
@@ -36,14 +45,62 @@ export function ChatPage() {
       addChatMessage('assistant', response);
       setIsTyping(false);
     }, 1000);
-  };
+  }, [input, addChatMessage]);
 
-  const quickQuestions = [
-    'Что такое инфляция?',
-    'Зачем копить?',
-    'Что такое бюджет?',
-    'Что такое инвестиции?',
-  ];
+  const renderItem = useCallback(
+    ({ item }: { item: (typeof chatMessages)[number] }) => (
+      <View className={`mb-3 ${item.role === 'user' ? 'items-end' : 'items-start'}`}>
+        <View
+          className={`max-w-[80%] px-4 py-3 rounded-2xl ${
+            item.role === 'user'
+              ? 'bg-primary'
+              : item.role === 'system'
+                ? 'bg-yellow-100'
+                : 'bg-white'
+          }`}
+        >
+          <Text className={item.role === 'user' ? 'text-white' : 'text-text'}>{item.content}</Text>
+        </View>
+      </View>
+    ),
+    []
+  );
+
+  const keyExtractor = useCallback((item: (typeof chatMessages)[number]) => item.id, []);
+
+  const ListHeader = useMemo(
+    () => () => {
+      if (chatMessages.length > 1) return null;
+      return (
+        <View className="flex-row flex-wrap gap-2 mb-4">
+          {QUICK_QUESTIONS.map((question) => (
+            <Pressable
+              key={question}
+              onPress={() => setInput(question)}
+              className="bg-white px-3 py-2 rounded-full active:opacity-80"
+            >
+              <Text className="text-sm text-primary">{question}</Text>
+            </Pressable>
+          ))}
+        </View>
+      );
+    },
+    [chatMessages.length]
+  );
+
+  const ListFooter = useMemo(
+    () => () => {
+      if (!isTyping) return null;
+      return (
+        <View className="mb-3 items-start">
+          <View className="bg-white px-4 py-3 rounded-2xl">
+            <Text className="text-text">Печатает...</Text>
+          </View>
+        </View>
+      );
+    },
+    [isTyping]
+  );
 
   return (
     <KeyboardAvoidingView
@@ -55,52 +112,16 @@ export function ChatPage() {
         <Text className="text-sm text-gray-500">Спроси меня о финансах!</Text>
       </View>
 
-      <ScrollView ref={scrollViewRef} className="flex-1 px-4" contentContainerClassName="pb-4">
-        {chatMessages.length === 1 && (
-          <View className="flex-row flex-wrap gap-2 mb-4">
-            {quickQuestions.map((question) => (
-              <Pressable
-                key={question}
-                onPress={() => {
-                  setInput(question);
-                }}
-                className="bg-white px-3 py-2 rounded-full active:opacity-80"
-              >
-                <Text className="text-sm text-primary">{question}</Text>
-              </Pressable>
-            ))}
-          </View>
-        )}
-
-        {chatMessages.map((message) => (
-          <View
-            key={message.id}
-            className={`mb-3 ${message.role === 'user' ? 'items-end' : 'items-start'}`}
-          >
-            <View
-              className={`max-w-[80%] px-4 py-3 rounded-2xl ${
-                message.role === 'user'
-                  ? 'bg-primary'
-                  : message.role === 'system'
-                    ? 'bg-yellow-100'
-                    : 'bg-white'
-              }`}
-            >
-              <Text className={message.role === 'user' ? 'text-white' : 'text-text'}>
-                {message.content}
-              </Text>
-            </View>
-          </View>
-        ))}
-
-        {isTyping && (
-          <View className="mb-3 items-start">
-            <View className="bg-white px-4 py-3 rounded-2xl">
-              <Text className="text-text">Печатает...</Text>
-            </View>
-          </View>
-        )}
-      </ScrollView>
+      <FlatList
+        ref={flatListRef}
+        data={chatMessages}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
+        ListHeaderComponent={ListHeader}
+        ListFooterComponent={ListFooter}
+        className="flex-1 px-4"
+        contentContainerClassName="pb-4"
+      />
 
       <View className="px-4 pb-4">
         <View className="flex-row gap-2">

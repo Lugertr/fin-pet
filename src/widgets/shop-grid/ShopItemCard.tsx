@@ -1,4 +1,5 @@
 import type { ShopItem } from '@/entities/shop-item';
+import { memo } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 export interface ShopItemCardProps {
@@ -7,7 +8,11 @@ export interface ShopItemCardProps {
   onPress: () => void;
 }
 
-export function ShopItemCard({ item, owned, onPress }: ShopItemCardProps) {
+export const ShopItemCard = memo(function ShopItemCard({
+  item,
+  owned,
+  onPress,
+}: ShopItemCardProps) {
   return (
     <Pressable onPress={onPress} className="bg-white rounded-2xl p-3 w-[47%] active:opacity-80">
       <Text className="text-5xl text-center mb-2">{item.image}</Text>
@@ -22,4 +27,4 @@ export function ShopItemCard({ item, owned, onPress }: ShopItemCardProps) {
       )}
     </Pressable>
   );
-}
+});

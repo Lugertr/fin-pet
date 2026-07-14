@@ -1,4 +1,5 @@
 import type { ShopCategoryConfig } from '@/entities/shop-item';
+import { memo } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 export interface ShopCategoryFilterProps {
@@ -7,7 +8,11 @@ export interface ShopCategoryFilterProps {
   onSelect: (id: ShopCategoryConfig['id']) => void;
 }
 
-export function ShopCategoryFilter({ categories, selected, onSelect }: ShopCategoryFilterProps) {
+export const ShopCategoryFilter = memo(function ShopCategoryFilter({
+  categories,
+  selected,
+  onSelect,
+}: ShopCategoryFilterProps) {
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4 -mx-4 px-4">
       <View className="flex-row gap-2">
@@ -30,4 +35,4 @@ export function ShopCategoryFilter({ categories, selected, onSelect }: ShopCateg
       </View>
     </ScrollView>
   );
-}
+});

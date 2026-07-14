@@ -4,45 +4,54 @@ import { mockShopItems } from '@/shared/config/mockData';
 import type { ShopCategory, ShopItem } from '@/shared/types';
 import { Button, Card } from '@/shared/ui';
 import { ShopCategoryFilter, ShopItemCard } from '@/widgets/shop-grid';
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 
 export function ShopPage() {
-  const { finances, buyItem, inventory } = useGameStore();
+  const coins = useGameStore((s) => s.finances.coins);
+  const buyItem = useGameStore((s) => s.buyItem);
+  const inventory = useGameStore((s) => s.inventory);
+
   const [selectedCategory, setSelectedCategory] = useState<ShopCategory | 'all'>('all');
   const [selectedItem, setSelectedItem] = useState<ShopItem | null>(null);
   const [feedback, setFeedback] = useState<{ success: boolean; message: string } | null>(null);
 
-  const filteredItems =
-    selectedCategory === 'all'
-      ? mockShopItems
-      : mockShopItems.filter((item) => item.category === selectedCategory);
+  const filteredItems = useMemo(
+    () =>
+      selectedCategory === 'all'
+        ? mockShopItems
+        : mockShopItems.filter((item) => item.category === selectedCategory),
+    [selectedCategory]
+  );
 
-  const handleBuy = () => {
+  const ownedMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    inventory.forEach((i) => {
+      map[i.itemId] = i.quantity;
+    });
+    return map;
+  }, [inventory]);
+
+  const handleBuy = useCallback(() => {
     if (!selectedItem) return;
-
     const success = buyItem(selectedItem.id);
     setFeedback({
       success,
       message: success ? `Куплено: ${selectedItem.name}! 🎉` : 'Недостаточно монет 😢',
     });
-  };
+  }, [selectedItem, buyItem]);
 
-  const handleCloseModal = () => {
+  const handleCloseModal = useCallback(() => {
     setSelectedItem(null);
     setFeedback(null);
-  };
-
-  const getOwnedQuantity = (itemId: string) => {
-    return inventory.find((i) => i.itemId === itemId)?.quantity || 0;
-  };
+  }, []);
 
   return (
     <View className="flex-1 bg-background">
       <ScrollView className="flex-1 px-4 pt-12">
         <Text className="text-3xl font-bold text-text mb-2">Магазин 🛍️</Text>
         <Text className="text-base text-gray-500 mb-4">
-          Баланс: <Text className="font-bold text-primary">{finances.coins} 🪙</Text>
+          Баланс: <Text className="font-bold text-primary">{coins} 🪙</Text>
         </Text>
 
         <ShopCategoryFilter
@@ -56,7 +65,7 @@ export function ShopPage() {
             <ShopItemCard
               key={item.id}
               item={item}
-              owned={getOwnedQuantity(item.id)}
+              owned={ownedMap[item.id] || 0}
               onPress={() => setSelectedItem(item)}
             />
           ))}
@@ -116,14 +125,14 @@ export function ShopPage() {
 
                 <View className="flex-row justify-between items-center mb-4">
                   <Text className="text-2xl font-bold text-primary">{selectedItem.price} 🪙</Text>
-                  <Text className="text-sm text-gray-500">У тебя: {finances.coins} 🪙</Text>
+                  <Text className="text-sm text-gray-500">У тебя: {coins} 🪙</Text>
                 </View>
 
                 {!feedback && (
                   <Button
                     title="Купить"
                     onPress={handleBuy}
-                    disabled={finances.coins < selectedItem.price}
+                    disabled={coins < selectedItem.price}
                     fullWidth
                   />
                 )}

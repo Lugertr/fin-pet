@@ -1,3 +1,12 @@
-import { ChatPage } from '@/pages/chat/ChatPage';
+import { Loading } from '@/shared/ui';
+import { lazy, Suspense } from 'react';
 
-export default ChatPage;
+const ChatPage = lazy(() => import('@/pages/chat/ChatPage').then((m) => ({ default: m.ChatPage })));
+
+export default function ChatRoute() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <ChatPage />
+    </Suspense>
+  );
+}

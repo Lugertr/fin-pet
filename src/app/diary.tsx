@@ -1,3 +1,14 @@
-import { DiaryPage } from '@/pages/diary/DiaryPage';
+import { Loading } from '@/shared/ui';
+import { lazy, Suspense } from 'react';
 
-export default DiaryPage;
+const DiaryPage = lazy(() =>
+  import('@/pages/diary/DiaryPage').then((m) => ({ default: m.DiaryPage }))
+);
+
+export default function DiaryRoute() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <DiaryPage />
+    </Suspense>
+  );
+}

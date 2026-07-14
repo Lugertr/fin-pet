@@ -4,16 +4,32 @@ import { mockAdventures } from '@/shared/config/mockData';
 import type { Adventure } from '@/shared/types';
 import { Button, Card } from '@/shared/ui';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 
 export function AdventuresPage() {
   const router = useRouter();
-  const { pet, activeAdventure, startAdventure, completeAdventure } = useGameStore();
+  const pet = useGameStore((s) => s.pet);
+  const activeAdventure = useGameStore((s) => s.activeAdventure);
+  const startAdventure = useGameStore((s) => s.startAdventure);
+  const completeAdventure = useGameStore((s) => s.completeAdventure);
 
   const [selectedAdventure, setSelectedAdventure] = useState<Adventure | null>(null);
   const [timeLeft, setTimeLeft] = useState<string>('');
   const [completedReward, setCompletedReward] = useState<number | null>(null);
+
+  const adventureReady = useMemo(
+    () => (activeAdventure ? isAdventureReady(activeAdventure.endsAt) : false),
+    [activeAdventure]
+  );
+
+  const currentAdventure = useMemo(
+    () =>
+      activeAdventure
+        ? mockAdventures.find((a) => a.id === activeAdventure.adventureId) || null
+        : null,
+    [activeAdventure]
+  );
 
   useEffect(() => {
     if (!activeAdventure) {
@@ -30,27 +46,16 @@ export function AdventuresPage() {
     return () => clearInterval(interval);
   }, [activeAdventure]);
 
-  const handleStart = () => {
+  const handleStart = useCallback(() => {
     if (!selectedAdventure || !pet) return;
-
     const success = startAdventure(selectedAdventure.id);
-    if (success) {
-      setSelectedAdventure(null);
-    }
-  };
+    if (success) setSelectedAdventure(null);
+  }, [selectedAdventure, pet, startAdventure]);
 
-  const handleComplete = () => {
+  const handleComplete = useCallback(() => {
     const reward = completeAdventure();
-    if (reward !== null) {
-      setCompletedReward(reward);
-    }
-  };
-
-  const adventureReady = activeAdventure ? isAdventureReady(activeAdventure.endsAt) : false;
-
-  const currentAdventure = activeAdventure
-    ? mockAdventures.find((a) => a.id === activeAdventure.adventureId)
-    : null;
+    if (reward !== null) setCompletedReward(reward);
+  }, [completeAdventure]);
 
   return (
     <View className="flex-1 bg-background">

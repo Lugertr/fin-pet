@@ -1,35 +1,32 @@
 import { useGameStore } from '@/app/providers/store';
 import { Card } from '@/shared/ui';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 export function DebugPage() {
   const router = useRouter();
-  const store = useGameStore();
-  const {
-    pet,
-    finances,
-    inventory,
-    dailyQuests,
-    achievements,
-    activeAdventure,
-    addCoins,
-    setCoins,
-    setPetLevel,
-    setPetHunger,
-    setPetHappiness,
-    setPetEnergy,
-    levelUpPet,
-    maxPetStats,
-    completeAllQuests,
-    unlockAllAchievements,
-    giveAllItems,
-    startRandomAdventure,
-    completeActiveAdventure,
-    removeActiveAdventure,
-    resetGame,
-  } = store;
+  const pet = useGameStore((s) => s.pet);
+  const finances = useGameStore((s) => s.finances);
+  const inventory = useGameStore((s) => s.inventory);
+  const dailyQuests = useGameStore((s) => s.dailyQuests);
+  const achievements = useGameStore((s) => s.achievements);
+  const activeAdventure = useGameStore((s) => s.activeAdventure);
+  const addCoins = useGameStore((s) => s.addCoins);
+  const setCoins = useGameStore((s) => s.setCoins);
+  const setPetLevel = useGameStore((s) => s.setPetLevel);
+  const setPetHunger = useGameStore((s) => s.setPetHunger);
+  const setPetHappiness = useGameStore((s) => s.setPetHappiness);
+  const setPetEnergy = useGameStore((s) => s.setPetEnergy);
+  const levelUpPet = useGameStore((s) => s.levelUpPet);
+  const maxPetStats = useGameStore((s) => s.maxPetStats);
+  const completeAllQuests = useGameStore((s) => s.completeAllQuests);
+  const unlockAllAchievements = useGameStore((s) => s.unlockAllAchievements);
+  const giveAllItems = useGameStore((s) => s.giveAllItems);
+  const startRandomAdventure = useGameStore((s) => s.startRandomAdventure);
+  const completeActiveAdventure = useGameStore((s) => s.completeActiveAdventure);
+  const removeActiveAdventure = useGameStore((s) => s.removeActiveAdventure);
+  const resetGame = useGameStore((s) => s.resetGame);
 
   const [coinsInput, setCoinsInput] = useState('');
   const [levelInput, setLevelInput] = useState('');
@@ -37,7 +34,7 @@ export function DebugPage() {
   const [happinessInput, setHappinessInput] = useState('');
   const [energyInput, setEnergyInput] = useState('');
 
-  const handleResetGame = () => {
+  const handleResetGame = useCallback(() => {
     Alert.alert('Warning', 'Delete all progress?', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -49,7 +46,47 @@ export function DebugPage() {
         },
       },
     ]);
-  };
+  }, [resetGame, router]);
+
+  const handleSetCoins = useCallback(() => {
+    const v = parseInt(coinsInput, 10);
+    if (!isNaN(v)) {
+      setCoins(v);
+      setCoinsInput('');
+    }
+  }, [coinsInput, setCoins]);
+
+  const handleSetLevel = useCallback(() => {
+    const v = parseInt(levelInput, 10);
+    if (!isNaN(v) && v > 0) {
+      setPetLevel(v);
+      setLevelInput('');
+    }
+  }, [levelInput, setPetLevel]);
+
+  const handleSetHunger = useCallback(() => {
+    const v = parseInt(hungerInput, 10);
+    if (!isNaN(v)) {
+      setPetHunger(v);
+      setHungerInput('');
+    }
+  }, [hungerInput, setPetHunger]);
+
+  const handleSetHappiness = useCallback(() => {
+    const v = parseInt(happinessInput, 10);
+    if (!isNaN(v)) {
+      setPetHappiness(v);
+      setHappinessInput('');
+    }
+  }, [happinessInput, setPetHappiness]);
+
+  const handleSetEnergy = useCallback(() => {
+    const v = parseInt(energyInput, 10);
+    if (!isNaN(v)) {
+      setPetEnergy(v);
+      setEnergyInput('');
+    }
+  }, [energyInput, setPetEnergy]);
 
   return (
     <ScrollView className="flex-1 bg-background">
@@ -88,16 +125,7 @@ export function DebugPage() {
               className="flex-1 bg-gray-100 rounded-lg px-3 py-2 text-sm text-text"
               placeholderTextColor="#999"
             />
-            <DevButton
-              label="Set"
-              onPress={() => {
-                const v = parseInt(coinsInput, 10);
-                if (!isNaN(v)) {
-                  setCoins(v);
-                  setCoinsInput('');
-                }
-              }}
-            />
+            <DevButton label="Set" onPress={handleSetCoins} />
           </View>
         </Card>
 
@@ -117,17 +145,7 @@ export function DebugPage() {
               className="flex-1 bg-gray-100 rounded-lg px-3 py-2 text-sm text-text"
               placeholderTextColor="#999"
             />
-            <DevButton
-              label="Set"
-              onPress={() => {
-                const v = parseInt(levelInput, 10);
-                if (!isNaN(v) && v > 0) {
-                  setPetLevel(v);
-                  setLevelInput('');
-                }
-              }}
-              disabled={!pet}
-            />
+            <DevButton label="Set" onPress={handleSetLevel} disabled={!pet} />
           </View>
           <Text className="text-sm text-gray-500 mb-2">Hunger (0-100):</Text>
           <View className="flex-row gap-2 mb-3">
@@ -139,17 +157,7 @@ export function DebugPage() {
               className="flex-1 bg-gray-100 rounded-lg px-3 py-2 text-sm text-text"
               placeholderTextColor="#999"
             />
-            <DevButton
-              label="Set"
-              onPress={() => {
-                const v = parseInt(hungerInput, 10);
-                if (!isNaN(v)) {
-                  setPetHunger(v);
-                  setHungerInput('');
-                }
-              }}
-              disabled={!pet}
-            />
+            <DevButton label="Set" onPress={handleSetHunger} disabled={!pet} />
           </View>
           <Text className="text-sm text-gray-500 mb-2">Happiness (0-100):</Text>
           <View className="flex-row gap-2 mb-3">
@@ -161,17 +169,7 @@ export function DebugPage() {
               className="flex-1 bg-gray-100 rounded-lg px-3 py-2 text-sm text-text"
               placeholderTextColor="#999"
             />
-            <DevButton
-              label="Set"
-              onPress={() => {
-                const v = parseInt(happinessInput, 10);
-                if (!isNaN(v)) {
-                  setPetHappiness(v);
-                  setHappinessInput('');
-                }
-              }}
-              disabled={!pet}
-            />
+            <DevButton label="Set" onPress={handleSetHappiness} disabled={!pet} />
           </View>
           <Text className="text-sm text-gray-500 mb-2">Energy (0-100):</Text>
           <View className="flex-row gap-2">
@@ -183,17 +181,7 @@ export function DebugPage() {
               className="flex-1 bg-gray-100 rounded-lg px-3 py-2 text-sm text-text"
               placeholderTextColor="#999"
             />
-            <DevButton
-              label="Set"
-              onPress={() => {
-                const v = parseInt(energyInput, 10);
-                if (!isNaN(v)) {
-                  setPetEnergy(v);
-                  setEnergyInput('');
-                }
-              }}
-              disabled={!pet}
-            />
+            <DevButton label="Set" onPress={handleSetEnergy} disabled={!pet} />
           </View>
         </Card>
 

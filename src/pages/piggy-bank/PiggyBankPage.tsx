@@ -1,14 +1,20 @@
 import { useGameStore } from '@/app/providers/store';
 import { Card } from '@/shared/ui';
 import { DEFAULT_PIGGY_BANK_GOAL } from '@/entities/piggy-bank';
+import { useMemo } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 export function PiggyBankPage() {
-  const { finances, piggyBank, saveCoins, withdrawSavings } = useGameStore();
+  const coins = useGameStore((s) => s.finances.coins);
+  const piggyBank = useGameStore((s) => s.piggyBank);
+  const saveCoins = useGameStore((s) => s.saveCoins);
+  const withdrawSavings = useGameStore((s) => s.withdrawSavings);
 
-  const progress = piggyBank.goal
-    ? Math.min(100, (piggyBank.balance / piggyBank.goal.targetAmount) * 100)
-    : 0;
+  const progress = useMemo(
+    () =>
+      piggyBank.goal ? Math.min(100, (piggyBank.balance / piggyBank.goal.targetAmount) * 100) : 0,
+    [piggyBank.goal, piggyBank.balance]
+  );
 
   return (
     <ScrollView className="flex-1 bg-background">
@@ -37,7 +43,7 @@ export function PiggyBankPage() {
         <Card className="mb-4">
           <View className="flex-row justify-between items-center mb-4">
             <Text className="text-base font-semibold text-text">Доступно для вклада</Text>
-            <Text className="text-lg font-bold text-primary">{finances.coins} 🪙</Text>
+            <Text className="text-lg font-bold text-primary">{coins} 🪙</Text>
           </View>
 
           <Text className="text-sm font-semibold text-text mb-2">Отложить:</Text>
@@ -46,14 +52,14 @@ export function PiggyBankPage() {
               <Pressable
                 key={amount}
                 onPress={() => saveCoins(amount)}
-                disabled={finances.coins < amount}
+                disabled={coins < amount}
                 className={`flex-1 py-3 rounded-xl ${
-                  finances.coins >= amount ? 'bg-secondary' : 'bg-gray-200'
+                  coins >= amount ? 'bg-secondary' : 'bg-gray-200'
                 } active:opacity-80`}
               >
                 <Text
                   className={`text-center font-semibold ${
-                    finances.coins >= amount ? 'text-white' : 'text-gray-400'
+                    coins >= amount ? 'text-white' : 'text-gray-400'
                   }`}
                 >
                   {amount}

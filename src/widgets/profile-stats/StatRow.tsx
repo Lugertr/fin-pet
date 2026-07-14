@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Text, View } from 'react-native';
 
 export interface StatRowProps {
@@ -6,7 +7,7 @@ export interface StatRowProps {
   value: string | number;
 }
 
-export function StatRow({ icon, label, value }: StatRowProps) {
+export const StatRow = memo(function StatRow({ icon, label, value }: StatRowProps) {
   return (
     <View className="flex-row justify-between items-center">
       <View className="flex-row items-center">
@@ -16,4 +17,4 @@ export function StatRow({ icon, label, value }: StatRowProps) {
       <Text className="text-sm font-bold text-text">{value}</Text>
     </View>
   );
-}
+});

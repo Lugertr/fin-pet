@@ -3,11 +3,22 @@ import { Badge, Card, ProgressBar } from '@/shared/ui';
 import { PetDisplay } from '@/widgets/pet-display';
 import { AchievementCard, StatRow } from '@/widgets/profile-stats';
 import { useRouter } from 'expo-router';
+import { useMemo } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 export function ProfilePage() {
   const router = useRouter();
-  const { pet, stats, achievements, finances } = useGameStore();
+  const pet = useGameStore((s) => s.pet);
+  const stats = useGameStore((s) => s.stats);
+  const achievements = useGameStore((s) => s.achievements);
+  const totalEarned = useGameStore((s) => s.finances.totalEarned);
+
+  const unlockedAchievements = useMemo(
+    () => achievements.filter((a) => a.unlocked),
+    [achievements]
+  );
+  const lockedAchievements = useMemo(() => achievements.filter((a) => !a.unlocked), [achievements]);
+  const experienceProgress = useMemo(() => (pet ? (pet.experience / 100) * 100 : 0), [pet]);
 
   if (!pet) {
     return (
@@ -16,10 +27,6 @@ export function ProfilePage() {
       </View>
     );
   }
-
-  const unlockedAchievements = achievements.filter((a) => a.unlocked);
-  const lockedAchievements = achievements.filter((a) => !a.unlocked);
-  const experienceProgress = (pet.experience / 100) * 100;
 
   return (
     <ScrollView className="flex-1 bg-background">
@@ -47,7 +54,7 @@ export function ProfilePage() {
 
         <View className="flex-row flex-wrap gap-2 mb-4">
           <Badge icon="🔥" value={stats.currentStreak} variant="streak" />
-          <Badge icon="💰" value={finances.totalEarned} variant="coins" />
+          <Badge icon="💰" value={totalEarned} variant="coins" />
           <Badge icon="📚" value={stats.totalQuestsCompleted} variant="level" />
           <Badge icon="🛍️" value={stats.totalItemsBought} variant="savings" />
         </View>

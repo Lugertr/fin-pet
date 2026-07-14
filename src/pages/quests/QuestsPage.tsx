@@ -2,18 +2,26 @@ import { useGameStore } from '@/app/providers/store';
 import type { Quest } from '@/shared/types';
 import { Button, Card } from '@/shared/ui';
 import { QuestCard } from '@/widgets/quest-list';
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 export function QuestsPage() {
-  const { dailyQuests, completeQuest, finances } = useGameStore();
+  const dailyQuests = useGameStore((s) => s.dailyQuests);
+  const completeQuest = useGameStore((s) => s.completeQuest);
+  const coins = useGameStore((s) => s.finances.coins);
+
   const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
   const [answer, setAnswer] = useState('');
   const [feedback, setFeedback] = useState<{ correct: boolean; message: string } | null>(null);
 
-  const handleSubmit = () => {
-    if (!selectedQuest || !answer.trim()) return;
+  const completedCount = useMemo(
+    () => dailyQuests.filter((q) => q.completed).length,
+    [dailyQuests]
+  );
+  const allCompleted = completedCount === dailyQuests.length;
 
+  const handleSubmit = useCallback(() => {
+    if (!selectedQuest || !answer.trim()) return;
     const isCorrect = completeQuest(selectedQuest.id, answer.trim());
     setFeedback({
       correct: isCorrect,
@@ -21,16 +29,13 @@ export function QuestsPage() {
         ? `Правильно! +${selectedQuest.reward} монет 🎉`
         : `Не совсем... Правильный ответ: ${selectedQuest.correctAnswer || 'посмотри подсказку'}`,
     });
-  };
+  }, [selectedQuest, answer, completeQuest]);
 
-  const handleCloseModal = () => {
+  const handleCloseModal = useCallback(() => {
     setSelectedQuest(null);
     setAnswer('');
     setFeedback(null);
-  };
-
-  const completedCount = dailyQuests.filter((q) => q.completed).length;
-  const allCompleted = completedCount === dailyQuests.length;
+  }, []);
 
   return (
     <View className="flex-1 bg-background">
@@ -63,7 +68,7 @@ export function QuestsPage() {
 
         <Card className="mt-6">
           <Text className="text-sm text-gray-500">
-            💡 Баланс: <Text className="font-bold text-primary">{finances.coins} 🪙</Text>
+            💡 Баланс: <Text className="font-bold text-primary">{coins} 🪙</Text>
           </Text>
         </Card>
       </ScrollView>

@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Text, View } from 'react-native';
 
 export interface AchievementCardProps {
@@ -10,7 +11,10 @@ export interface AchievementCardProps {
   unlocked: boolean;
 }
 
-export function AchievementCard({ achievement, unlocked }: AchievementCardProps) {
+export const AchievementCard = memo(function AchievementCard({
+  achievement,
+  unlocked,
+}: AchievementCardProps) {
   return (
     <View
       className={`w-20 items-center p-2 rounded-xl ${unlocked ? 'bg-yellow-50' : 'bg-gray-100'}`}
@@ -26,4 +30,4 @@ export function AchievementCard({ achievement, unlocked }: AchievementCardProps)
       </Text>
     </View>
   );
-}
+});

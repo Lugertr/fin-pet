@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 export interface QuickActionProps {
@@ -8,7 +9,13 @@ export interface QuickActionProps {
   disabled?: boolean;
 }
 
-export function QuickAction({ icon, title, subtitle, onPress, disabled }: QuickActionProps) {
+export const QuickAction = memo(function QuickAction({
+  icon,
+  title,
+  subtitle,
+  onPress,
+  disabled,
+}: QuickActionProps) {
   return (
     <Pressable
       onPress={onPress}
@@ -25,4 +32,4 @@ export function QuickAction({ icon, title, subtitle, onPress, disabled }: QuickA
       <Text className="text-gray-400">→</Text>
     </Pressable>
   );
-}
+});

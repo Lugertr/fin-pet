@@ -1,6 +1,6 @@
 import type { Pet, PetMood } from '@/shared/types';
 import { ProgressBar } from '@/shared/ui';
-import { useEffect, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 import { Animated, Easing, Pressable, Text, View } from 'react-native';
 
 interface PetDisplayProps {
@@ -39,13 +39,15 @@ const sizeMap = {
   lg: { container: 280, emoji: 'text-9xl', mood: 'text-5xl' },
 };
 
-export function PetDisplay({ pet, size = 'md', onTap }: PetDisplayProps) {
+export const PetDisplay = memo(function PetDisplay({ pet, size = 'md', onTap }: PetDisplayProps) {
   const breatheAnim = useRef(new Animated.Value(0)).current;
-  const mood = getPetMood(pet);
-  const sizeConfig = sizeMap[size];
 
-  const stageEmojis = petEmojis[pet.type] || petEmojis.cat;
-  const petEmoji = stageEmojis[pet.stage - 1] || '🥚';
+  const mood = useMemo(() => getPetMood(pet), [pet.hunger, pet.happiness, pet.energy]);
+  const sizeConfig = useMemo(() => sizeMap[size], [size]);
+  const petEmoji = useMemo(() => {
+    const stageEmojis = petEmojis[pet.type] || petEmojis.cat;
+    return stageEmojis[pet.stage - 1] || '🥚';
+  }, [pet.type, pet.stage]);
 
   useEffect(() => {
     const animation = Animated.loop(
@@ -101,4 +103,4 @@ export function PetDisplay({ pet, size = 'md', onTap }: PetDisplayProps) {
       )}
     </View>
   );
-}
+});
