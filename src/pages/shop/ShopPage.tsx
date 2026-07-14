@@ -1,17 +1,11 @@
 import { useGameStore } from '@/app/providers/store';
+import { SHOP_CATEGORIES } from '@/entities/shop-item';
 import { mockShopItems } from '@/shared/config/mockData';
 import type { ShopCategory, ShopItem } from '@/shared/types';
 import { Button, Card } from '@/shared/ui';
+import { ShopCategoryFilter, ShopItemCard } from '@/widgets/shop-grid';
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
-
-const categories: { id: ShopCategory | 'all'; label: string; emoji: string }[] = [
-  { id: 'all', label: 'Всё', emoji: '🛍️' },
-  { id: 'food', label: 'Еда', emoji: '🍎' },
-  { id: 'toy', label: 'Игрушки', emoji: '🎾' },
-  { id: 'accessory', label: 'Аксессуары', emoji: '🎩' },
-  { id: 'investment', label: 'Инвестиции', emoji: '📈' },
-];
 
 export function ShopPage() {
   const { finances, buyItem, inventory } = useGameStore();
@@ -51,31 +45,12 @@ export function ShopPage() {
           Баланс: <Text className="font-bold text-primary">{finances.coins} 🪙</Text>
         </Text>
 
-        {/* Категории */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4 -mx-4 px-4">
-          <View className="flex-row gap-2">
-            {categories.map((cat) => {
-              const isActive = selectedCategory === cat.id;
-              return (
-                <Pressable
-                  key={cat.id}
-                  onPress={() => setSelectedCategory(cat.id)}
-                  className={`px-4 py-2 rounded-full ${
-                    isActive ? 'bg-primary' : 'bg-white'
-                  } active:opacity-80`}
-                >
-                  <Text
-                    className={`text-sm font-semibold ${isActive ? 'text-white' : 'text-text'}`}
-                  >
-                    {cat.emoji} {cat.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </ScrollView>
+        <ShopCategoryFilter
+          categories={SHOP_CATEGORIES}
+          selected={selectedCategory}
+          onSelect={setSelectedCategory}
+        />
 
-        {/* Товары */}
         <View className="flex-row flex-wrap gap-3">
           {filteredItems.map((item) => (
             <ShopItemCard
@@ -88,7 +63,6 @@ export function ShopPage() {
         </View>
       </ScrollView>
 
-      {/* Модальное окно товара */}
       <Modal
         visible={!!selectedItem}
         animationType="slide"
@@ -156,7 +130,7 @@ export function ShopPage() {
                 {feedback && (
                   <Button
                     title={feedback.success ? 'Отлично!' : 'Закрыть'}
-                    onPress={feedback.success ? handleCloseModal : handleCloseModal}
+                    onPress={handleCloseModal}
                     fullWidth
                   />
                 )}
@@ -166,28 +140,5 @@ export function ShopPage() {
         </View>
       </Modal>
     </View>
-  );
-}
-
-interface ShopItemCardProps {
-  item: ShopItem;
-  owned: number;
-  onPress: () => void;
-}
-
-function ShopItemCard({ item, owned, onPress }: ShopItemCardProps) {
-  return (
-    <Pressable onPress={onPress} className="bg-white rounded-2xl p-3 w-[47%] active:opacity-80">
-      <Text className="text-5xl text-center mb-2">{item.image}</Text>
-      <Text className="text-sm font-semibold text-text text-center" numberOfLines={1}>
-        {item.name}
-      </Text>
-      <Text className="text-xs text-primary font-bold text-center mt-1">{item.price} 🪙</Text>
-      {owned > 0 && (
-        <View className="absolute top-2 right-2 bg-primary rounded-full w-6 h-6 items-center justify-center">
-          <Text className="text-white text-xs font-bold">{owned}</Text>
-        </View>
-      )}
-    </Pressable>
   );
 }

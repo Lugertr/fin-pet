@@ -1,38 +1,15 @@
 import { useGameStore } from '@/app/providers/store';
+import { getMockResponse } from '@/features/chat-with-llm';
 import { useEffect, useRef, useState } from 'react';
 import {
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    ScrollView,
-    Text,
-    TextInput,
-    View,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
-
-// Мок-ответы LLM (позже заменим на реальный API)
-const mockResponses: Record<string, string> = {
-  инфляция:
-    'Инфляция — это когда деньги со временем покупают меньше вещей. Представь: шоколадка стоила 50₽, а теперь стоит 60₽. Вот это и есть инфляция! 🍫',
-  копить:
-    'Копить — это откладывать часть денег на будущее. Как белка запасает орешки на зиму 🐿️. Чем больше отложишь сейчас, тем больше будет потом!',
-  бюджет:
-    'Бюджет — это план, как тратить деньги. Раздели свои монеты на 3 части: нужное (еда), желаемое (игрушки) и сбережения (копилка) 💰',
-  инвестиции:
-    'Инвестиции — это когда ты даёшь свои деньги в дело, чтобы они приносили ещё больше денег. Как посадить семечко 🌱 — оно вырастает и даёт плоды!',
-  default:
-    'Интересный вопрос! Давай разберёмся вместе. Расскажи подробнее, что именно тебя интересует? 💭',
-};
-
-function getMockResponse(message: string): string {
-  const lowerMessage = message.toLowerCase();
-  for (const [keyword, response] of Object.entries(mockResponses)) {
-    if (keyword !== 'default' && lowerMessage.includes(keyword)) {
-      return response;
-    }
-  }
-  return mockResponses.default;
-}
 
 export function ChatPage() {
   const { chatMessages, addChatMessage, pet, finances } = useGameStore();
@@ -54,7 +31,6 @@ export function ChatPage() {
     setInput('');
     setIsTyping(true);
 
-    // Имитация задержки ответа
     setTimeout(() => {
       const response = getMockResponse(userMessage);
       addChatMessage('assistant', response);
@@ -97,7 +73,10 @@ export function ChatPage() {
         )}
 
         {chatMessages.map((message) => (
-          <View key={message.id} className={`mb-3 ${message.isUser ? 'items-end' : 'items-start'}`}>
+          <View
+            key={message.id}
+            className={`mb-3 ${message.role === 'user' ? 'items-end' : 'items-start'}`}
+          >
             <View
               className={`max-w-[80%] px-4 py-3 rounded-2xl ${
                 message.role === 'user'

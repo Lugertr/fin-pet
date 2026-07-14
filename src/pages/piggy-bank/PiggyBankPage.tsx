@@ -1,5 +1,6 @@
 import { useGameStore } from '@/app/providers/store';
 import { Card } from '@/shared/ui';
+import { DEFAULT_PIGGY_BANK_GOAL } from '@/entities/piggy-bank';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 export function PiggyBankPage() {
@@ -14,7 +15,6 @@ export function PiggyBankPage() {
       <View className="px-4 pt-12 pb-4">
         <Text className="text-3xl font-bold text-text mb-6">Копилка 💰</Text>
 
-        {/* Основная копилка */}
         <Card className="mb-4 items-center">
           <Text className="text-7xl mb-4">🐷</Text>
           <Text className="text-sm text-gray-500 mb-1">Накоплено</Text>
@@ -26,13 +26,14 @@ export function PiggyBankPage() {
           <View className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
             <View
               className="h-full bg-secondary rounded-full"
-              style={{ width: `${Math.min(100, (piggyBank.balance / 1000) * 100)}%` }}
+              style={{
+                width: `${Math.min(100, (piggyBank.balance / DEFAULT_PIGGY_BANK_GOAL) * 100)}%`,
+              }}
             />
           </View>
-          <Text className="text-xs text-gray-500 mt-2">Цель: 1000 монет</Text>
+          <Text className="text-xs text-gray-500 mt-2">Цель: {DEFAULT_PIGGY_BANK_GOAL} монет</Text>
         </Card>
 
-        {/* Доступно */}
         <Card className="mb-4">
           <View className="flex-row justify-between items-center mb-4">
             <Text className="text-base font-semibold text-text">Доступно для вклада</Text>
@@ -84,7 +85,6 @@ export function PiggyBankPage() {
           </View>
         </Card>
 
-        {/* Совет */}
         <Card className="bg-yellow-50 border-2 border-yellow-200">
           <Text className="text-sm text-yellow-800">
             💡 <Text className="font-bold">Совет:</Text> Если откладывать по 10 монет каждый день,

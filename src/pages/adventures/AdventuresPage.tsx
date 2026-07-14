@@ -1,4 +1,5 @@
 import { useGameStore } from '@/app/providers/store';
+import { formatAdventureTime, isAdventureReady } from '@/entities/adventure';
 import { mockAdventures } from '@/shared/config/mockData';
 import type { Adventure } from '@/shared/types';
 import { Button, Card } from '@/shared/ui';
@@ -21,20 +22,7 @@ export function AdventuresPage() {
     }
 
     const updateTimer = () => {
-      const now = new Date();
-      const endsAt = new Date(activeAdventure.endsAt);
-      const diff = endsAt.getTime() - now.getTime();
-
-      if (diff <= 0) {
-        setTimeLeft('Готово!');
-        return;
-      }
-
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-      setTimeLeft(hours > 0 ? `${hours}ч ${minutes}м` : `${minutes}м ${seconds}с`);
+      setTimeLeft(formatAdventureTime(activeAdventure.endsAt));
     };
 
     updateTimer();
@@ -58,7 +46,7 @@ export function AdventuresPage() {
     }
   };
 
-  const isAdventureReady = activeAdventure && new Date() >= new Date(activeAdventure.endsAt);
+  const adventureReady = activeAdventure ? isAdventureReady(activeAdventure.endsAt) : false;
 
   const currentAdventure = activeAdventure
     ? mockAdventures.find((a) => a.id === activeAdventure.adventureId)
@@ -85,12 +73,12 @@ export function AdventuresPage() {
               <View className="flex-1">
                 <Text className="text-lg font-bold text-text">{currentAdventure.name}</Text>
                 <Text className="text-sm text-gray-500">
-                  {isAdventureReady ? 'Питомец вернулся!' : 'В пути...'}
+                  {adventureReady ? 'Питомец вернулся!' : 'В пути...'}
                 </Text>
               </View>
             </View>
 
-            {!isAdventureReady ? (
+            {!adventureReady ? (
               <View className="bg-white/70 rounded-xl p-3">
                 <Text className="text-sm text-gray-500 mb-1">Осталось:</Text>
                 <Text className="text-2xl font-bold text-purple-600">{timeLeft}</Text>

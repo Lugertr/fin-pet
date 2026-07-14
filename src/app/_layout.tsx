@@ -4,14 +4,14 @@ import {
   scheduleDailyQuestReminder,
   scheduleMotivationReminder,
 } from '@/shared/lib/notifications';
-import { RewardAnimation } from '@/shared/ui';
+import { RewardAnimation } from '@/widgets/reward-animation';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import './styles/global.css';
 
 export default function RootLayout() {
-  const { pet, settings } = useGameStore();
+  const { pet, settings, lastRewardAnimation, clearRewardAnimation } = useGameStore();
 
   useEffect(() => {
     if (!pet) return;
@@ -47,7 +47,7 @@ export default function RootLayout() {
         <Stack.Screen name="diary" />
         <Stack.Screen name="adventures" />
       </Stack>
-      <RewardAnimation />
+      <RewardAnimation animation={lastRewardAnimation} onClear={clearRewardAnimation} />
     </>
   );
 }

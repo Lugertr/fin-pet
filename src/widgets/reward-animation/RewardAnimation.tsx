@@ -1,22 +1,24 @@
-import { useGameStore } from '@/app/providers/store';
+import type { RewardAnimation as RewardAnimationType } from '@/shared/types';
 import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 
-export function RewardAnimation() {
-  const { lastRewardAnimation, clearRewardAnimation } = useGameStore();
+export interface RewardAnimationProps {
+  animation: RewardAnimationType | null;
+  onClear: () => void;
+}
+
+export function RewardAnimation({ animation, onClear }: RewardAnimationProps) {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const translateYAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (!lastRewardAnimation) return;
+    if (!animation) return;
 
-    // Сброс значений
     scaleAnim.setValue(0);
     translateYAnim.setValue(0);
     opacityAnim.setValue(0);
 
-    // Анимация появления и подъёма
     Animated.parallel([
       Animated.sequence([
         Animated.timing(scaleAnim, {
@@ -49,20 +51,20 @@ export function RewardAnimation() {
         }),
       ]),
     ]).start(() => {
-      clearRewardAnimation();
+      onClear();
     });
-  }, [lastRewardAnimation]);
+  }, [animation]);
 
-  if (!lastRewardAnimation) return null;
+  if (!animation) return null;
 
   const getContent = () => {
-    switch (lastRewardAnimation.type) {
+    switch (animation.type) {
       case 'coins':
-        return { emoji: '🪙', text: `+${lastRewardAnimation.value}` };
+        return { emoji: '🪙', text: `+${animation.value}` };
       case 'achievement':
-        return { emoji: '🏆', text: String(lastRewardAnimation.value) };
+        return { emoji: '🏆', text: String(animation.value) };
       case 'level_up':
-        return { emoji: '⭐', text: `Уровень ${lastRewardAnimation.value}!` };
+        return { emoji: '⭐', text: `Уровень ${animation.value}!` };
       default:
         return { emoji: '✨', text: '' };
     }

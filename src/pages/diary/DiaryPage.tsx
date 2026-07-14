@@ -1,4 +1,13 @@
 import { useGameStore } from '@/app/providers/store';
+import {
+  TRANSACTION_FILTERS,
+  TRANSACTION_TYPE_INFO,
+  filterTransactions,
+  groupTransactionsByDate,
+  calculateTransactionSummary,
+  formatDate,
+  formatTime,
+} from '@/entities/transaction';
 import type { Transaction } from '@/shared/types';
 import { Card } from '@/shared/ui';
 import { useRouter } from 'expo-router';
@@ -7,84 +16,22 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 
 type FilterType = 'all' | Transaction['type'];
 
-const filters: { id: FilterType; label: string; emoji: string }[] = [
-  { id: 'all', label: 'Все', emoji: '📋' },
-  { id: 'earn', label: 'Доходы', emoji: '💰' },
-  { id: 'spend', label: 'Траты', emoji: '💸' },
-  { id: 'save', label: 'Вклад', emoji: '🏦' },
-  { id: 'withdraw', label: 'Снятие', emoji: '💵' },
-  { id: 'reward', label: 'Награды', emoji: '🎁' },
-];
-
 export function DiaryPage() {
   const router = useRouter();
   const { transactions } = useGameStore();
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
 
   const filteredTransactions = useMemo(() => {
-    const filtered =
-      activeFilter === 'all' ? transactions : transactions.filter((t) => t.type === activeFilter);
-
-    return [...filtered].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return filterTransactions(transactions, activeFilter);
   }, [transactions, activeFilter]);
 
   const groupedByDate = useMemo(() => {
-    const groups: Record<string, Transaction[]> = {};
-    filteredTransactions.forEach((tx) => {
-      const dateKey = tx.date.split('T')[0];
-      if (!groups[dateKey]) groups[dateKey] = [];
-      groups[dateKey].push(tx);
-    });
-    return groups;
+    return groupTransactionsByDate(filteredTransactions);
   }, [filteredTransactions]);
 
   const summary = useMemo(() => {
-    const earned = transactions
-      .filter((t) => t.type === 'earn' || t.type === 'reward')
-      .reduce((sum, t) => sum + t.amount, 0);
-    const spent = transactions
-      .filter((t) => t.type === 'spend')
-      .reduce((sum, t) => sum + t.amount, 0);
-    const saved = transactions
-      .filter((t) => t.type === 'save')
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    return { earned, spent, saved };
+    return calculateTransactionSummary(transactions);
   }, [transactions]);
-
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    if (date.toDateString() === today.toDateString()) return 'Сегодня';
-    if (date.toDateString() === yesterday.toDateString()) return 'Вчера';
-
-    return date.toLocaleDateString('ru-RU', {
-      day: 'numeric',
-      month: 'long',
-    });
-  };
-
-  const formatTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleTimeString('ru-RU', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const getTypeInfo = (type: Transaction['type']) => {
-    const map: Record<Transaction['type'], { emoji: string; color: string; sign: string }> = {
-      earn: { emoji: '💰', color: 'text-green-600', sign: '+' },
-      spend: { emoji: '💸', color: 'text-red-600', sign: '-' },
-      save: { emoji: '🏦', color: 'text-blue-600', sign: '-' },
-      withdraw: { emoji: '💵', color: 'text-purple-600', sign: '+' },
-      interest: { emoji: '📈', color: 'text-green-600', sign: '+' },
-      reward: { emoji: '🎁', color: 'text-yellow-600', sign: '+' },
-    };
-    return map[type];
-  };
 
   return (
     <View className="flex-1 bg-background">
@@ -96,7 +43,6 @@ export function DiaryPage() {
           <Text className="text-2xl font-bold text-text">Дневник трат</Text>
         </View>
 
-        {/* Сводка */}
         <View className="flex-row gap-2 mb-4">
           <Card className="flex-1 bg-green-50">
             <Text className="text-xs text-gray-500">Заработано</Text>
@@ -112,10 +58,9 @@ export function DiaryPage() {
           </Card>
         </View>
 
-        {/* Фильтры */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-4 px-4 mb-2">
           <View className="flex-row gap-2">
-            {filters.map((filter) => {
+            {TRANSACTION_FILTERS.map((filter) => {
               const isActive = activeFilter === filter.id;
               return (
                 <Pressable
@@ -151,7 +96,7 @@ export function DiaryPage() {
               </Text>
               <Card>
                 {txs.map((tx, idx) => {
-                  const info = getTypeInfo(tx.type);
+                  const info = TRANSACTION_TYPE_INFO[tx.type];
                   return (
                     <View
                       key={tx.id}

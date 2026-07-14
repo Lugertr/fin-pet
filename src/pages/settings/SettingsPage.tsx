@@ -1,5 +1,6 @@
 import { useGameStore } from '@/app/providers/store';
-import { Button, Card } from '@/shared/ui';
+import { validatePin } from '@/entities/settings';
+import { Button, Card, ToggleRow } from '@/shared/ui';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
@@ -25,12 +26,9 @@ export function SettingsPage() {
   };
 
   const handlePinSubmit = () => {
-    if (pinInput.length !== 4) {
-      setPinError('PIN должен содержать 4 цифры');
-      return;
-    }
-    if (!/^\d{4}$/.test(pinInput)) {
-      setPinError('PIN должен содержать только цифры');
+    const validation = validatePin(pinInput);
+    if (!validation.valid) {
+      setPinError(validation.error!);
       return;
     }
 
@@ -68,7 +66,6 @@ export function SettingsPage() {
   return (
     <ScrollView className="flex-1 bg-background">
       <View className="px-4 pt-12 pb-8">
-        {/* Шапка */}
         <View className="flex-row items-center mb-6">
           <Pressable onPress={() => router.back()} className="p-2 mr-2">
             <Text className="text-2xl">←</Text>
@@ -76,7 +73,6 @@ export function SettingsPage() {
           <Text className="text-2xl font-bold text-text">Настройки</Text>
         </View>
 
-        {/* Уведомления */}
         <Card className="mb-4">
           <Text className="text-lg font-bold text-text mb-3">🔔 Уведомления</Text>
           <ToggleRow
@@ -108,7 +104,6 @@ export function SettingsPage() {
           />
         </Card>
 
-        {/* Звук */}
         <Card className="mb-4">
           <ToggleRow
             label="🔊 Звуковые эффекты"
@@ -117,7 +112,6 @@ export function SettingsPage() {
           />
         </Card>
 
-        {/* Родительский режим */}
         <Card className="mb-4">
           <Text className="text-lg font-bold text-text mb-3">🔒 Родительский режим</Text>
           <Text className="text-sm text-gray-500 mb-3">
@@ -143,7 +137,6 @@ export function SettingsPage() {
           )}
         </Card>
 
-        {/* Опасная зона */}
         <Card className="mb-4 border-2 border-red-200">
           <Text className="text-lg font-bold text-red-600 mb-2">⚠️ Опасная зона</Text>
           <Text className="text-sm text-gray-500 mb-3">
@@ -157,7 +150,6 @@ export function SettingsPage() {
           </Pressable>
         </Card>
 
-        {/* О приложении */}
         <Card>
           <Text className="text-lg font-bold text-text mb-2">ℹ️ О приложении</Text>
           <Text className="text-sm text-gray-500">Версия: 1.0.0</Text>
@@ -168,7 +160,6 @@ export function SettingsPage() {
         </Card>
       </View>
 
-      {/* Модалка ввода PIN */}
       <Modal
         visible={showPinModal}
         transparent
@@ -223,7 +214,6 @@ export function SettingsPage() {
         </View>
       </Modal>
 
-      {/* Модалка подтверждения сброса */}
       <Modal
         visible={showResetConfirm}
         transparent
@@ -254,29 +244,5 @@ export function SettingsPage() {
         </View>
       </Modal>
     </ScrollView>
-  );
-}
-
-interface ToggleRowProps {
-  label: string;
-  value: boolean;
-  onChange: (value: boolean) => void;
-}
-
-function ToggleRow({ label, value, onChange }: ToggleRowProps) {
-  return (
-    <Pressable
-      onPress={() => onChange(!value)}
-      className="flex-row justify-between items-center py-3 border-b border-gray-100 last:border-b-0"
-    >
-      <Text className="text-base text-text flex-1">{label}</Text>
-      <View
-        className={`w-12 h-7 rounded-full justify-center px-1 ${
-          value ? 'bg-primary' : 'bg-gray-300'
-        }`}
-      >
-        <View className={`w-5 h-5 bg-white rounded-full ${value ? 'self-end' : 'self-start'}`} />
-      </View>
-    </Pressable>
   );
 }

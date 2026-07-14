@@ -1,6 +1,7 @@
 import { useGameStore } from '@/app/providers/store';
 import { Badge, Card, ProgressBar } from '@/shared/ui';
 import { PetDisplay } from '@/widgets/pet-display';
+import { AchievementCard, StatRow } from '@/widgets/profile-stats';
 import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
@@ -23,7 +24,6 @@ export function ProfilePage() {
   return (
     <ScrollView className="flex-1 bg-background">
       <View className="px-4 pt-12 pb-8">
-        {/* Шапка */}
         <View className="flex-row justify-between items-center mb-6">
           <Pressable onPress={() => router.back()} className="p-2">
             <Text className="text-2xl">←</Text>
@@ -34,7 +34,6 @@ export function ProfilePage() {
           </Pressable>
         </View>
 
-        {/* Питомец */}
         <Card className="mb-4 items-center">
           <PetDisplay pet={pet} size="md" />
           <View className="w-full mt-4">
@@ -46,7 +45,6 @@ export function ProfilePage() {
           </View>
         </Card>
 
-        {/* Бейджи */}
         <View className="flex-row flex-wrap gap-2 mb-4">
           <Badge icon="🔥" value={stats.currentStreak} variant="streak" />
           <Badge icon="💰" value={finances.totalEarned} variant="coins" />
@@ -54,7 +52,6 @@ export function ProfilePage() {
           <Badge icon="🛍️" value={stats.totalItemsBought} variant="savings" />
         </View>
 
-        {/* Статистика */}
         <Card className="mb-4">
           <Text className="text-lg font-bold text-text mb-3">📊 Статистика</Text>
           <View className="gap-3">
@@ -67,7 +64,6 @@ export function ProfilePage() {
           </View>
         </Card>
 
-        {/* Достижения */}
         <Card className="mb-4">
           <View className="flex-row justify-between items-center mb-3">
             <Text className="text-lg font-bold text-text">🏆 Достижения</Text>
@@ -103,7 +99,6 @@ export function ProfilePage() {
           )}
         </Card>
 
-        {/* Кнопки */}
         <View className="gap-2">
           <Pressable
             onPress={() => router.push('/diary')}
@@ -119,51 +114,5 @@ export function ProfilePage() {
         </View>
       </View>
     </ScrollView>
-  );
-}
-
-interface StatRowProps {
-  icon: string;
-  label: string;
-  value: string | number;
-}
-
-function StatRow({ icon, label, value }: StatRowProps) {
-  return (
-    <View className="flex-row justify-between items-center">
-      <View className="flex-row items-center">
-        <Text className="text-lg mr-2">{icon}</Text>
-        <Text className="text-sm text-text">{label}</Text>
-      </View>
-      <Text className="text-sm font-bold text-text">{value}</Text>
-    </View>
-  );
-}
-
-interface AchievementCardProps {
-  achievement: {
-    id: string;
-    title: string;
-    description: string;
-    icon: string;
-  };
-  unlocked: boolean;
-}
-
-function AchievementCard({ achievement, unlocked }: AchievementCardProps) {
-  return (
-    <View
-      className={`w-20 items-center p-2 rounded-xl ${unlocked ? 'bg-yellow-50' : 'bg-gray-100'}`}
-    >
-      <Text className={`text-3xl ${unlocked ? '' : 'opacity-30'}`}>{achievement.icon}</Text>
-      <Text
-        className={`text-xs text-center mt-1 ${
-          unlocked ? 'text-text font-semibold' : 'text-gray-400'
-        }`}
-        numberOfLines={2}
-      >
-        {achievement.title}
-      </Text>
-    </View>
   );
 }

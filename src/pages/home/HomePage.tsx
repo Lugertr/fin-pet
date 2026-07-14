@@ -1,6 +1,9 @@
 import { useGameStore } from '@/app/providers/store';
+import { getStageName } from '@/entities/pet';
+import { mockAdventures } from '@/shared/config/mockData';
 import { Badge, Card } from '@/shared/ui';
 import { PetDisplay } from '@/widgets/pet-display';
+import { QuickAction } from '@/widgets/quick-action';
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
@@ -28,11 +31,7 @@ export function HomePage() {
   const isAdventureReady = activeAdventure && new Date() >= new Date(activeAdventure.endsAt);
 
   const currentAdventureName = activeAdventure
-    ? (() => {
-        const { mockAdventures } = require('@/shared/config/mockData');
-        const adv = mockAdventures.find((a: any) => a.id === activeAdventure.adventureId);
-        return adv?.name || 'Приключение';
-      })()
+    ? mockAdventures.find((a) => a.id === activeAdventure.adventureId)?.name || 'Приключение'
     : '';
 
   const handleTapPet = () => {
@@ -42,7 +41,6 @@ export function HomePage() {
   return (
     <ScrollView className="flex-1 bg-background">
       <View className="px-4 pt-12 pb-4">
-        {/* Шапка */}
         <View className="flex-row justify-between items-center mb-4">
           <View className="flex-1">
             <Text className="text-2xl font-bold text-text">{pet.name}</Text>
@@ -61,12 +59,10 @@ export function HomePage() {
           </View>
         </View>
 
-        {/* Питомец */}
         <Card className="mb-4 items-center">
           <PetDisplay pet={pet} size="lg" onTap={handleTapPet} />
         </Card>
 
-        {/* Баланс */}
         <View className="flex-row gap-3 mb-4">
           <Card className="flex-1">
             <Text className="text-sm text-gray-500">Монеты</Text>
@@ -78,7 +74,6 @@ export function HomePage() {
           </Card>
         </View>
 
-        {/* Быстрые действия */}
         <Card>
           <Text className="text-lg font-bold text-text mb-3">Что хочешь сделать?</Text>
           <View className="gap-2">
@@ -124,37 +119,5 @@ export function HomePage() {
         </Card>
       </View>
     </ScrollView>
-  );
-}
-
-function getStageName(stage: number): string {
-  const names = ['Яйцо', 'Малыш', 'Подросток', 'Взрослый', 'Мастер'];
-  return names[stage - 1] || 'Яйцо';
-}
-
-interface QuickActionProps {
-  icon: string;
-  title: string;
-  subtitle: string;
-  onPress: () => void;
-  disabled?: boolean;
-}
-
-function QuickAction({ icon, title, subtitle, onPress, disabled }: QuickActionProps) {
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      className={`flex-row items-center bg-gray-50 p-3 rounded-xl active:opacity-80 ${
-        disabled ? 'opacity-50' : ''
-      }`}
-    >
-      <Text className="text-2xl mr-3">{icon}</Text>
-      <View className="flex-1">
-        <Text className="text-base font-semibold text-text">{title}</Text>
-        <Text className="text-sm text-gray-500">{subtitle}</Text>
-      </View>
-      <Text className="text-gray-400">→</Text>
-    </Pressable>
   );
 }

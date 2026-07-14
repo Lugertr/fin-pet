@@ -1,22 +1,9 @@
 import { useGameStore } from '@/app/providers/store';
+import { PET_COLORS, PET_EMOJIS, isValidPetName } from '@/entities/pet';
 import type { PetType } from '@/shared/types';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-
-const colors = [
-  { id: 'orange', hex: '#FF6B6B', name: 'Оранжевый' },
-  { id: 'blue', hex: '#4ECDC4', name: 'Голубой' },
-  { id: 'pink', hex: '#FFB6C1', name: 'Розовый' },
-  { id: 'green', hex: '#98D8C8', name: 'Зелёный' },
-];
-
-const petEmojis: Record<PetType, string> = {
-  cat: '🐱',
-  dog: '🐶',
-  dragon: '🐉',
-  fox: '🦊',
-};
 
 export function CustomizePetPage() {
   const router = useRouter();
@@ -24,11 +11,11 @@ export function CustomizePetPage() {
   const createPet = useGameStore((state) => state.createPet);
 
   const [name, setName] = useState('');
-  const [selectedColor, setSelectedColor] = useState(colors[0].id);
+  const [selectedColor, setSelectedColor] = useState(PET_COLORS[0].id);
 
-  const isValidName = name.length >= 3 && name.length <= 15;
-  const petEmoji = petEmojis[petType as PetType] || '🐱';
-  const selectedColorHex = colors.find((c) => c.id === selectedColor)?.hex || '#FF6B6B';
+  const isValidName = isValidPetName(name);
+  const petEmoji = PET_EMOJIS[petType as PetType] || '🐱';
+  const selectedColorHex = PET_COLORS.find((c) => c.id === selectedColor)?.hex || '#FF6B6B';
 
   const handleFinish = () => {
     if (isValidName && petType) {
@@ -74,7 +61,7 @@ export function CustomizePetPage() {
         <View className="mb-6">
           <Text className="text-base font-semibold text-text mb-3">Цвет питомца</Text>
           <View className="flex-row gap-3">
-            {colors.map((color) => {
+            {PET_COLORS.map((color) => {
               const isSelected = selectedColor === color.id;
               return (
                 <Pressable

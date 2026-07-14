@@ -6,6 +6,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -46,7 +48,7 @@ export async function scheduleDailyQuestReminder(time: string = '18:00'): Promis
         type: Notifications.SchedulableTriggerInputTypes.DAILY,
         hour: hours,
         minute: minutes,
-      } as any,
+      },
     });
 
     return id;
@@ -82,6 +84,7 @@ export async function scheduleMotivationReminder(): Promise<string | null> {
         sound: 'default',
       },
       trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
         seconds: 60 * 60 * 24 * 2,
       },
     });
