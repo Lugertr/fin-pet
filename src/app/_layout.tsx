@@ -1,18 +1,53 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import { useGameStore } from '@/app/providers/store';
+import {
+  registerForPushNotificationsAsync,
+  scheduleDailyQuestReminder,
+  scheduleMotivationReminder,
+} from '@/shared/lib/notifications';
+import { RewardAnimation } from '@/shared/ui';
+import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
+import './styles/global.css';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+export default function RootLayout() {
+  const { pet, settings } = useGameStore();
 
-SplashScreen.preventAutoHideAsync();
+  useEffect(() => {
+    if (!pet) return;
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+    (async () => {
+      const granted = await registerForPushNotificationsAsync();
+      if (!granted) return;
+
+      if (settings.notifications.quests) {
+        await scheduleDailyQuestReminder(settings.reminderTime);
+      }
+
+      if (settings.notifications.motivation) {
+        await scheduleMotivationReminder();
+      }
+    })();
+  }, [
+    pet,
+    settings.notifications.quests,
+    settings.notifications.motivation,
+    settings.reminderTime,
+  ]);
+
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <>
+      <StatusBar style="dark" />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="auth" />
+        <Stack.Screen name="tabs" />
+        <Stack.Screen name="index" />
+        <Stack.Screen name="profile" />
+        <Stack.Screen name="settings" />
+        <Stack.Screen name="diary" />
+        <Stack.Screen name="adventures" />
+      </Stack>
+      <RewardAnimation />
+    </>
   );
 }
