@@ -1,253 +1,412 @@
-// app/(modal)/arcade/[id].tsx
-// Экран аркадной игры
-
-import { QuizGame } from '@/components/games/QuizGame';
-import { Button } from '@/components/ui/Button';
-import { COLORS } from '@/constants/theme';
-import { useUserStore } from '@/lib/stores/userStore';
+// Аркада: повторение пройденных уроков без траты настроения
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Text, TouchableOpacity, View } from 'react-native';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
-// Каталог аркадных игр (вынесено в начало, чтобы избежать ReferenceError)
-const ARCADE_GAMES = [
-  {
-    id: 'scam_swiper',
-    title: 'Скам-Свайпер',
-    description: 'Определяйте мошенников свайпами',
-    icon: '🃏',
-    color: '#EF4444',
-    minigame_type: 'tinder_swipe',
-    coinsPerGame: 15,
-  },
-  {
-    id: 'smart_card',
-    title: 'Умный Карт',
-    description: 'Отвечайте на вопросы о финансах',
-    icon: '💳',
-    color: '#6366F1',
-    minigame_type: 'quiz',
-    coinsPerGame: 10,
-  },
-  {
-    id: 'stall_simulator',
-    title: 'Симулятор Ларька',
-    description: 'Управляйте мини-бизнесом',
-    icon: '🏪',
-    color: '#22C55E',
-    minigame_type: 'quiz',
-    coinsPerGame: 12,
-  },
-  {
-    id: 'chat_detective',
-    title: 'Чат-Детектив',
-    description: 'Находите обман в переписках',
-    icon: '🔍',
-    color: '#F59E0B',
-    minigame_type: 'quiz',
-    coinsPerGame: 10,
-  },
-];
+import { QuizGame, TinderSwipeGame } from '@/components/games';
+import { useFeedback } from '@/lib/hooks/useFeedback';
+import { BRANCHES, LESSONS, useLessonsStore } from '@/lib/hooks/useLessons';
+import { useUserStore } from '@/lib/stores/userStore';
+import { formatCoins } from '@/lib/utils/formatters';
+import { useResponsive, useTheme } from '@/theme';
+import { spacing } from '@/theme/tokens';
+import { createArcadeStyles } from '../../../styles/screens/arcade/_[id].styles';
 
-// Вопросы для аркадных игр (в реальном приложении приходят с бэкенда)
-const SAMPLE_QUESTIONS = [
-  {
-    question:
-      'Вам пришло сообщение: «Вы выиграли миллион! Переведите 500₽ для получения». Что делать?',
-    options: [
-      'Игнорировать и удалить',
-      'Перевести деньги',
-      'Ответить и узнать детали',
-      'Поделиться с друзьями',
-    ],
-    correctIndex: 0,
-  },
-  {
-    question: 'Что такое фишинг?',
-    options: [
-      'Кража данных через поддельные сайты',
-      'Вид инвестиций',
-      'Тип кредита',
-      'Способ оплаты',
-    ],
-    correctIndex: 0,
-  },
-  {
-    question: 'Какое из действий безопасно?',
-    options: [
-      'Проверять URL сайта перед вводом пароля',
-      'Переходить по ссылкам из писем',
-      'Использовать один пароль везде',
-      'Хранить ПИН на карте',
-    ],
-    correctIndex: 0,
-  },
-];
+// Награда за правильный ответ в аркаде
+const COINS_PER_CORRECT = 10;
+
+// Этапы игры
+type GameStage = 'start' | 'playing' | 'results';
 
 export default function ArcadeGameScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const lessonId = parseInt(id, 10);
 
+  const { theme } = useTheme();
+  const { scale, scaledFont } = useResponsive(); // ✅ Используем scale и scaledFont
+  const { triggerHaptic } = useFeedback();
+  const { progress } = useLessonsStore();
+
+  const styles = createArcadeStyles({ theme });
+
+  // Ищем урок
+  const lesson = LESSONS.find((l) => l.id === lessonId);
+  const branch = lesson ? BRANCHES.find((b) => b.id === lesson.branch_id) : null;
+
+  const [stage, setStage] = useState<GameStage>('start');
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [score, setScore] = useState(0);
-  const [isGameActive, setIsGameActive] = useState(false);
-  const [isGameOver, setIsGameOver] = useState(false);
+  const [correctAnswers, setCorrectAnswers] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [coinsEarned, setCoinsEarned] = useState(0);
 
-  const game = ARCADE_GAMES.find((g) => g.id === id);
+  // Проверка: урок должен быть пройден
+  const isLessonCompleted = progress[lessonId]?.status === 'completed';
 
-  if (!game) {
-    return (
-      <View className="flex-1 items-center justify-center bg-slate-900 px-6">
-        <Text className="text-5xl mb-4">🎮</Text>
-        <Text className="text-white text-xl font-bold text-center mb-4">Игра не найдена</Text>
-        <Button title="Назад" onPress={() => router.back()} variant="secondary" />
-      </View>
-    );
-  }
+  useEffect(() => {
+    if (!lesson) {
+      Alert.alert('Ошибка', 'Игра не найдена');
+      router.back();
+      return;
+    }
+    if (!isLessonCompleted) {
+      Alert.alert('Недоступно', 'Сначала пройдите этот урок в обучении');
+      router.back();
+      return;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const startGame = () => {
+  const handleStartGame = () => {
+    triggerHaptic('medium');
     setCurrentQuestionIndex(0);
-    setScore(0);
-    setIsGameActive(true);
-    setIsGameOver(false);
+    setCorrectAnswers(0);
+    setCoinsEarned(0);
+    setStage('playing');
   };
 
-  // Используем _answer для подчёркивания того, что параметр не используется
-  // (аркада не тратит настроение, только начисляет монеты)
-  const handleAnswer = (_answer: string, isCorrect: boolean) => {
+  // ЗВУК ВЫЗЫВАЕТСЯ В ИГРОВЫХ КОМПОНЕНТАХ — здесь только логика
+  const handleAnswer = (answer: string, isCorrect: boolean) => {
+    setIsAnimating(true);
+
     if (isCorrect) {
-      setScore((prev) => prev + 1);
+      setCorrectAnswers((prev) => prev + 1);
+      setCoinsEarned((prev) => prev + COINS_PER_CORRECT);
     }
 
-    if (currentQuestionIndex < SAMPLE_QUESTIONS.length - 1) {
-      setCurrentQuestionIndex((prev) => prev + 1);
+    if (lesson && currentQuestionIndex < lesson.questions.length - 1) {
+      setTimeout(() => {
+        setCurrentQuestionIndex((prev) => prev + 1);
+        setIsAnimating(false);
+      }, 800);
     } else {
-      setIsGameActive(false);
-      setIsGameOver(true);
+      setTimeout(() => {
+        setStage('results');
+        setIsAnimating(false);
+      }, 800);
     }
   };
 
-  // Начисляем монеты после завершения игры (аркада не тратит настроение)
-  const handleFinishGame = () => {
-    const coinsEarned = score * (game?.coinsPerGame || 10);
-    const { user } = useUserStore.getState();
+  const handleClaimReward = () => {
+    triggerHaptic('success');
 
-    if (user && coinsEarned > 0) {
-      useUserStore.getState().updateBalance(user.liquid_balance + coinsEarned);
+    // Начисляем монеты
+    if (coinsEarned > 0) {
+      const { user } = useUserStore.getState();
+      if (user) {
+        useUserStore.getState().updateBalance(user.liquid_balance + coinsEarned);
+      }
     }
 
     Alert.alert(
       '🎉 Игра завершена!',
-      `Правильных ответов: ${score} из ${SAMPLE_QUESTIONS.length}\nПолучено: +${coinsEarned} C`
+      `Правильных ответов: ${correctAnswers} из ${lesson?.questions.length || 0}\nПолучено: +${formatCoins(coinsEarned)}`
     );
+    router.back();
   };
 
-  // Стартовый экран
-  if (!isGameActive && !isGameOver) {
-    return (
-      <View className="flex-1 bg-slate-900">
-        <LinearGradient
-          colors={[COLORS.surface, COLORS.background]}
-          className="px-6 pt-14 pb-4 flex-row items-center justify-between"
-        >
-          <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color="white" />
-          </TouchableOpacity>
-          <Text className="text-white font-semibold">{game.title}</Text>
-          <View className="w-6" />
-        </LinearGradient>
+  const handlePlayAgain = () => {
+    triggerHaptic('medium');
+    setCurrentQuestionIndex(0);
+    setCorrectAnswers(0);
+    setCoinsEarned(0);
+    setStage('playing');
+  };
 
-        <View className="flex-1 px-6 justify-center items-center">
-          <Text className="text-6xl mb-6">{game.icon}</Text>
-          <Text className="text-white text-2xl font-bold text-center mb-2">{game.title}</Text>
-          <Text className="text-slate-400 text-center mb-4">{game.description}</Text>
-          <View className="bg-indigo-500/10 border border-indigo-500/30 rounded-xl px-4 py-3 mb-8">
-            <Text className="text-indigo-400 text-sm text-center">
-              🎮 Аркада не тратит настроение{'\n'}
-              Награда: +{game.coinsPerGame} C за правильный ответ
-            </Text>
-          </View>
-          <Button title="Начать игру" onPress={startGame} size="lg" icon="play" />
-        </View>
+  // Экран загрузки / ошибки
+  if (!lesson || !branch) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Загрузка...</Text>
       </View>
     );
   }
 
-  // Экран результатов
-  if (isGameOver) {
-    const coinsEarned = score * (game?.coinsPerGame || 10);
-
-    return (
-      <View className="flex-1 bg-slate-900">
-        <LinearGradient
-          colors={[COLORS.surface, COLORS.background]}
-          className="px-6 pt-14 pb-4 flex-row items-center justify-between"
-        >
-          <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color="white" />
-          </TouchableOpacity>
-          <Text className="text-white font-semibold">Результаты</Text>
-          <View className="w-6" />
-        </LinearGradient>
-
-        <View className="flex-1 px-6 justify-center items-center">
-          <Text className="text-6xl mb-6">{score >= 2 ? '🏆' : '💪'}</Text>
-          <Text className="text-white text-2xl font-bold text-center mb-2">Игра завершена!</Text>
-          <Text className="text-slate-400 text-center mb-4">
-            Правильных ответов: {score} из {SAMPLE_QUESTIONS.length}
-          </Text>
-          <View className="bg-amber-500/20 px-6 py-3 rounded-full mb-8">
-            <Text className="text-amber-400 font-bold text-lg">+{coinsEarned} C</Text>
-          </View>
-          <View className="flex-row gap-3">
-            <Button
-              title="Забрать монеты"
-              onPress={() => {
-                handleFinishGame();
-                router.back();
-              }}
-              variant="primary"
-            />
-            <Button title="Ещё раз" onPress={startGame} variant="secondary" />
-          </View>
-        </View>
-      </View>
-    );
-  }
-
-  // Активная игра
-  const currentQuestion = SAMPLE_QUESTIONS[currentQuestionIndex];
-  const correctAnswer = currentQuestion.options[currentQuestion.correctIndex];
+  const currentQuestion = lesson.questions[currentQuestionIndex];
+  const accuracy =
+    lesson.questions.length > 0 ? Math.round((correctAnswers / lesson.questions.length) * 100) : 0;
 
   return (
-    <View className="flex-1 bg-slate-900">
+    <View style={styles.container}>
+      {/* Заголовок с градиентом */}
       <LinearGradient
-        colors={[COLORS.surface, COLORS.background]}
-        className="px-6 pt-14 pb-4 flex-row items-center justify-between"
+        colors={['#4F46E5', '#7C3AED']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={[styles.header, { paddingTop: scale(56), paddingBottom: scale(spacing.lg) }]}
       >
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="white" />
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={[styles.backButton, { width: scale(36), height: scale(36) }]}
+        >
+          <Ionicons name="arrow-back" size={scale(20)} color="#FFFFFF" />
         </TouchableOpacity>
-        <View className="flex-row items-center gap-2">
-          <Text className="text-white font-semibold">Счёт: {score}</Text>
-          <Text className="text-slate-400">|</Text>
-          <Text className="text-slate-400">
-            {currentQuestionIndex + 1}/{SAMPLE_QUESTIONS.length}
+
+        <View style={styles.headerTitleContainer}>
+          <Text style={[styles.headerTitle, { fontSize: scaledFont('lg') }]} numberOfLines={1}>
+            {lesson.title}
+          </Text>
+          <Text style={[styles.headerSubtitle, { fontSize: scaledFont('sm') }]}>
+            Аркада • {branch.name}
           </Text>
         </View>
-        <View className="w-6" />
+
+        <View style={{ width: scale(36) }} />
       </LinearGradient>
 
-      <View className="flex-1 px-6 py-4">
-        <QuizGame
-          question={currentQuestion.question}
-          options={currentQuestion.options}
-          correctAnswer={correctAnswer}
-          onAnswer={handleAnswer}
-        />
-      </View>
+      {/* ЭТАП 1: Стартовый экран */}
+      {stage === 'start' && (
+        <Animated.View entering={FadeIn.duration(300)} style={styles.startContainer}>
+          {/* Иконка игры */}
+          <View style={styles.startHeader}>
+            <View
+              style={[
+                styles.startIconBox,
+                {
+                  width: scale(120),
+                  height: scale(120),
+                  borderRadius: scale(32),
+                  marginBottom: scale(spacing.xl),
+                },
+              ]}
+            >
+              <Ionicons
+                name={lesson.minigame_type === 'quiz' ? 'help-circle' : 'swap-horizontal'}
+                size={scale(56)}
+                color={theme.primary}
+              />
+            </View>
+
+            <Text style={[styles.startTitle, { fontSize: scaledFont('title') }]}>
+              {lesson.title}
+            </Text>
+
+            <View style={styles.startBadge}>
+              <Text style={[styles.startBadgeText, { fontSize: scaledFont('sm') }]}>
+                ✓ Урок пройден • Аркада не тратит настроение
+              </Text>
+            </View>
+
+            <Text style={[styles.startDescription, { fontSize: scaledFont('md') }]}>
+              {lesson.minigame_type === 'quiz'
+                ? 'Отвечайте на вопросы и получайте монеты!'
+                : 'Свайпайте карточки и получайте монеты!'}
+            </Text>
+          </View>
+
+          {/* Статистика */}
+          <View style={styles.statsCard}>
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Text style={[styles.statLabel, { fontSize: scaledFont('sm') }]}>Вопросов</Text>
+                <Text style={[styles.statValue, { fontSize: scaledFont('xxl') }]}>
+                  {lesson.questions.length}
+                </Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={[styles.statLabel, { fontSize: scaledFont('sm') }]}>За ответ</Text>
+                <Text
+                  style={[styles.statValue, styles.statValueCoins, { fontSize: scaledFont('xxl') }]}
+                >
+                  +{COINS_PER_CORRECT}
+                </Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={[styles.statLabel, { fontSize: scaledFont('sm') }]}>Максимум</Text>
+                <Text
+                  style={[
+                    styles.statValue,
+                    styles.statValueSuccess,
+                    { fontSize: scaledFont('xxl') },
+                  ]}
+                >
+                  {formatCoins(lesson.questions.length * COINS_PER_CORRECT)}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Кнопка старта */}
+          <TouchableOpacity
+            onPress={handleStartGame}
+            activeOpacity={0.8}
+            style={styles.gradientButton}
+          >
+            <LinearGradient
+              colors={theme.gradients.primary}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={[styles.gradientButtonInner, { padding: scale(spacing.lg) }]}
+            >
+              <Ionicons name="play" size={scale(24)} color="#FFFFFF" />
+              <Text style={[styles.gradientButtonText, { fontSize: scaledFont('lg') }]}>
+                Начать игру
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </Animated.View>
+      )}
+
+      {/* ЭТАП 2: Игровой процесс */}
+      {stage === 'playing' && currentQuestion && (
+        <View style={styles.gameContainer}>
+          {/* Прогресс и счёт */}
+          <View style={{ marginBottom: scale(spacing.xxl) }}>
+            <View style={styles.progressHeader}>
+              <Text style={[styles.progressLabel, { fontSize: scaledFont('md') }]}>
+                Вопрос {currentQuestionIndex + 1} из {lesson.questions.length}
+              </Text>
+              <View style={styles.progressCoinsRow}>
+                <Ionicons name="wallet" size={scale(14)} color={theme.coins} />
+                <Text style={[styles.progressCoins, { fontSize: scaledFont('md') }]}>
+                  {formatCoins(coinsEarned)}
+                </Text>
+              </View>
+            </View>
+
+            {/* Прогресс-бар */}
+            <View style={styles.progressBar}>
+              <LinearGradient
+                colors={theme.gradients.primary}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={{
+                  height: '100%',
+                  width: `${((currentQuestionIndex + 1) / lesson.questions.length) * 100}%`,
+                }}
+              />
+            </View>
+          </View>
+
+          {/* Рендер игры в зависимости от типа */}
+          {lesson.minigame_type === 'tinder_swipe' ? (
+            <TinderSwipeGame
+              key={currentQuestion.id}
+              question={currentQuestion.question_text}
+              options={currentQuestion.options}
+              correctAnswer={currentQuestion.correct_answer}
+              onAnswer={handleAnswer}
+              disabled={isAnimating}
+            />
+          ) : (
+            <QuizGame
+              key={currentQuestion.id}
+              question={currentQuestion.question_text}
+              options={currentQuestion.options}
+              correctAnswer={currentQuestion.correct_answer}
+              onAnswer={handleAnswer}
+              disabled={isAnimating}
+            />
+          )}
+        </View>
+      )}
+
+      {/* ЭТАП 3: Результаты */}
+      {stage === 'results' && (
+        <Animated.View entering={FadeInDown.duration(400)} style={styles.resultsContainer}>
+          {/* Трофей или утешение */}
+          <View style={styles.resultsHeader}>
+            <View
+              style={[
+                styles.resultsIconBox,
+                {
+                  backgroundColor:
+                    accuracy >= 70 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                },
+              ]}
+            >
+              <Text style={{ fontSize: scale(72) }}>
+                {accuracy >= 70 ? '🏆' : accuracy >= 50 ? '🎯' : '💪'}
+              </Text>
+            </View>
+
+            <Text style={[styles.resultsTitle, { fontSize: scaledFont('title') }]}>
+              {accuracy >= 70
+                ? 'Отличная игра!'
+                : accuracy >= 50
+                  ? 'Хороший результат!'
+                  : 'Продолжайте практиковаться!'}
+            </Text>
+
+            <Text style={[styles.resultsSubtitle, { fontSize: scaledFont('md') }]}>
+              Правильных ответов: {correctAnswers} из {lesson.questions.length}
+            </Text>
+          </View>
+
+          {/* Статистика */}
+          <View style={styles.resultsStatsCard}>
+            {/* Точность */}
+            <View style={{ marginBottom: scale(spacing.xl) }}>
+              <View style={styles.accuracyRow}>
+                <Text style={[styles.accuracyLabel, { fontSize: scaledFont('md') }]}>Точность</Text>
+                <Text style={[styles.accuracyValue, { fontSize: scaledFont('xl') }]}>
+                  {accuracy}%
+                </Text>
+              </View>
+              <View style={styles.accuracyProgressBar}>
+                <LinearGradient
+                  colors={accuracy >= 70 ? ['#10B981', '#06B6D4'] : ['#F59E0B', '#FBBF24']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={{ height: '100%', width: `${accuracy}%` }}
+                />
+              </View>
+            </View>
+
+            {/* Заработанные монеты */}
+            <View style={styles.coinsEarnedBox}>
+              <View style={styles.coinsEarnedLeft}>
+                <Ionicons name="wallet" size={scale(24)} color={theme.coins} />
+                <Text style={[styles.coinsEarnedLabel, { fontSize: scaledFont('lg') }]}>
+                  Заработано
+                </Text>
+              </View>
+              <Text style={[styles.coinsEarnedValue, { fontSize: scaledFont('xxl') }]}>
+                +{formatCoins(coinsEarned)}
+              </Text>
+            </View>
+          </View>
+
+          {/* Кнопки */}
+          <View style={styles.buttonsContainer}>
+            {/* Забрать награду */}
+            <TouchableOpacity
+              onPress={handleClaimReward}
+              activeOpacity={0.8}
+              style={styles.gradientButton}
+            >
+              <LinearGradient
+                colors={['#10B981', '#06B6D4']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={[styles.gradientButtonInner, { padding: scale(spacing.lg) }]}
+              >
+                <Ionicons name="checkmark-circle" size={scale(24)} color="#FFFFFF" />
+                <Text style={[styles.gradientButtonText, { fontSize: scaledFont('lg') }]}>
+                  Забрать награду
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            {/* Играть снова */}
+            <TouchableOpacity
+              onPress={handlePlayAgain}
+              activeOpacity={0.8}
+              style={styles.secondaryButton}
+            >
+              <Ionicons name="refresh" size={scale(22)} color={theme.textPrimary} />
+              <Text style={[styles.secondaryButtonText, { fontSize: scaledFont('lg') }]}>
+                Играть снова
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      )}
     </View>
   );
 }

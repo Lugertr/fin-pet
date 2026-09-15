@@ -1,0 +1,2 @@
+export { PetSprite } from './PetSprite';
+

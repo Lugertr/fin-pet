@@ -1,0 +1,2 @@
+export { MoodIndicator } from './MoodIndicator';
+

@@ -201,14 +201,23 @@ export const useShopStore = create<ShopState>()(
         useUserStore.getState().updateBalance(user.liquid_balance - totalCost);
 
         // Добавляем товар в инвентарь
-        const { ownedItems } = get();
+        const { ownedItems, placedDecor } = get();
         const currentQuantity = ownedItems[itemId] || 0;
 
+        const newOwnedItems = {
+          ...ownedItems,
+          [itemId]: currentQuantity + quantity,
+        };
+
+        // АВТО-РАЗМЕЩЕНИЕ декора при первой покупке
+        let newPlacedDecor = placedDecor;
+        if (item.category === 'decor' && !placedDecor.includes(itemId)) {
+          newPlacedDecor = [...placedDecor, itemId];
+        }
+
         set({
-          ownedItems: {
-            ...ownedItems,
-            [itemId]: currentQuantity + quantity,
-          },
+          ownedItems: newOwnedItems,
+          placedDecor: newPlacedDecor,
         });
 
         return { success: true, message: `Куплено: ${item.name} x${quantity}` };

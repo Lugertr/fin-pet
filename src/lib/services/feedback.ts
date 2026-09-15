@@ -1,21 +1,21 @@
-// lib/services/feedback.ts
+// src/lib/services/feedback.ts
 // Единый сервис для звуков и тактильной отдачи
+// ВАЖНО: Все пути к файлам должны быть статическими строками!
 
 import { Audio, AVPlaybackSource } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
 
-// Типы звуков
 export type SoundType =
   'correct' | 'wrong' | 'coin' | 'levelUp' | 'click' | 'daily' | 'error' | 'success';
 
-// Типы тактильной отдачи
 export type HapticType =
   'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error' | 'selection';
 
-// Маппинг звуков к файлам
-// require() для локальных ассетов возвращает number (asset ID) в React Native
-// Типизируем как AVPlaybackSource, который принимает number или объект с uri
+// ============================================
+// ПРЯМЫЕ СТАТИЧЕСКИЕ ВЫЗОВЫ require()
+// Путь отсюда до корня: ../../../ (из src/lib/services/)
+// ============================================
 const SOUND_MAP: Record<SoundType, AVPlaybackSource | null> = {
   correct: require('../../../assets/sounds/correct.mp3') as AVPlaybackSource,
   wrong: require('../../../assets/sounds/wrong.mp3') as AVPlaybackSource,
@@ -27,7 +27,6 @@ const SOUND_MAP: Record<SoundType, AVPlaybackSource | null> = {
   success: require('../../../assets/sounds/success.mp3') as AVPlaybackSource,
 };
 
-// Пресеты: звук + haptic для типичных сценариев
 export type FeedbackPreset =
   | 'correctAnswer'
   | 'wrongAnswer'
@@ -56,10 +55,6 @@ class FeedbackService {
   private hapticsEnabled: boolean = true;
   private isInitialized: boolean = false;
 
-  /**
-   * Инициализация аудио-сессии
-   * Вызывать при старте приложения
-   */
   async initialize(): Promise<void> {
     if (this.isInitialized) return;
 
@@ -73,39 +68,26 @@ class FeedbackService {
       });
       this.isInitialized = true;
     } catch (error) {
-      console.error('[Feedback] Ошибка инициализации аудио:', error);
+      console.warn('[Feedback] Ошибка инициализации аудио:', error);
     }
   }
 
-  /**
-   * Включить/выключить всю обратную связь
-   */
   setEnabled(enabled: boolean): void {
     this.isEnabled = enabled;
   }
 
-  /**
-   * Включить/выключить звуки
-   */
   setSoundsEnabled(enabled: boolean): void {
     this.soundsEnabled = enabled;
   }
 
-  /**
-   * Включить/выключить тактильную отдачу
-   */
   setHapticsEnabled(enabled: boolean): void {
     this.hapticsEnabled = enabled;
   }
 
-  /**
-   * Проиграть звук по типу
-   */
   async playSound(type: SoundType): Promise<void> {
     if (!this.isEnabled || !this.soundsEnabled) return;
 
     try {
-      // Используем кэш звуков для производительности
       let sound = this.soundCache.get(type);
 
       if (!sound) {
@@ -122,7 +104,6 @@ class FeedbackService {
         this.soundCache.set(type, sound);
       }
 
-      // Сбрасываем позицию и играем
       await sound.setPositionAsync(0);
       await sound.playAsync();
     } catch (error) {
@@ -130,13 +111,8 @@ class FeedbackService {
     }
   }
 
-  /**
-   * Вызвать тактильную отдачу
-   */
   async triggerHaptic(type: HapticType): Promise<void> {
     if (!this.isEnabled || !this.hapticsEnabled) return;
-
-    // На вебе haptics недоступны
     if (Platform.OS === 'web') return;
 
     try {
@@ -168,25 +144,18 @@ class FeedbackService {
     }
   }
 
-  /**
-   * Применить пресет (звук + haptic)
-   */
   async trigger(preset: FeedbackPreset): Promise<void> {
     const config = PRESETS[preset];
     if (!config) return;
 
-    // Запускаем параллельно для синхронности
     await Promise.all([this.playSound(config.sound), this.triggerHaptic(config.haptic)]);
   }
 
-  /**
-   * Очистить кэш звуков (вызывать при выходе)
-   */
   async cleanup(): Promise<void> {
     for (const sound of this.soundCache.values()) {
       try {
         await sound.unloadAsync();
-      } catch (error) {
+      } catch {
         // Игнорируем ошибки выгрузки
       }
     }
@@ -194,5 +163,4 @@ class FeedbackService {
   }
 }
 
-// Экспортируем единственный экземпляр (singleton)
 export const feedback = new FeedbackService();

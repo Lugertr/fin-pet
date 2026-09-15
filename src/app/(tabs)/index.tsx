@@ -1,18 +1,6 @@
 // app/(tabs)/index.tsx
-// Главный Хаб — Комната с питомцем (улучшенный визуал)
+// Главный Хаб — Комната с питомцем (с адаптивностью)
 
-import { PetRoom } from '@/components/pet/PetRoom';
-import { COLORS } from '@/constants/theme';
-import { useDaily } from '@/lib/hooks/useDaily';
-import { useFeedback } from '@/lib/hooks/useFeedback';
-import { useNotifications } from '@/lib/hooks/useNotifications';
-import { usePet } from '@/lib/hooks/usePet';
-import { useShop } from '@/lib/hooks/useShop';
-import { useUser } from '@/lib/hooks/useUser';
-import { usePetStore } from '@/lib/stores/petStore';
-import { useUserStore } from '@/lib/stores/userStore';
-import { formatCoins, formatTimeUntilFullMood } from '@/lib/utils/formatters';
-import { getMoodBlockMessage } from '@/lib/utils/moodCalculator';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -27,10 +15,35 @@ import {
   View,
 } from 'react-native';
 
+import { PetRoom } from '@/components/pet';
+import { STARTING_DECOR } from '@/constants/petAssets';
+import { useDaily } from '@/lib/hooks/useDaily';
+import { useFeedback } from '@/lib/hooks/useFeedback';
+import { useNotifications } from '@/lib/hooks/useNotifications';
+import { usePet } from '@/lib/hooks/usePet';
+import { useShop } from '@/lib/hooks/useShop';
+import { useUser } from '@/lib/hooks/useUser';
+import { feedback } from '@/lib/services/feedback';
+import { notifications } from '@/lib/services/notifications';
+import { useGifts } from '@/lib/stores/giftsStore';
+import { usePetStore } from '@/lib/stores/petStore';
+import { usePreferences } from '@/lib/stores/preferencesStore';
+import { useUserStore } from '@/lib/stores/userStore';
+import { formatCoins, formatTimeUntilFullMood } from '@/lib/utils/formatters';
+import { getMoodBlockMessage } from '@/lib/utils/moodCalculator';
+import { useResponsive, useTheme } from '@/theme';
+import { fontWeights, spacing } from '@/theme/tokens';
+import { createHubStyles } from '../../styles/screens/tabs/_index.styles';
+
 export default function HubScreen() {
   const router = useRouter();
+  const { theme, isDark } = useTheme();
+  const { scale, scaledFont } = useResponsive();
   const { trigger, triggerHaptic } = useFeedback();
   const { scheduleMoodRestored } = useNotifications();
+  const { pendingGifts } = useGifts();
+
+  const styles = createHubStyles({ theme });
 
   const {
     data: userData,
@@ -44,14 +57,39 @@ export default function HubScreen() {
   const { currentMood, pet, moodBuffs, refreshMood } = usePetStore();
   const { currentStreak, hasClaimedToday, claimDailyBonus, checkAndUpdateStreak } = useDaily();
   const { getPlacedDecor, getTotalMoodBuff } = useShop();
+  const { petType: savedPetType, petName: savedPetName } = usePreferences();
 
   const hasError = userError || petError;
   const isLoading = userLoading || petLoading;
+  const giftsCount = pendingGifts.length;
+
+  const headerGradient: [string, string] = isDark ? ['#1E293B', '#0F172A'] : ['#FFFFFF', '#F1F5F9'];
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const initServices = async () => {
+      try {
+        await feedback.initialize();
+        await notifications.initialize();
+      } catch (error) {
+        console.warn('[Hub] Ошибка инициализации сервисов:', error);
+      }
+    };
+
+    if (isMounted) {
+      initServices();
+    }
+
+    return () => {
+      isMounted = false;
+      feedback.cleanup().catch(() => {});
+    };
+  }, []);
 
   useEffect(() => {
     checkAndUpdateStreak();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [checkAndUpdateStreak]);
 
   const handleClaimDailyBonus = () => {
     if (hasClaimedToday) {
@@ -92,12 +130,23 @@ export default function HubScreen() {
     }
   };
 
-  const placedDecor = getPlacedDecor().map((item, index) => ({
-    id: item.id,
-    name: item.name,
-    icon: item.icon,
-    position: (index % 2 === 0 ? 'left' : 'right') as 'left' | 'right',
-  }));
+  const userDecor = getPlacedDecor();
+  const placedDecor = [
+    ...STARTING_DECOR.map((item) => ({
+      id: item.id as unknown as number,
+      name: item.name,
+      icon: '',
+      position: item.position,
+    })),
+    ...userDecor
+      .filter((item) => !STARTING_DECOR.some((sd) => sd.name === item.name))
+      .map((item, index) => ({
+        id: item.id,
+        name: item.name,
+        icon: item.icon,
+        position: (index % 2 === 0 ? 'left' : 'right') as 'left' | 'right',
+      })),
+  ];
 
   const handleRefresh = async () => {
     triggerHaptic('light');
@@ -111,16 +160,9 @@ export default function HubScreen() {
 
   if (isLoading && !user && !pet) {
     return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: COLORS.background,
-        }}
-      >
-        <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={{ color: COLORS.textSecondary, marginTop: 16 }}>Загрузка...</Text>
+      <View style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+        <Text style={{ color: theme.textSecondary, marginTop: scale(16) }}>Загрузка...</Text>
       </View>
     );
   }
@@ -128,39 +170,42 @@ export default function HubScreen() {
   if (hasError && !user) {
     return (
       <View
-        style={{
-          flex: 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: COLORS.background,
-          padding: 24,
-        }}
+        style={[
+          styles.container,
+          { alignItems: 'center', justifyContent: 'center', padding: scale(spacing.xxl) },
+        ]}
       >
-        <Text style={{ fontSize: 64, marginBottom: 16 }}>😵</Text>
+        <Text style={{ fontSize: scale(64), marginBottom: scale(16) }}>😵</Text>
         <Text
           style={{
-            color: 'white',
-            fontSize: 20,
-            fontWeight: 'bold',
+            color: theme.textPrimary,
+            fontSize: scaledFont('xxl'),
+            fontWeight: fontWeights.bold,
             textAlign: 'center',
-            marginBottom: 8,
+            marginBottom: scale(8),
           }}
         >
           Не удалось загрузить данные
         </Text>
-        <Text style={{ color: COLORS.textSecondary, textAlign: 'center', marginBottom: 24 }}>
+        <Text
+          style={{
+            color: theme.textSecondary,
+            textAlign: 'center',
+            marginBottom: scale(24),
+          }}
+        >
           Проверьте подключение к интернету и попробуйте снова
         </Text>
         <TouchableOpacity
           onPress={handleRefresh}
           style={{
-            backgroundColor: COLORS.primary,
-            paddingHorizontal: 24,
-            paddingVertical: 12,
-            borderRadius: 12,
+            backgroundColor: theme.primary,
+            paddingHorizontal: scale(24),
+            paddingVertical: scale(12),
+            borderRadius: scale(12),
           }}
         >
-          <Text style={{ color: 'white', fontWeight: '600' }}>Повторить</Text>
+          <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>Повторить</Text>
         </TouchableOpacity>
       </View>
     );
@@ -172,65 +217,50 @@ export default function HubScreen() {
     ? formatTimeUntilFullMood(currentMood, pet.base_recovery_rate + totalMoodBuff)
     : null;
 
-  const petType: 'robot' | 'dragon' | 'cat' = 'robot';
-  const petName = userData?.pet?.id ? 'Ваш помощник' : 'Помощник';
+  const petType: 'robot' | 'dragon' | 'cat' = savedPetType || 'robot';
+  const petName = savedPetName || (userData?.pet?.id ? 'Ваш помощник' : 'Помощник');
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: COLORS.background }}
+      style={styles.container}
       showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl
           refreshing={isLoading}
           onRefresh={handleRefresh}
-          tintColor={COLORS.primary}
+          tintColor={theme.primary}
         />
       }
     >
       {/* Шапка с балансом */}
       <LinearGradient
-        colors={['#1E293B', '#0F172A']}
+        colors={headerGradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
-        style={{ paddingTop: 56, paddingBottom: 24, paddingHorizontal: 24 }}
+        style={[styles.header, { paddingTop: scale(56), paddingBottom: scale(spacing.xxl) }]}
       >
         {/* Приветствие и баланс */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: 20,
-          }}
-        >
+        <View style={styles.headerTopRow}>
           <View>
-            <Text style={{ color: COLORS.textSecondary, fontSize: 14, marginBottom: 2 }}>
+            <Text style={[styles.greetingText, { fontSize: scaledFont('md') }]}>
               Привет, {user?.username || 'Игрок'}! 👋
             </Text>
-            <Text style={{ color: 'white', fontSize: 28, fontWeight: 'bold' }}>
+            <Text style={[styles.balanceText, { fontSize: scaledFont('hero') }]}>
               {formatCoins(totalNetWorth)}
             </Text>
-            <Text style={{ color: COLORS.textMuted, fontSize: 12, marginTop: 2 }}>
+            <Text style={[styles.balanceLabel, { fontSize: scaledFont('sm') }]}>
               Общий достаток
             </Text>
           </View>
 
-          {/* Баланс монет */}
           <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 8,
-              backgroundColor: 'rgba(251, 191, 36, 0.15)',
-              paddingHorizontal: 16,
-              paddingVertical: 10,
-              borderRadius: 24,
-              borderWidth: 1,
-              borderColor: 'rgba(251, 191, 36, 0.3)',
-            }}
+            style={[
+              styles.coinsBadge,
+              { paddingHorizontal: scale(spacing.lg), paddingVertical: scale(spacing.sm) },
+            ]}
           >
-            <Ionicons name="wallet" size={20} color={COLORS.coins} />
-            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>
+            <Ionicons name="wallet" size={scale(20)} color={theme.coins} />
+            <Text style={[styles.coinsText, { fontSize: scaledFont('lg') }]}>
               {formatCoins(user?.liquid_balance || 0)}
             </Text>
           </View>
@@ -251,40 +281,30 @@ export default function HubScreen() {
         {/* Предупреждение о блокировке */}
         {moodBlockMessage && (
           <View
-            style={{
-              backgroundColor: 'rgba(239, 68, 68, 0.1)',
-              borderWidth: 1,
-              borderColor: 'rgba(239, 68, 68, 0.3)',
-              borderRadius: 12,
-              padding: 12,
-              marginTop: 16,
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 8,
-            }}
+            style={[
+              styles.warningBanner,
+              styles.warningBannerError,
+              { padding: scale(spacing.md) },
+            ]}
           >
-            <Ionicons name="alert-circle" size={18} color="#EF4444" />
-            <Text style={{ color: '#FCA5A5', fontSize: 13, flex: 1 }}>{moodBlockMessage}</Text>
+            <Ionicons name="alert-circle" size={scale(18)} color={theme.error} />
+            <Text style={[styles.warningTextError, { fontSize: scaledFont('sm') }]}>
+              {moodBlockMessage}
+            </Text>
           </View>
         )}
 
         {/* Бонус за настроение */}
         {currentMood > 50 && (
           <View
-            style={{
-              backgroundColor: 'rgba(34, 197, 94, 0.1)',
-              borderWidth: 1,
-              borderColor: 'rgba(34, 197, 94, 0.3)',
-              borderRadius: 12,
-              padding: 12,
-              marginTop: 16,
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 8,
-            }}
+            style={[
+              styles.warningBanner,
+              styles.warningBannerSuccess,
+              { padding: scale(spacing.md) },
+            ]}
           >
-            <Text style={{ fontSize: 16 }}>✨</Text>
-            <Text style={{ color: '#86EFAC', fontSize: 13, flex: 1 }}>
+            <Text style={{ fontSize: scale(16) }}>✨</Text>
+            <Text style={[styles.warningTextSuccess, { fontSize: scaledFont('sm') }]}>
               Настроение выше 50% — бонус к доходу активен!
             </Text>
           </View>
@@ -292,17 +312,9 @@ export default function HubScreen() {
 
         {/* Время до полного восстановления */}
         {timeUntilFull && currentMood < 100 && (
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
-              marginTop: 12,
-            }}
-          >
-            <Ionicons name="time-outline" size={14} color={COLORS.textMuted} />
-            <Text style={{ color: COLORS.textMuted, fontSize: 12 }}>
+          <View style={styles.timeUntilFullRow}>
+            <Ionicons name="time-outline" size={scale(14)} color={theme.textMuted} />
+            <Text style={[styles.timeUntilFullText, { fontSize: scaledFont('sm') }]}>
               До полного настроения: {timeUntilFull}
             </Text>
           </View>
@@ -310,52 +322,178 @@ export default function HubScreen() {
       </LinearGradient>
 
       {/* Быстрые действия */}
-      <View style={{ padding: 24, paddingTop: 20 }}>
-        <Text style={{ color: 'white', fontSize: 20, fontWeight: 'bold', marginBottom: 16 }}>
+      <View
+        style={[
+          styles.actionsSection,
+          { padding: scale(spacing.xxl), paddingTop: scale(spacing.xl) },
+        ]}
+      >
+        <Text
+          style={[
+            styles.sectionTitle,
+            { fontSize: scaledFont('xxl'), marginBottom: scale(spacing.lg) },
+          ]}
+        >
           Быстрые действия
         </Text>
 
-        {/* Первый ряд */}
-        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
-          <ActionButton
-            icon="school"
-            title="Обучение"
-            subtitle={currentMood <= 0 ? 'Недоступно' : '7 веток'}
-            gradient={['#6366F1', '#8B5CF6']}
-            onPress={() => navigateTo('/(tabs)/learn')}
-            disabled={currentMood <= 0}
-          />
-          <ActionButton
-            icon="chatbubbles"
-            title="ИИ-Наставник"
-            subtitle="5 в день бесплатно"
-            gradient={['#A855F7', '#EC4899']}
+        {/* Главная кнопка — Уроки */}
+        <TouchableOpacity
+          onPress={() => navigateTo('/(tabs)/lessons')}
+          disabled={currentMood <= 0}
+          activeOpacity={0.8}
+          style={[styles.mainActionButton, { opacity: currentMood <= 0 ? 0.5 : 1 }]}
+        >
+          <LinearGradient
+            colors={theme.gradients.primary}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.mainActionInner, { padding: scale(spacing.xl), gap: scale(spacing.lg) }]}
+          >
+            <View
+              style={[
+                styles.mainActionIconBox,
+                { width: scale(56), height: scale(56), borderRadius: scale(16) },
+              ]}
+            >
+              <Ionicons name="school" size={scale(28)} color="#FFFFFF" />
+            </View>
+            <View style={styles.mainActionTextContainer}>
+              <Text style={[styles.mainActionTitle, { fontSize: scaledFont('xl') }]}>
+                Перейти к урокам
+              </Text>
+              <Text style={[styles.mainActionSubtitle, { fontSize: scaledFont('sm') }]}>
+                {currentMood <= 0
+                  ? 'Недоступно: восстановите настроение'
+                  : 'Изучайте финансовую грамотность'}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={scale(24)} color="#FFFFFF" />
+          </LinearGradient>
+        </TouchableOpacity>
+
+        {/* Два ряда по две кнопки */}
+        <View
+          style={[styles.actionsRow, { gap: scale(spacing.md), marginBottom: scale(spacing.md) }]}
+        >
+          <TouchableOpacity
             onPress={() => navigateTo('/(modal)/ai-chat')}
-          />
+            activeOpacity={0.8}
+            style={styles.actionCard}
+          >
+            <LinearGradient
+              colors={['#A855F7', '#EC4899']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[styles.actionCardInner, { padding: scale(spacing.lg) }]}
+            >
+              <Ionicons name="chatbubbles" size={scale(28)} color="#FFFFFF" />
+              <Text
+                style={[
+                  styles.actionCardTitle,
+                  { fontSize: scaledFont('md'), marginTop: scale(spacing.sm) },
+                ]}
+              >
+                ИИ-Наставник
+              </Text>
+              <Text
+                style={[
+                  styles.actionCardSubtitle,
+                  { fontSize: scaledFont('xs'), marginTop: scale(spacing.xs) },
+                ]}
+              >
+                5 в день бесплатно
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => navigateTo('/(modal)/deposit')}
+            activeOpacity={0.8}
+            style={styles.actionCard}
+          >
+            <LinearGradient
+              colors={['#10B981', '#06B6D4']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[styles.actionCardInner, { padding: scale(spacing.lg) }]}
+            >
+              <Ionicons name="trending-up" size={scale(28)} color="#FFFFFF" />
+              <Text
+                style={[
+                  styles.actionCardTitle,
+                  { fontSize: scaledFont('md'), marginTop: scale(spacing.sm) },
+                ]}
+              >
+                Вклады
+              </Text>
+              <Text
+                style={[
+                  styles.actionCardSubtitle,
+                  { fontSize: scaledFont('xs'), marginTop: scale(spacing.xs) },
+                ]}
+              >
+                +2% в день
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
 
-        {/* Второй ряд */}
-        <View style={{ flexDirection: 'row', gap: 12 }}>
-          <ActionButton
-            icon="trending-up"
-            title="Вклады"
-            subtitle="+2% в день"
-            gradient={['#22C55E', '#14B8A6']}
-            onPress={() => navigateTo('/(modal)/deposit')}
-          />
-          <ActionButton
-            icon="cube"
-            title="Инвентарь"
-            subtitle="Мои вещи"
-            gradient={['#F59E0B', '#F97316']}
-            onPress={() => navigateTo('/(modal)/inventory')}
-          />
-        </View>
+        {/* Баннер подарков */}
+        {giftsCount > 0 && (
+          <TouchableOpacity
+            onPress={() => {
+              triggerHaptic('medium');
+              router.push('/(modal)/gifts-list' as never);
+            }}
+            activeOpacity={0.8}
+            style={styles.giftsBanner}
+          >
+            <LinearGradient
+              colors={theme.gradients.reward}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={[
+                styles.giftsBannerInner,
+                { padding: scale(spacing.lg), gap: scale(spacing.md) },
+              ]}
+            >
+              <View
+                style={[
+                  styles.giftsIconBox,
+                  { width: scale(44), height: scale(44), borderRadius: scale(22) },
+                ]}
+              >
+                <Text style={{ fontSize: scale(24) }}>🎁</Text>
+              </View>
+              <View style={styles.giftsTextContainer}>
+                <Text style={[styles.giftsTitle, { fontSize: scaledFont('md') }]}>
+                  У вас {giftsCount} неоткрытых{' '}
+                  {giftsCount === 1 ? 'подарок' : giftsCount < 5 ? 'подарка' : 'подарков'}!
+                </Text>
+                <Text style={[styles.giftsSubtitle, { fontSize: scaledFont('sm') }]}>
+                  Нажмите, чтобы открыть
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={scale(20)} color="#FFFFFF" />
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Ежедневная награда */}
-      <View style={{ paddingHorizontal: 24, paddingBottom: 16 }}>
-        <Text style={{ color: 'white', fontSize: 20, fontWeight: 'bold', marginBottom: 16 }}>
+      <View
+        style={[
+          styles.dailySection,
+          { paddingHorizontal: scale(spacing.xxl), paddingBottom: scale(spacing.lg) },
+        ]}
+      >
+        <Text
+          style={[
+            styles.sectionTitle,
+            { fontSize: scaledFont('xxl'), marginBottom: scale(spacing.lg) },
+          ]}
+        >
           Ежедневная награда
         </Text>
 
@@ -363,61 +501,51 @@ export default function HubScreen() {
           onPress={handleClaimDailyBonus}
           disabled={hasClaimedToday}
           activeOpacity={0.8}
-          style={{
-            borderRadius: 20,
-            overflow: 'hidden',
-            opacity: hasClaimedToday ? 0.6 : 1,
-          }}
+          style={[styles.dailyCard, { opacity: hasClaimedToday ? 0.6 : 1 }]}
         >
           <LinearGradient
-            colors={hasClaimedToday ? ['#334155', '#1E293B'] : ['#F59E0B', '#F97316']}
+            colors={
+              hasClaimedToday
+                ? isDark
+                  ? ['#334155', '#1E293B']
+                  : ['#E2E8F0', '#CBD5E1']
+                : theme.gradients.reward
+            }
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={{
-              padding: 20,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
+            style={[styles.dailyCardInner, { padding: scale(spacing.xl) }]}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View style={[styles.dailyLeftRow, { gap: scale(spacing.md) }]}>
               <View
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 24,
-                  backgroundColor: 'rgba(255,255,255,0.2)',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
+                style={[
+                  styles.dailyIconBox,
+                  { width: scale(48), height: scale(48), borderRadius: scale(24) },
+                ]}
               >
-                <Text style={{ fontSize: 24 }}>{hasClaimedToday ? '✓' : '🎁'}</Text>
+                <Text style={{ fontSize: scale(24) }}>{hasClaimedToday ? '✓' : '🎁'}</Text>
               </View>
               <View>
-                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>
+                <Text style={[styles.dailyTitle, { fontSize: scaledFont('lg') }]}>
                   {hasClaimedToday ? 'Награда получена' : 'Забрать награду'}
                 </Text>
-                <Text
-                  style={{
-                    color: hasClaimedToday ? COLORS.textSecondary : 'rgba(255,255,255,0.9)',
-                    fontSize: 13,
-                  }}
-                >
+                <Text style={[styles.dailySubtitle, { fontSize: scaledFont('sm') }]}>
                   День {currentStreak + (hasClaimedToday ? 0 : 1)} из 7
                 </Text>
               </View>
             </View>
             <View
-              style={{
-                backgroundColor: hasClaimedToday
-                  ? 'rgba(255,255,255,0.1)'
-                  : 'rgba(255,255,255,0.25)',
-                paddingHorizontal: 16,
-                paddingVertical: 8,
-                borderRadius: 20,
-              }}
+              style={[
+                styles.dailyButton,
+                {
+                  backgroundColor: hasClaimedToday
+                    ? 'rgba(255,255,255,0.1)'
+                    : 'rgba(255,255,255,0.25)',
+                  paddingHorizontal: scale(spacing.lg),
+                  paddingVertical: scale(spacing.sm),
+                },
+              ]}
             >
-              <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>
+              <Text style={[styles.dailyButtonText, { fontSize: scaledFont('md') }]}>
                 {hasClaimedToday ? 'Получено' : 'Забрать'}
               </Text>
             </View>
@@ -425,41 +553,44 @@ export default function HubScreen() {
         </TouchableOpacity>
 
         {/* Мини-календарь стрика */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
+        <View style={[styles.streakRow, { marginTop: scale(spacing.lg) }]}>
           {[1, 2, 3, 4, 5, 6, 7].map((day) => {
             const isCompleted = day <= currentStreak;
             const isToday = day === currentStreak + 1 && !hasClaimedToday;
             const isSuperCase = day === 7;
 
             return (
-              <View key={day} style={{ alignItems: 'center' }}>
+              <View key={day} style={styles.streakDayContainer}>
                 <View
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 16,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: isCompleted
-                      ? COLORS.success
-                      : isToday
-                        ? COLORS.accent
-                        : COLORS.surfaceLight,
-                    borderWidth: isToday ? 2 : 0,
-                    borderColor: isToday ? '#FDE68A' : 'transparent',
-                  }}
+                  style={[
+                    styles.streakDayCircle,
+                    {
+                      width: scale(32),
+                      height: scale(32),
+                      borderRadius: scale(16),
+                      backgroundColor: isCompleted
+                        ? theme.success
+                        : isToday
+                          ? theme.warning
+                          : theme.surfaceLight,
+                      borderWidth: isToday ? 2 : 0,
+                      borderColor: isToday ? '#FDE68A' : 'transparent',
+                    },
+                  ]}
                 >
                   {isCompleted ? (
-                    <Ionicons name="checkmark" size={16} color="white" />
+                    <Ionicons name="checkmark" size={scale(16)} color="#FFFFFF" />
                   ) : isSuperCase && !isCompleted ? (
-                    <Text style={{ fontSize: 14 }}>🎁</Text>
+                    <Text style={{ fontSize: scale(14) }}>🎁</Text>
                   ) : (
                     <Text
-                      style={{
-                        color: isToday ? 'black' : COLORS.textMuted,
-                        fontSize: 12,
-                        fontWeight: 'bold',
-                      }}
+                      style={[
+                        styles.streakDayNumber,
+                        {
+                          color: isToday ? '#000000' : theme.textMuted,
+                          fontSize: scaledFont('sm'),
+                        },
+                      ]}
                     >
                       {day}
                     </Text>
@@ -472,86 +603,53 @@ export default function HubScreen() {
       </View>
 
       {/* Совет дня */}
-      <View style={{ paddingHorizontal: 24, paddingBottom: 32 }}>
+      <View
+        style={[
+          styles.tipSection,
+          { paddingHorizontal: scale(spacing.xxl), paddingBottom: scale(spacing.xxxl) },
+        ]}
+      >
         <TouchableOpacity
           onPress={() => triggerHaptic('light')}
           activeOpacity={0.8}
-          style={{
-            backgroundColor: 'rgba(99, 102, 241, 0.1)',
-            borderWidth: 1,
-            borderColor: 'rgba(99, 102, 241, 0.3)',
-            borderRadius: 16,
-            padding: 16,
-            flexDirection: 'row',
-            alignItems: 'flex-start',
-            gap: 12,
-          }}
+          style={[
+            styles.tipCard,
+            {
+              backgroundColor: 'rgba(99, 102, 241, 0.1)',
+              borderColor: 'rgba(99, 102, 241, 0.3)',
+              padding: scale(spacing.lg),
+              gap: scale(spacing.md),
+            },
+          ]}
         >
           <View
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: 'rgba(99, 102, 241, 0.2)',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
+            style={[
+              styles.tipIconBox,
+              {
+                backgroundColor: 'rgba(99, 102, 241, 0.2)',
+                width: scale(36),
+                height: scale(36),
+                borderRadius: scale(18),
+              },
+            ]}
           >
-            <Ionicons name="bulb" size={18} color={COLORS.primary} />
+            <Ionicons name="bulb" size={scale(18)} color={theme.primary} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: 'white', fontWeight: '600', fontSize: 14, marginBottom: 4 }}>
+            <Text
+              style={[
+                styles.tipTitle,
+                { fontSize: scaledFont('md'), marginBottom: scale(spacing.xs) },
+              ]}
+            >
               Совет дня
             </Text>
-            <Text style={{ color: COLORS.textSecondary, fontSize: 13, lineHeight: 18 }}>
+            <Text style={[styles.tipText, { fontSize: scaledFont('sm') }]}>
               Покупайте декор в магазине — он даёт бонус к восстановлению настроения!
             </Text>
           </View>
         </TouchableOpacity>
       </View>
     </ScrollView>
-  );
-}
-
-/**
- * Кнопка быстрого действия с градиентом
- */
-function ActionButton({
-  icon,
-  title,
-  subtitle,
-  gradient,
-  onPress,
-  disabled,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  subtitle: string;
-  gradient: [string, string];
-  onPress: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      disabled={disabled}
-      activeOpacity={0.8}
-      style={{ flex: 1, borderRadius: 20, overflow: 'hidden', opacity: disabled ? 0.5 : 1 }}
-    >
-      <LinearGradient
-        colors={gradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{ padding: 16, alignItems: 'center' }}
-      >
-        <Ionicons name={icon} size={28} color="white" />
-        <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 15, marginTop: 8 }}>
-          {title}
-        </Text>
-        <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11, marginTop: 2 }}>
-          {subtitle}
-        </Text>
-      </LinearGradient>
-    </TouchableOpacity>
   );
 }

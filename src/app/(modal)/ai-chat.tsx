@@ -1,8 +1,6 @@
-// app/(modal)/ai-chat.tsx
+// src/app/(modal)/ai-chat.tsx
 // Чат с ИИ-Наставником
 
-import { AI_QUESTION_ENERGY_COST, COLORS, DAILY_AI_FREE_QUESTIONS } from '@/constants/theme';
-import { useUserStore } from '@/lib/stores/userStore';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -17,6 +15,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+
+import { AI_QUESTION_ENERGY_COST, DAILY_AI_FREE_QUESTIONS } from '@/constants/theme';
+import { useFeedback } from '@/lib/hooks/useFeedback';
+import { useUserStore } from '@/lib/stores/userStore';
+import { useResponsive, useTheme } from '@/theme';
+import { spacing } from '@/theme/tokens';
+import { createAiChatStyles } from '../../styles/screens/modal/_ai-chat.styles';
 
 // Тип сообщения
 interface ChatMessage {
@@ -37,9 +42,22 @@ const AI_RESPONSES = [
   'Кредит — это инструмент, а не решение всех проблем. Всегда читайте условия мелким шрифтом.',
 ];
 
+// Быстрые вопросы
+const QUICK_QUESTIONS = [
+  { icon: '💰', text: 'Что такое бюджет?' },
+  { icon: '🏦', text: 'Как копить?' },
+  { icon: '🛡️', text: 'Что такое скам?' },
+  { icon: '📈', text: 'Как инвестировать?' },
+];
+
 export default function AiChatScreen() {
   const router = useRouter();
-  const { user } = useUserStore(); // Используем для персонализации
+  const { theme } = useTheme();
+  const { scale, scaledFont } = useResponsive(); // ✅ Используем scale и scaledFont
+  const { triggerHaptic } = useFeedback();
+  const { user } = useUserStore();
+
+  const styles = createAiChatStyles({ theme });
   const scrollViewRef = useRef<ScrollView>(null);
 
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -58,7 +76,8 @@ export default function AiChatScreen() {
 
   const questionsRemaining = DAILY_AI_FREE_QUESTIONS - questionsUsed;
 
-  // Автопрокрутка к последнему сообщению
+  const headerGradient: [string, string] = ['#7C3AED', '#A855F7'];
+
   useEffect(() => {
     setTimeout(() => {
       scrollViewRef.current?.scrollToEnd({ animated: true });
@@ -67,6 +86,8 @@ export default function AiChatScreen() {
 
   const handleSendMessage = async () => {
     if (!inputText.trim() || isLoading) return;
+
+    triggerHaptic('light');
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -80,7 +101,6 @@ export default function AiChatScreen() {
     setIsLoading(true);
     setQuestionsUsed((prev) => prev + 1);
 
-    // Имитация ответа ИИ
     setTimeout(() => {
       const aiResponse: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -93,37 +113,66 @@ export default function AiChatScreen() {
     }, 1500);
   };
 
+  const handleQuickQuestion = (question: string) => {
+    triggerHaptic('selection');
+    setInputText(question);
+  };
+
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="bg-slate-900"
     >
       {/* Заголовок */}
-      <LinearGradient colors={[COLORS.surface, COLORS.background]} className="px-6 pt-14 pb-4">
-        <View className="flex-row items-center justify-between mb-2">
-          <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color="white" />
+      <LinearGradient
+        colors={headerGradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={[styles.header, { paddingTop: scale(56), paddingBottom: scale(spacing.lg) }]}
+      >
+        <View style={styles.headerTopRow}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={[styles.backButton, { width: scale(36), height: scale(36) }]}
+          >
+            <Ionicons name="arrow-back" size={scale(20)} color="#FFFFFF" />
           </TouchableOpacity>
-          <View className="flex-row items-center gap-2">
-            <Text className="text-white font-semibold text-lg">ИИ-Наставник</Text>
-            <View className="w-2 h-2 rounded-full bg-green-500" />
+
+          <View style={styles.headerTitleRow}>
+            <Text style={[styles.headerTitle, { fontSize: scaledFont('xl') }]}>ИИ-Наставник</Text>
+            <View style={styles.onlineDot} />
           </View>
-          <View className="w-6" />
+
+          <View style={{ width: scale(36) }} />
         </View>
 
         {/* Счётчик вопросов */}
-        <View className="flex-row items-center justify-center gap-4">
-          <View className="flex-row items-center gap-1 bg-slate-800 px-3 py-1 rounded-full">
-            <Ionicons name="chatbubble" size={14} color={COLORS.primary} />
-            <Text className="text-slate-300 text-sm">
+        <View style={styles.statsRow}>
+          <View
+            style={[
+              styles.statBadge,
+              { paddingHorizontal: scale(spacing.md), paddingVertical: scale(spacing.xs) },
+            ]}
+          >
+            <Ionicons name="chatbubble-ellipses" size={scale(14)} color="#FFFFFF" />
+            <Text style={[styles.statText, { fontSize: scaledFont('sm') }]}>
               {questionsRemaining} / {DAILY_AI_FREE_QUESTIONS}
             </Text>
           </View>
           {questionsRemaining === 0 && (
-            <View className="flex-row items-center gap-1 bg-amber-500/20 px-3 py-1 rounded-full">
-              <Ionicons name="flash" size={14} color={COLORS.accent} />
-              <Text className="text-amber-400 text-sm">Далее: {AI_QUESTION_ENERGY_COST} E</Text>
+            <View
+              style={[
+                styles.statBadge,
+                styles.statBadgeWarning,
+                { paddingHorizontal: scale(spacing.md), paddingVertical: scale(spacing.xs) },
+              ]}
+            >
+              <Ionicons name="flash" size={scale(14)} color="#FDE68A" />
+              <Text
+                style={[styles.statText, styles.statTextWarning, { fontSize: scaledFont('sm') }]}
+              >
+                Далее: {AI_QUESTION_ENERGY_COST} E
+              </Text>
             </View>
           )}
         </View>
@@ -132,8 +181,8 @@ export default function AiChatScreen() {
       {/* Сообщения */}
       <ScrollView
         ref={scrollViewRef}
-        className="flex-1 px-4"
-        contentContainerClassName="py-4"
+        style={styles.messagesScroll}
+        contentContainerStyle={styles.messagesScrollContent}
         showsVerticalScrollIndicator={false}
       >
         {messages.map((message) => (
@@ -142,50 +191,88 @@ export default function AiChatScreen() {
 
         {/* Индикатор загрузки */}
         {isLoading && (
-          <View className="flex-row items-center gap-2 mb-4">
-            <View className="w-8 h-8 rounded-full bg-purple-500/20 items-center justify-center">
-              <Text className="text-sm">🤖</Text>
+          <View style={styles.loadingRow}>
+            <View
+              style={[
+                styles.avatarBox,
+                styles.avatarAssistant,
+                { width: scale(36), height: scale(36) },
+              ]}
+            >
+              <Text style={{ fontSize: scale(18) }}>🤖</Text>
             </View>
-            <View className="bg-slate-800 rounded-2xl rounded-tl-sm px-4 py-3">
-              <ActivityIndicator size="small" color={COLORS.textSecondary} />
+            <View style={styles.loadingBubble}>
+              <ActivityIndicator size="small" color={theme.textSecondary} />
             </View>
           </View>
         )}
       </ScrollView>
 
       {/* Быстрые вопросы */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-4 pb-2">
-        {['Что такое бюджет?', 'Как копить?', 'Что такое скам?'].map((question) => (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={[
+          styles.quickQuestionsScroll,
+          { paddingHorizontal: scale(spacing.sm), paddingBottom: scale(spacing.xs) },
+        ]}
+        contentContainerStyle={[styles.quickQuestionsRow, { gap: scale(spacing.xs) }]}
+      >
+        {QUICK_QUESTIONS.map((question) => (
           <TouchableOpacity
-            key={question}
-            onPress={() => setInputText(question)}
-            className="bg-slate-800 px-4 py-2 rounded-full mr-2"
+            key={question.text}
+            onPress={() => handleQuickQuestion(question.text)}
+            activeOpacity={0.7}
+            style={[
+              styles.quickQuestionButton,
+              {
+                paddingHorizontal: scale(spacing.sm),
+                paddingVertical: scale(spacing.xs),
+                gap: scale(spacing.xxs),
+                borderRadius: scale(spacing.md),
+              },
+            ]}
           >
-            <Text className="text-slate-300 text-sm">{question}</Text>
+            <Text style={{ fontSize: scale(12) }}>{question.icon}</Text>
+            <Text style={[styles.quickQuestionText, { fontSize: scaledFont('xs') }]}>
+              {question.text}
+            </Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
 
       {/* Поле ввода */}
-      <View className="px-4 pb-6 pt-2 bg-slate-900 border-t border-slate-800">
-        <View className="flex-row items-center gap-2">
+      <View
+        style={[
+          styles.inputContainer,
+          {
+            paddingHorizontal: scale(spacing.lg),
+            paddingBottom: scale(spacing.xxl),
+            paddingTop: scale(spacing.sm),
+          },
+        ]}
+      >
+        <View style={[styles.inputRow, { gap: scale(spacing.sm) }]}>
           <TextInput
             value={inputText}
             onChangeText={setInputText}
             placeholder="Задайте вопрос о финансах..."
-            placeholderTextColor={COLORS.textMuted}
-            className="flex-1 bg-slate-800 rounded-full px-4 py-3 text-white"
+            placeholderTextColor={theme.textMuted}
+            style={[styles.inputField, { fontSize: scaledFont('md') }]}
             multiline
             maxLength={500}
           />
           <TouchableOpacity
             onPress={handleSendMessage}
             disabled={!inputText.trim() || isLoading}
-            className={`w-12 h-12 rounded-full items-center justify-center ${
-              inputText.trim() && !isLoading ? 'bg-indigo-500' : 'bg-slate-700'
-            }`}
+            activeOpacity={0.8}
+            style={[
+              styles.sendButton,
+              inputText.trim() && !isLoading ? styles.sendButtonActive : styles.sendButtonInactive,
+              { width: scale(48), height: scale(48), borderRadius: scale(24) },
+            ]}
           >
-            <Ionicons name="send" size={20} color="white" />
+            <Ionicons name="send" size={scale(20)} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
       </View>
@@ -197,24 +284,58 @@ export default function AiChatScreen() {
  * Пузырь сообщения
  */
 function ChatBubble({ message }: { message: ChatMessage }) {
+  const { theme } = useTheme();
+  const { scale, scaledFont } = useResponsive();
+
+  const styles = createAiChatStyles({ theme });
+
   const isUser = message.role === 'user';
 
   return (
-    <View className={`flex-row mb-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
+    <View
+      style={[
+        styles.messageRow,
+        isUser ? styles.messageRowUser : styles.messageRowAssistant,
+        { marginBottom: scale(spacing.lg) },
+      ]}
+    >
       {!isUser && (
-        <View className="w-8 h-8 rounded-full bg-purple-500/20 items-center justify-center mr-2 mt-1">
-          <Text className="text-sm">🤖</Text>
+        <View
+          style={[
+            styles.avatarBox,
+            styles.avatarAssistant,
+            { width: scale(36), height: scale(36), marginTop: scale(spacing.xs) },
+          ]}
+        >
+          <Text style={{ fontSize: scale(18) }}>🤖</Text>
         </View>
       )}
 
       <View
-        className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-          isUser ? 'bg-indigo-500 rounded-br-sm' : 'bg-slate-800 rounded-tl-sm'
-        }`}
+        style={[
+          styles.messageBubble,
+          isUser ? styles.messageBubbleUser : styles.messageBubbleAssistant,
+          {
+            paddingHorizontal: scale(spacing.lg),
+            paddingVertical: scale(spacing.md),
+          },
+        ]}
       >
-        <Text className="text-white leading-relaxed">{message.content}</Text>
         <Text
-          className={`text-xs mt-1 ${isUser ? 'text-indigo-200 text-right' : 'text-slate-500'}`}
+          style={[
+            styles.messageText,
+            !isUser && styles.messageTextAssistant,
+            { fontSize: scaledFont('md') },
+          ]}
+        >
+          {message.content}
+        </Text>
+        <Text
+          style={[
+            styles.messageTime,
+            isUser ? styles.messageTimeUser : styles.messageTimeAssistant,
+            { fontSize: scaledFont('xs') },
+          ]}
         >
           {message.timestamp.toLocaleTimeString('ru-RU', {
             hour: '2-digit',
@@ -224,8 +345,14 @@ function ChatBubble({ message }: { message: ChatMessage }) {
       </View>
 
       {isUser && (
-        <View className="w-8 h-8 rounded-full bg-indigo-500/20 items-center justify-center ml-2 mt-1">
-          <Text className="text-sm">👤</Text>
+        <View
+          style={[
+            styles.avatarBox,
+            styles.avatarUser,
+            { width: scale(36), height: scale(36), marginTop: scale(spacing.xs) },
+          ]}
+        >
+          <Text style={{ fontSize: scale(18) }}>👤</Text>
         </View>
       )}
     </View>
