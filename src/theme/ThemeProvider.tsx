@@ -2,7 +2,15 @@
 // Провайдер темы с автоопределением и сохранением выбора
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  createContext,
+  ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { useColorScheme } from 'react-native';
 import { Theme, ThemeName, themes } from './themes';
 
@@ -11,7 +19,7 @@ const STORAGE_KEY = 'finsputnik-theme-preference';
 /**
  * Режим выбора темы:
  * - 'system' — следует за системой (авто)
- * - 'light' / 'dark' / 'amoled' — ручное переключение
+ * - 'light' / 'dark' — ручное переключение
  */
 export type ThemeMode = 'system' | ThemeName;
 
@@ -67,23 +75,23 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   }, [mode, systemScheme]);
 
   const theme = themes[activeThemeName];
-  const isDark = activeThemeName === 'dark' || activeThemeName === 'amoled';
+  const isDark = activeThemeName === 'dark';
 
   // Переключение режима с сохранением
-  const setMode = (newMode: ThemeMode) => {
+  const setMode = useCallback((newMode: ThemeMode) => {
     setModeState(newMode);
     AsyncStorage.setItem(STORAGE_KEY, newMode).catch((error) => {
       console.warn('[ThemeProvider] Ошибка сохранения темы:', error);
     });
-  };
+  }, []);
 
-  // Переключение по кругу: system → light → dark → amoled → system
-  const cycleTheme = () => {
-    const order: ThemeMode[] = ['system', 'light', 'dark', 'amoled'];
+  // Переключение по кругу: system → light → dark → system
+  const cycleTheme = useCallback(() => {
+    const order: ThemeMode[] = ['system', 'light', 'dark'];
     const currentIndex = order.indexOf(mode);
     const nextIndex = (currentIndex + 1) % order.length;
     setMode(order[nextIndex]);
-  };
+  }, [mode, setMode]);
 
   const value = useMemo(
     () => ({
@@ -93,7 +101,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       setMode,
       cycleTheme,
     }),
-    [theme, mode, isDark]
+    [theme, mode, isDark, setMode, cycleTheme]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
@@ -103,7 +111,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
  * Проверка валидности режима темы
  */
 function isValidMode(value: string): boolean {
-  return ['system', 'light', 'dark', 'amoled'].includes(value);
+  return ['system', 'light', 'dark'].includes(value);
 }
 
 /**

@@ -2,7 +2,17 @@
 // Стили свайп-игры
 
 import type { Theme } from '@/theme';
-import { fontSizes, fontWeights, radius, shadows, spacing } from '@/theme/tokens';
+import { withAlpha } from '@/theme/colorUtils';
+import {
+  circleRadius,
+  colorPalettes,
+  emojiSizes,
+  fontSizes,
+  fontWeights,
+  radius,
+  shadows,
+  spacing,
+} from '@/theme/tokens';
 import { Dimensions, StyleSheet } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -20,18 +30,18 @@ export function createTinderSwipeGameStyles({ theme }: TinderSwipeGameStylesPara
       flex: 1,
     },
     instructionBanner: {
-      backgroundColor: 'rgba(99, 102, 241, 0.15)',
+      backgroundColor: withAlpha(theme.accent, 0.15),
       borderRadius: radius.lg,
       padding: spacing.md,
       marginBottom: spacing.lg,
       borderWidth: 1,
-      borderColor: 'rgba(99, 102, 241, 0.3)',
+      borderColor: withAlpha(theme.accent, 0.3),
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.sm,
     },
     instructionText: {
-      color: '#A5B4FC',
+      color: theme.accentLight,
       fontSize: fontSizes.sm,
       flex: 1,
       lineHeight: 18,
@@ -56,20 +66,20 @@ export function createTinderSwipeGameStyles({ theme }: TinderSwipeGameStylesPara
     situationIconContainer: {
       width: 72,
       height: 72,
-      borderRadius: 36,
-      backgroundColor: 'rgba(99, 102, 241, 0.2)',
+      borderRadius: circleRadius(72),
+      backgroundColor: withAlpha(theme.accent, 0.2),
       alignItems: 'center',
       justifyContent: 'center',
       alignSelf: 'center',
       marginBottom: spacing.xl,
       borderWidth: 2,
-      borderColor: 'rgba(99, 102, 241, 0.4)',
+      borderColor: withAlpha(theme.accent, 0.4),
     },
     situationEmoji: {
-      fontSize: 36,
+      fontSize: emojiSizes.md,
     },
     situationLabel: {
-      color: 'rgba(255,255,255,0.6)',
+      color: withAlpha(theme.onGradient, 0.6),
       fontSize: fontSizes.xs,
       fontWeight: fontWeights.semibold,
       textAlign: 'center',
@@ -78,7 +88,7 @@ export function createTinderSwipeGameStyles({ theme }: TinderSwipeGameStylesPara
       letterSpacing: 1,
     },
     questionText: {
-      color: '#FFFFFF',
+      color: theme.onGradient,
       fontSize: fontSizes.xl,
       fontWeight: fontWeights.semibold,
       textAlign: 'center',
@@ -87,28 +97,28 @@ export function createTinderSwipeGameStyles({ theme }: TinderSwipeGameStylesPara
     },
     divider: {
       height: 1,
-      backgroundColor: 'rgba(255,255,255,0.1)',
+      backgroundColor: withAlpha(theme.onGradient, 0.1),
       marginVertical: spacing.lg,
     },
     optionsContainer: {
       gap: spacing.md,
     },
     leftOptionBox: {
-      backgroundColor: 'rgba(239, 68, 68, 0.15)',
+      backgroundColor: withAlpha(theme.error, 0.15),
       borderRadius: radius.md,
       padding: spacing.md,
       borderWidth: 1,
-      borderColor: 'rgba(239, 68, 68, 0.3)',
+      borderColor: withAlpha(theme.error, 0.3),
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.sm,
     },
     rightOptionBox: {
-      backgroundColor: 'rgba(16, 185, 129, 0.15)',
+      backgroundColor: withAlpha(theme.success, 0.15),
       borderRadius: radius.md,
       padding: spacing.md,
       borderWidth: 1,
-      borderColor: 'rgba(16, 185, 129, 0.3)',
+      borderColor: withAlpha(theme.success, 0.3),
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.sm,
@@ -117,12 +127,12 @@ export function createTinderSwipeGameStyles({ theme }: TinderSwipeGameStylesPara
       fontSize: 16,
     },
     leftOptionText: {
-      color: '#FCA5A5',
+      color: colorPalettes.red[300],
       fontSize: fontSizes.md,
       flex: 1,
     },
     rightOptionText: {
-      color: '#86EFAC',
+      color: colorPalettes.emerald[300],
       fontSize: fontSizes.md,
       flex: 1,
     },
@@ -167,16 +177,16 @@ export function createTinderSwipeGameStyles({ theme }: TinderSwipeGameStylesPara
     swipeButtonOuter: {
       width: 64,
       height: 64,
-      borderRadius: 32,
+      borderRadius: circleRadius(64),
       alignItems: 'center',
       justifyContent: 'center',
     },
     swipeButtonInner: {
       width: 56,
       height: 56,
-      borderRadius: 28,
+      borderRadius: circleRadius(56),
       borderWidth: 3,
-      backgroundColor: '#FFFFFF',
+      backgroundColor: theme.onGradient,
       alignItems: 'center',
       justifyContent: 'center',
     },

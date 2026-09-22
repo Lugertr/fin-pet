@@ -4,10 +4,11 @@
     "slug": "fin-pet",
     "version": "1.0.0",
     "scheme": "fin-pet",
+    "userInterfaceStyle": "automatic",
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/favicon.png",
+      "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-router",
@@ -21,12 +22,14 @@
             "newArchEnabled": true
           }
         }
-      ]
+      ],
+      "expo-sqlite",
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true,
       "baseUrl": "/fin-pet"
     },
-    "sourceDir": "src",
+    "sourceDir": "src"
   }
 }

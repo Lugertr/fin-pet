@@ -3,6 +3,8 @@
 
 import type { PetMoodState } from '@/constants/petAssets';
 import type { Theme } from '@/theme';
+import { withAlpha } from '@/theme/colorUtils';
+import { circleRadius, colorPalettes } from '@/theme/tokens';
 import { StyleSheet } from 'react-native';
 
 interface PetSpriteStylesParams {
@@ -12,27 +14,28 @@ interface PetSpriteStylesParams {
 }
 
 export function createPetSpriteStyles({ theme, size, moodState }: PetSpriteStylesParams) {
-  // Цвет свечения в зависимости от настроения
+  // Цвет свечения в зависимости от настроения — фиксированный оттенок палитры,
+  // не theme.X: иначе свечение незаметно сдвигалось бы между темами.
   const glowColors: Record<PetMoodState, string> = {
-    happy: 'rgba(16, 185, 129, 0.3)',
-    neutral: 'rgba(245, 158, 11, 0.3)',
-    sad: 'rgba(239, 68, 68, 0.3)',
-    sleeping: 'rgba(100, 116, 139, 0.3)',
+    happy: withAlpha(colorPalettes.emerald[500], 0.3),
+    neutral: withAlpha(colorPalettes.amber[500], 0.3),
+    sad: withAlpha(colorPalettes.red[500], 0.3),
+    sleeping: withAlpha(colorPalettes.slate[500], 0.3),
   };
 
   // Цвет обводки
   const borderColors: Record<PetMoodState, string> = {
-    happy: 'rgba(16, 185, 129, 0.5)',
-    neutral: 'rgba(245, 158, 11, 0.5)',
-    sad: 'rgba(239, 68, 68, 0.5)',
-    sleeping: 'rgba(100, 116, 139, 0.5)',
+    happy: withAlpha(colorPalettes.emerald[500], 0.5),
+    neutral: withAlpha(colorPalettes.amber[500], 0.5),
+    sad: withAlpha(colorPalettes.red[500], 0.5),
+    sleeping: withAlpha(colorPalettes.slate[500], 0.5),
   };
 
   return StyleSheet.create({
     container: {
       width: size,
       height: size,
-      borderRadius: size / 2,
+      borderRadius: circleRadius(size),
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: glowColors[moodState],
@@ -40,10 +43,13 @@ export function createPetSpriteStyles({ theme, size, moodState }: PetSpriteStyle
       borderColor: borderColors[moodState],
       overflow: 'visible',
     },
+    // Без borderRadius: артборд питомца — портретный (200x300, не квадрат),
+    // contentFit="contain" вписывает его в квадрат с прозрачными полями
+    // сверху/снизу; круглая обрезка поверх обрезала бы антенну/уши/ноги по
+    // бокам там, где рисунок шире вписанной окружности.
     image: {
       width: size * 0.9,
       height: size * 0.9,
-      borderRadius: size / 2,
     },
     emoji: {
       fontSize: size * 0.5,
@@ -54,7 +60,7 @@ export function createPetSpriteStyles({ theme, size, moodState }: PetSpriteStyle
       right: -8,
       width: 32,
       height: 32,
-      borderRadius: 16,
+      borderRadius: circleRadius(32),
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -62,7 +68,7 @@ export function createPetSpriteStyles({ theme, size, moodState }: PetSpriteStyle
       backgroundColor: theme.surfaceLight,
     },
     badgeHappy: {
-      backgroundColor: 'rgba(16, 185, 129, 0.9)',
+      backgroundColor: withAlpha(colorPalettes.emerald[500], 0.9),
     },
     badgeEmoji: {
       fontSize: 16,

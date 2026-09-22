@@ -2,7 +2,7 @@
 // Единый сервис для звуков и тактильной отдачи
 // ВАЖНО: Все пути к файлам должны быть статическими строками!
 
-import { Audio, AVPlaybackSource } from 'expo-av';
+import { AudioPlayer, AudioSource, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
 
@@ -16,15 +16,15 @@ export type HapticType =
 // ПРЯМЫЕ СТАТИЧЕСКИЕ ВЫЗОВЫ require()
 // Путь отсюда до корня: ../../../ (из src/lib/services/)
 // ============================================
-const SOUND_MAP: Record<SoundType, AVPlaybackSource | null> = {
-  correct: require('../../../assets/sounds/correct.mp3') as AVPlaybackSource,
-  wrong: require('../../../assets/sounds/wrong.mp3') as AVPlaybackSource,
-  coin: require('../../../assets/sounds/coin.mp3') as AVPlaybackSource,
-  levelUp: require('../../../assets/sounds/level-up.mp3') as AVPlaybackSource,
-  click: require('../../../assets/sounds/click.mp3') as AVPlaybackSource,
-  daily: require('../../../assets/sounds/daily.mp3') as AVPlaybackSource,
-  error: require('../../../assets/sounds/error.mp3') as AVPlaybackSource,
-  success: require('../../../assets/sounds/success.mp3') as AVPlaybackSource,
+const SOUND_MAP: Record<SoundType, AudioSource> = {
+  correct: require('../../../assets/sounds/correct.mp3'),
+  wrong: require('../../../assets/sounds/wrong.mp3'),
+  coin: require('../../../assets/sounds/coin.mp3'),
+  levelUp: require('../../../assets/sounds/level-up.mp3'),
+  click: require('../../../assets/sounds/click.mp3'),
+  daily: require('../../../assets/sounds/daily.mp3'),
+  error: require('../../../assets/sounds/error.mp3'),
+  success: require('../../../assets/sounds/success.mp3'),
 };
 
 export type FeedbackPreset =
@@ -49,7 +49,7 @@ const PRESETS: Record<FeedbackPreset, { sound: SoundType; haptic: HapticType }> 
 };
 
 class FeedbackService {
-  private soundCache: Map<SoundType, Audio.Sound> = new Map();
+  private soundCache: Map<SoundType, AudioPlayer> = new Map();
   private isEnabled: boolean = true;
   private soundsEnabled: boolean = true;
   private hapticsEnabled: boolean = true;
@@ -59,12 +59,12 @@ class FeedbackService {
     if (this.isInitialized) return;
 
     try {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        staysActiveInBackground: false,
-        playsInSilentModeIOS: true,
-        shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: false,
+      await setAudioModeAsync({
+        allowsRecording: false,
+        shouldPlayInBackground: false,
+        playsInSilentMode: true,
+        interruptionMode: 'duckOthers',
+        shouldRouteThroughEarpiece: false,
       });
       this.isInitialized = true;
     } catch (error) {
@@ -88,24 +88,19 @@ class FeedbackService {
     if (!this.isEnabled || !this.soundsEnabled) return;
 
     try {
-      let sound = this.soundCache.get(type);
+      let player = this.soundCache.get(type);
 
-      if (!sound) {
+      if (!player) {
         const soundSource = SOUND_MAP[type];
         if (!soundSource) return;
 
-        const { sound: newSound } = await Audio.Sound.createAsync(
-          soundSource,
-          { shouldPlay: false, volume: 0.7 },
-          null,
-          false
-        );
-        sound = newSound;
-        this.soundCache.set(type, sound);
+        player = createAudioPlayer(soundSource);
+        player.volume = 0.7;
+        this.soundCache.set(type, player);
       }
 
-      await sound.setPositionAsync(0);
-      await sound.playAsync();
+      await player.seekTo(0);
+      player.play();
     } catch (error) {
       console.warn(`[Feedback] Не удалось проиграть звук ${type}:`, error);
     }
@@ -152,9 +147,9 @@ class FeedbackService {
   }
 
   async cleanup(): Promise<void> {
-    for (const sound of this.soundCache.values()) {
+    for (const player of this.soundCache.values()) {
       try {
-        await sound.unloadAsync();
+        player.remove();
       } catch {
         // Игнорируем ошибки выгрузки
       }

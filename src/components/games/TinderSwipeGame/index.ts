@@ -1,2 +1,1 @@
 export { TinderSwipeGame } from './TinderSwipeGame';
-

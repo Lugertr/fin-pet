@@ -2,6 +2,7 @@
 // Стили индикатора настроения
 
 import type { Theme } from '@/theme';
+import { withAlpha } from '@/theme/colorUtils';
 import { fontSizes, fontWeights, radius, spacing } from '@/theme/tokens';
 import { StyleSheet } from 'react-native';
 
@@ -35,7 +36,7 @@ export function createMoodIndicatorStyles({
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.xs,
-      backgroundColor: `${moodColor}20`,
+      backgroundColor: withAlpha(moodColor, 0.125),
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.xs,
       borderRadius: radius.lg,
@@ -58,11 +59,11 @@ export function createMoodIndicatorStyles({
     },
     tipContainer: {
       marginTop: spacing.md,
-      backgroundColor: `${tipColor}15`,
+      backgroundColor: withAlpha(tipColor, 0.082),
       borderRadius: radius.lg,
       padding: spacing.md,
       borderWidth: 1,
-      borderColor: `${tipColor}40`,
+      borderColor: withAlpha(tipColor, 0.251),
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.sm,

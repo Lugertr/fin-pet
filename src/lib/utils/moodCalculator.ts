@@ -1,13 +1,15 @@
 // lib/utils/moodCalculator.ts
 // Клиентский предикт настроения для оптимистичного UI
 
-import { MOOD_MAX } from '@/constants/theme';
+import { MOOD_MAX } from '@/constants/gameplay';
 
 interface MoodCalculationInput {
   storedMood: number;
   lastUpdatedAt: string; // ISO datetime
   baseRecoveryRate: number;
-  inventoryBuffs: number; // сумма баффов от декора
+  inventoryBuffs: number; // сумма баффов к скорости восстановления от декора
+  /** §6.1 — до +50 к максимуму от декора. Пока нет предметов с этим эффектом (Этап 5), передавайте 0. */
+  maxBonus?: number;
 }
 
 interface MoodCalculationResult {
@@ -22,7 +24,7 @@ interface MoodCalculationResult {
  * (оптимистичный UI до запроса к серверу)
  */
 export function calculateCurrentMood(input: MoodCalculationInput): MoodCalculationResult {
-  const { storedMood, lastUpdatedAt, baseRecoveryRate, inventoryBuffs } = input;
+  const { storedMood, lastUpdatedAt, baseRecoveryRate, inventoryBuffs, maxBonus = 0 } = input;
 
   const now = new Date();
   const lastUpdated = new Date(lastUpdatedAt);
@@ -37,8 +39,10 @@ export function calculateCurrentMood(input: MoodCalculationInput): MoodCalculati
   // Сколько настроения восстановилось
   const moodRecovered = Math.floor(hoursPassed * totalRecoveryRate);
 
-  // Актуальное настроение (не более максимума)
-  const currentMood = Math.min(MOOD_MAX, storedMood + moodRecovered);
+  // §6.3: min(100 + decor_max_bonus, stored + hours * rate); нижняя граница —
+  // защита от рассинхронизации часов устройства (lastUpdatedAt в будущем
+  // даёт отрицательные hoursPassed/moodRecovered без этого клэмпа)
+  const currentMood = Math.max(0, Math.min(MOOD_MAX + maxBonus, storedMood + moodRecovered));
 
   return {
     currentMood,
@@ -49,28 +53,15 @@ export function calculateCurrentMood(input: MoodCalculationInput): MoodCalculati
 }
 
 /**
- * Проверяет, заблокирован ли доступ к урокам
+ * §6.4: при энергии < 30 питомец «голодный» — это подсказка, а не блокировка.
+ * Уроки/бюджет/покупки/накопления/переход периода низкой энергией НЕ блокируются —
+ * блокируются только Аркада и ИИ-помощник, каждый по своей стоимости (§6.2).
  */
-export function isMoodBlocked(mood: number): boolean {
-  return mood <= 0;
+export function isPetHungry(mood: number): boolean {
+  return mood < 30;
 }
 
-/**
- * Проверяет, активен ли бонус к доходу
- */
-export function isMoodBonusActive(mood: number): boolean {
-  return mood > 50;
-}
-
-/**
- * Возвращает текст блокировки при нулевом настроении
- */
-export function getMoodBlockMessage(mood: number): string | null {
-  if (mood <= 0) {
-    return 'Питомец совсем устал! Восстановите его настроение, чтобы продолжить обучение.';
-  }
-  if (mood <= 20) {
-    return 'Питомец устал. Бонус к доходу не активен.';
-  }
-  return null;
+/** Может ли питомец позволить себе действие, которое стоит `cost` энергии (§6.2: только Аркада и ИИ). */
+export function canAffordEnergy(mood: number, cost: number): boolean {
+  return mood >= cost;
 }

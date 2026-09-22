@@ -113,7 +113,3 @@ export const useDailyStore = create<DailyState>()(
     }
   )
 );
-
-export function useDaily() {
-  return useDailyStore();
-}

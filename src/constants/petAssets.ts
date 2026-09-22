@@ -21,46 +21,10 @@ export function getMoodState(mood: number): PetMoodState {
 }
 
 // ============================================
-// ФОН КОМНАТЫ
-// Путь отсюда до корня: ../../ (из src/constants/)
-// ============================================
-export const ROOM_BACKGROUND = require('../../assets/images/rooms/background.png');
-
-// ============================================
 // ПИТОМЦЫ (SVG файлы)
 // ============================================
 export const PET_ASSETS_SINGLE: Record<PetType, number> = {
-  robot: require('../../assets/images/pets/robot/idle.svg'),
-  dragon: require('../../assets/images/pets/dragon/idle.svg'),
-  cat: require('../../assets/images/pets/cat/idle.svg'),
+  robot: require('../../assets/images/pets/robot/v0/idle.svg'),
+  dragon: require('../../assets/images/pets/dragon/v0/idle.svg'),
+  cat: require('../../assets/images/pets/cat/v0/idle.svg'),
 };
-
-// ============================================
-// ДЕКОР
-// ============================================
-export const DECOR_ASSETS: Record<string, number> = {
-  Кровать: require('../../assets/images/decor/bed.png'),
-  Растение: require('../../assets/images/decor/plant.png'),
-  Стол: require('../../assets/images/decor/table.png'),
-  Лампа: require('../../assets/images/decor/lamp.png'),
-  Ковёр: require('../../assets/images/decor/carpet.png'),
-};
-
-// Эмодзи-заглушки
-export const DECOR_EMOJIS: Record<string, string> = {
-  Кровать: '🛏️',
-  Растение: '🪴',
-  Стол: '🪑',
-  Лампа: '💡',
-  Ковёр: '🟫',
-  Ноутбук: '💻',
-};
-
-// ============================================
-// СТАРТОВЫЙ ДЕКОР
-// ============================================
-export const STARTING_DECOR = [
-  { id: 'start-bed', name: 'Кровать', position: 'left' as const },
-  { id: 'start-plant', name: 'Растение', position: 'right' as const },
-  { id: 'start-lamp', name: 'Лампа', position: 'right' as const },
-];

@@ -1,0 +1,1 @@
+export { ArcadeTab } from './ArcadeTab';

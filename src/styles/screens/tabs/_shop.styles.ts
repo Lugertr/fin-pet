@@ -1,8 +1,11 @@
 // src/app/(tabs)/shop.styles.ts
-// Стили экрана магазина
+// Стили самого экрана магазина — шапка, баннер подарков, категории, список.
+// Стили карточки товара переехали в
+// src/components/shop/ShopItemCard/ShopItemCard.styles.ts вместе с компонентом.
 
 import type { Theme } from '@/theme';
-import { fontSizes, fontWeights, radius, spacing } from '@/theme/tokens';
+import { withAlpha } from '@/theme/colorUtils';
+import { circleRadius, emojiSizes, fontSizes, fontWeights, radius, spacing } from '@/theme/tokens';
 import { StyleSheet } from 'react-native';
 
 interface ShopStylesParams {
@@ -37,35 +40,10 @@ export function createShopStyles({ theme }: ShopStylesParams) {
       fontWeight: fontWeights.bold,
       marginBottom: spacing.xxs,
     },
-    subtitle: {
-      color: theme.textSecondary,
-      fontSize: fontSizes.md,
-    },
-    headerActionsRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-    },
-    balanceBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-      backgroundColor: 'rgba(245, 158, 11, 0.15)',
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.sm,
-      borderRadius: radius.full,
-      borderWidth: 1,
-      borderColor: 'rgba(245, 158, 11, 0.3)',
-    },
-    balanceText: {
-      color: theme.textPrimary,
-      fontWeight: fontWeights.bold,
-      fontSize: fontSizes.md,
-    },
     inventoryButton: {
       width: 44,
       height: 44,
-      borderRadius: 22,
+      borderRadius: circleRadius(44),
       backgroundColor: theme.surfaceLight,
       alignItems: 'center',
       justifyContent: 'center',
@@ -76,13 +54,13 @@ export function createShopStyles({ theme }: ShopStylesParams) {
       right: -4,
       width: 18,
       height: 18,
-      borderRadius: 9,
+      borderRadius: circleRadius(18),
       backgroundColor: theme.error,
       alignItems: 'center',
       justifyContent: 'center',
     },
     inventoryBadgeText: {
-      color: '#FFFFFF',
+      color: theme.onGradient,
       fontSize: fontSizes.xxs,
       fontWeight: fontWeights.bold,
     },
@@ -102,8 +80,8 @@ export function createShopStyles({ theme }: ShopStylesParams) {
     giftsIconBox: {
       width: 44,
       height: 44,
-      borderRadius: 22,
-      backgroundColor: 'rgba(255,255,255,0.25)',
+      borderRadius: circleRadius(44),
+      backgroundColor: withAlpha(theme.onGradient, 0.25),
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -111,45 +89,13 @@ export function createShopStyles({ theme }: ShopStylesParams) {
       flex: 1,
     },
     giftsTitle: {
-      color: '#FFFFFF',
+      color: theme.onGradient,
       fontWeight: fontWeights.bold,
       fontSize: fontSizes.md,
     },
     giftsSubtitle: {
-      color: 'rgba(255,255,255,0.85)',
+      color: withAlpha(theme.onGradient, 0.85),
       fontSize: fontSizes.sm,
-    },
-
-    // Категории
-    categoriesScroll: {
-      flexGrow: 0,
-    },
-    categoriesRow: {
-      gap: spacing.sm,
-    },
-    categoryButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.xs,
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.sm,
-      borderRadius: radius.xl,
-    },
-    categoryButtonActive: {
-      backgroundColor: theme.primary,
-    },
-    categoryButtonInactive: {
-      backgroundColor: theme.surfaceLight,
-    },
-    categoryText: {
-      fontWeight: fontWeights.medium,
-      fontSize: fontSizes.md,
-    },
-    categoryTextActive: {
-      color: '#FFFFFF',
-    },
-    categoryTextInactive: {
-      color: theme.textSecondary,
     },
 
     // Список товаров
@@ -165,80 +111,12 @@ export function createShopStyles({ theme }: ShopStylesParams) {
       paddingVertical: spacing.massive,
     },
     emptyEmoji: {
-      fontSize: 64,
+      fontSize: emojiSizes.xxl,
       marginBottom: spacing.lg,
     },
     emptyText: {
       color: theme.textSecondary,
       textAlign: 'center',
-    },
-
-    // Карточка товара
-    itemCard: {
-      backgroundColor: theme.surface,
-      borderRadius: radius.xl,
-      padding: spacing.lg,
-      borderWidth: 1,
-      borderColor: theme.borderLight,
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    itemIconBox: {
-      width: 64,
-      height: 64,
-      borderRadius: radius.lg,
-      backgroundColor: theme.surfaceLight,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: spacing.lg,
-    },
-    itemEmoji: {
-      fontSize: 32,
-    },
-    itemInfoContainer: {
-      flex: 1,
-    },
-    itemName: {
-      color: theme.textPrimary,
-      fontWeight: fontWeights.bold,
-      fontSize: fontSizes.lg,
-      marginBottom: spacing.xs,
-    },
-    itemDescription: {
-      color: theme.textSecondary,
-      fontSize: fontSizes.sm,
-      marginBottom: spacing.xs,
-    },
-    itemPriceContainer: {
-      alignItems: 'flex-end',
-    },
-    itemPrice: {
-      fontWeight: fontWeights.bold,
-      fontSize: fontSizes.lg,
-      marginBottom: spacing.sm,
-    },
-    itemPriceAffordable: {
-      color: theme.coins,
-    },
-    itemPriceNotAffordable: {
-      color: theme.error,
-    },
-    buyButton: {
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.sm,
-      borderRadius: radius.md,
-    },
-    buyButtonEnabled: {
-      backgroundColor: theme.primary,
-    },
-    buyButtonDisabled: {
-      backgroundColor: theme.surfaceLight,
-      opacity: 0.5,
-    },
-    buyButtonText: {
-      color: '#FFFFFF',
-      fontWeight: fontWeights.semibold,
-      fontSize: fontSizes.sm,
     },
   });
 }

@@ -1,0 +1,1 @@
+export { ModuleHeaderCard } from './ModuleHeaderCard';

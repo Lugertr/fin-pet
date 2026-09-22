@@ -55,9 +55,12 @@ export function useResponsive(): ResponsiveUtils {
           ? 'medium'
           : 'small';
 
-  // Коэффициент масштабирования (база — 390, как у iPhone 14)
+  // Коэффициент масштабирования (база — 390, как у iPhone 14). Ограничен с
+  // обеих сторон: без нижней границы очень узкие экраны (сплит-скрин,
+  // веб-окно) уменьшали персонажа/иконки безгранично, а без верхней —
+  // большие экраны увеличивали их безгранично.
   const BASE_WIDTH = 390;
-  const scaleFactor = Math.min(width / BASE_WIDTH, 1.3); // Ограничение 1.3x
+  const scaleFactor = Math.min(Math.max(width / BASE_WIDTH, 0.8), 1.3);
 
   // Масштабирование значения
   const scale = (size: number): number => Math.round(size * scaleFactor);

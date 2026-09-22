@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e ' *)",
+      "Bash(npm install *)",
+      "Bash(node -e \"console.log\\(JSON.stringify\\(require\\('./node_modules/rive-react-native/package.json'\\), null, 2\\)\\)\")",
+      "Bash(grep -iA 5 \"expo\\\\|app.json\\\\|plugin\\\\|setup\\\\|install\")",
+      "Bash(node -e \"console.log\\(require\\('./content/achievements.json'\\).length\\)\")",
+      "Bash(node -e \"console.log\\(1\\)\")",
+      "Bash(npx expo *)",
+      "Bash(node -e \"let d=require\\('fs'\\).readFileSync\\(0,'utf8'\\); let j=JSON.parse\\(d\\); let cats={}; j.forEach\\(i=>{cats[i.category]=\\(cats[i.category]||0\\)+1}\\); console.log\\(cats\\); console.log\\(j.filter\\(i=>i.category==='skin'\\)\\)\")",
+      "Bash(node -e \"const d = require\\('./content/items.json'\\); console.log\\('total items:', d.length\\); console.log\\(d.filter\\(i=>i.category==='skin'\\)\\);\")"
+    ]
+  }
+}

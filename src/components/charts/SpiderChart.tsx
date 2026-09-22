@@ -1,10 +1,13 @@
 // components/charts/SpiderChart.tsx
 // Spider Chart на SVG — работает на всех платформах без CanvasKit
 
-import { COLORS } from '@/constants/theme';
 import { useMemo } from 'react';
 import { Text, useWindowDimensions, View } from 'react-native';
 import Svg, { G, Line, Polygon, Circle as SvgCircle } from 'react-native-svg';
+
+import { useTheme } from '@/theme';
+import { withAlpha } from '@/theme/colorUtils';
+import { circleRadius, fontWeights } from '@/theme/tokens';
 
 interface SpiderChartProps {
   data: { label: string; value: number }[];
@@ -12,7 +15,9 @@ interface SpiderChartProps {
   size?: number;
 }
 
-export function SpiderChart({ data, color = COLORS.primary, size: propSize }: SpiderChartProps) {
+export function SpiderChart({ data, color, size: propSize }: SpiderChartProps) {
+  const { theme } = useTheme();
+  const resolvedColor = color ?? theme.primary;
   const { width } = useWindowDimensions();
   const size = propSize ?? Math.min(width - 80, 300);
   const padding = 40;
@@ -91,7 +96,7 @@ export function SpiderChart({ data, color = COLORS.primary, size: propSize }: Sp
                 key={`grid-${i}`}
                 points={pointsToString(points)}
                 fill="none"
-                stroke="#334155"
+                stroke={theme.border}
                 strokeWidth={1}
                 opacity={0.6}
               />
@@ -108,7 +113,7 @@ export function SpiderChart({ data, color = COLORS.primary, size: propSize }: Sp
               y1={line.y1}
               x2={line.x2}
               y2={line.y2}
-              stroke="#475569"
+              stroke={theme.divider}
               strokeWidth={1}
               opacity={0.5}
             />
@@ -118,8 +123,8 @@ export function SpiderChart({ data, color = COLORS.primary, size: propSize }: Sp
         {/* Заливка данных */}
         <Polygon
           points={pointsToString(dataPoints)}
-          fill={`${color}40`}
-          stroke={color}
+          fill={withAlpha(resolvedColor, 0.251)}
+          stroke={resolvedColor}
           strokeWidth={2.5}
         />
 
@@ -128,13 +133,13 @@ export function SpiderChart({ data, color = COLORS.primary, size: propSize }: Sp
           {dataPoints.map((point, i) => (
             <G key={`point-${i}`}>
               {/* Внешнее свечение */}
-              <SvgCircle cx={point.x} cy={point.y} r={7} fill={`${color}30`} />
+              <SvgCircle cx={point.x} cy={point.y} r={7} fill={withAlpha(resolvedColor, 0.188)} />
               {/* Основная точка */}
               <SvgCircle
                 cx={point.x}
                 cy={point.y}
                 r={4}
-                fill={color}
+                fill={resolvedColor}
                 stroke="white"
                 strokeWidth={1.5}
               />
@@ -143,7 +148,7 @@ export function SpiderChart({ data, color = COLORS.primary, size: propSize }: Sp
         </G>
 
         {/* Центральная точка */}
-        <SvgCircle cx={centerX} cy={centerY} r={2} fill="#64748B" />
+        <SvgCircle cx={centerX} cy={centerY} r={2} fill={theme.textMuted} />
       </Svg>
 
       {/* Подписи через обычные View/Text */}
@@ -175,10 +180,10 @@ export function SpiderChart({ data, color = COLORS.primary, size: propSize }: Sp
           >
             <Text
               style={{
-                color: COLORS.textSecondary,
+                color: theme.textSecondary,
                 fontSize: 11,
                 textAlign: pos.textAlign,
-                fontWeight: '500',
+                fontWeight: fontWeights.medium,
                 width: 80,
               }}
               numberOfLines={1}
@@ -187,7 +192,7 @@ export function SpiderChart({ data, color = COLORS.primary, size: propSize }: Sp
             </Text>
             <Text
               style={{
-                color: color,
+                color: resolvedColor,
                 fontSize: 11,
                 fontWeight: 'bold',
                 textAlign: pos.textAlign,
@@ -214,13 +219,13 @@ export function SpiderChart({ data, color = COLORS.primary, size: propSize }: Sp
           style={{
             width: 12,
             height: 12,
-            borderRadius: 6,
-            backgroundColor: `${color}60`,
+            borderRadius: circleRadius(12),
+            backgroundColor: withAlpha(resolvedColor, 0.376),
             borderWidth: 2,
-            borderColor: color,
+            borderColor: resolvedColor,
           }}
         />
-        <Text style={{ color: COLORS.textSecondary, fontSize: 12 }}>Уровень компетенций</Text>
+        <Text style={{ color: theme.textSecondary, fontSize: 12 }}>Уровень компетенций</Text>
       </View>
     </View>
   );

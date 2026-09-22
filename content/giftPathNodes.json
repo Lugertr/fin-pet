@@ -1,0 +1,9 @@
+[
+  { "id": "gift-1-a", "branch_id": 1, "after_order_index": 2 },
+  { "id": "gift-2-a", "branch_id": 2, "after_order_index": 2 },
+  { "id": "gift-3-a", "branch_id": 3, "after_order_index": 2 },
+  { "id": "gift-4-a", "branch_id": 4, "after_order_index": 2 },
+  { "id": "gift-5-a", "branch_id": 5, "after_order_index": 2 },
+  { "id": "gift-6-a", "branch_id": 6, "after_order_index": 2 },
+  { "id": "gift-7-a", "branch_id": 7, "after_order_index": 2 }
+]

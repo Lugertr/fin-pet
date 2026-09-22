@@ -1,0 +1,1 @@
+export { ThemeCompleteReward } from './ThemeCompleteReward';

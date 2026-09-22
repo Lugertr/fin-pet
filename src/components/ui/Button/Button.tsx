@@ -57,11 +57,7 @@ export function Button({
   // Градиентная версия
   if (gradient && !disabled) {
     return (
-      <TouchableOpacity
-        onPress={onPress}
-        disabled={disabled || loading}
-        activeOpacity={0.8}
-      >
+      <TouchableOpacity onPress={onPress} disabled={disabled || loading} activeOpacity={0.8}>
         <LinearGradient
           colors={theme.gradients.primary}
           start={{ x: 0, y: 0 }}

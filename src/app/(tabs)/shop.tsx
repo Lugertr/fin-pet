@@ -1,53 +1,70 @@
 // src/app/(tabs)/shop.tsx
 // Магазин с кнопкой инвентаря и секцией подарков
+//
+// Карточка товара живёт в src/components/shop/ — этот файл отвечает только
+// за шапку, баланс, категории и покупку.
 
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
-import { Badge } from '@/components/ui';
+import { AppHeaderStats } from '@/components/shared';
+import { ShopItemCard } from '@/components/shop';
+import { CategoryTabs } from '@/components/ui';
 import { useFeedback } from '@/lib/hooks/useFeedback';
-import { SHOP_CATALOG, ShopItem, useShop } from '@/lib/hooks/useShop';
-import { useGifts } from '@/lib/stores/giftsStore';
+import { Alert } from '@/lib/utils/alert';
+import { SHOP_CATALOG, ShopItem, useShopStore } from '@/lib/hooks/useShop';
+import { useGiftsStore } from '@/lib/stores/giftsStore';
+import { usePetStore } from '@/lib/stores/petStore';
+import { usePreferencesStore } from '@/lib/stores/preferencesStore';
+import { useSavingsStore } from '@/lib/stores/savingsStore';
 import { useUserStore } from '@/lib/stores/userStore';
 import { formatCoins } from '@/lib/utils/formatters';
+import {
+  CATEGORY_DISPLAY_NAMES,
+  ITEM_CATEGORIES,
+  itemMatchesCategoryFilter,
+  itemMatchesPetType,
+} from '@/lib/utils/itemCategories';
+import { getEffectDescription } from '@/lib/utils/shopItems';
 import { useResponsive, useTheme } from '@/theme';
-import { spacing } from '@/theme/tokens';
-import type { IconName } from '@/types/icons';
+import { circleRadius, spacing } from '@/theme/tokens';
 import { createShopStyles } from '../../styles/screens/tabs/_shop.styles';
-
-const SHOP_CATEGORIES: { id: string; name: string; icon: IconName }[] = [
-  { id: 'all', name: 'Все', icon: 'apps' },
-  { id: 'decor', name: 'Декор', icon: 'home' },
-  { id: 'food', name: 'Еда', icon: 'restaurant' },
-  { id: 'buff', name: 'Баффы', icon: 'flash' },
-  { id: 'skin', name: 'Скины', icon: 'color-palette' },
-];
 
 export default function ShopScreen() {
   const router = useRouter();
-  const { theme, isDark } = useTheme();
+  const { theme } = useTheme();
   const { scale, scaledFont } = useResponsive(); // ✅ Используем scale и scaledFont
   const { trigger, triggerHaptic } = useFeedback();
 
   const styles = createShopStyles({ theme });
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const { user } = useUserStore();
-  const { purchaseItem } = useShop();
-  const { pendingGifts } = useGifts();
+  const user = useUserStore((s) => s.user);
+  const currentMood = usePetStore((s) => s.currentMood);
+  const savings = useSavingsStore((s) => s.savings);
+  // Только стабильный экшен — экрану магазина не нужно перерисовываться
+  // при изменениях инвентаря/декора.
+  const purchaseItem = useShopStore((s) => s.purchaseItem);
+  const pendingGifts = useGiftsStore((s) => s.pendingGifts);
+  const petType = usePreferencesStore((s) => s.petType);
 
   const balance = user?.liquid_balance || 0;
   const giftsCount = pendingGifts.length;
 
-  const headerGradient: [string, string] = isDark ? ['#1E293B', '#0F172A'] : ['#FFFFFF', '#F1F5F9'];
-
-  const filteredItems =
-    selectedCategory === 'all'
-      ? SHOP_CATALOG
-      : SHOP_CATALOG.filter((item) => item.category === selectedCategory);
+  // Скрытые предметы (§12.4/§14) не продаются в магазине — только через подарки.
+  // Стартовые предметы комнаты (is_starter) не продаются — они и так у всех
+  // с онбординга, в магазине есть только их платные апгрейды. Скины — только
+  // для типа питомца, который реально есть у профиля (профиль ведёт одного
+  // питомца, скины другого типа ему не подходят).
+  const purchasableCatalog = SHOP_CATALOG.filter(
+    (item) => !item.is_hidden && !item.is_starter && itemMatchesPetType(item, petType)
+  );
+  const filteredItems = purchasableCatalog.filter((item) =>
+    itemMatchesCategoryFilter(item.category, selectedCategory)
+  );
 
   const handleSelectCategory = (categoryId: string) => {
     triggerHaptic('selection');
@@ -57,15 +74,28 @@ export default function ShopScreen() {
   const handlePurchase = (item: ShopItem) => {
     if (balance < item.price) {
       trigger('error');
+      const missing = item.price - balance;
       Alert.alert(
         'Недостаточно монет',
-        `Для покупки ${item.name} нужно ${formatCoins(item.price)}`,
-        [{ text: 'ОК' }]
+        `Для покупки «${item.name}» не хватает ${formatCoins(missing)}. Пройдите урок или заберите ежедневную награду, чтобы заработать монеты.`,
+        [
+          { text: 'Понятно', style: 'cancel' },
+          { text: 'К урокам', onPress: () => router.push('/(tabs)/lessons' as never) },
+        ]
       );
       return;
     }
 
-    Alert.alert('Подтверждение покупки', `Купить ${item.name} за ${formatCoins(item.price)}?`, [
+    const effect = getEffectDescription(item);
+    const details = [
+      `Категория: ${CATEGORY_DISPLAY_NAMES[item.category] ?? item.category}`,
+      effect ? `Эффект: ${effect}` : null,
+      `Цена: ${formatCoins(item.price)}`,
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    Alert.alert(`Купить «${item.name}»?`, details, [
       { text: 'Отмена', style: 'cancel' },
       {
         text: 'Купить',
@@ -85,60 +115,48 @@ export default function ShopScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Заголовок с балансом и кнопкой инвентаря */}
-      <LinearGradient
-        colors={headerGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={[styles.header, { paddingTop: scale(56), paddingBottom: scale(spacing.xl) }]}
+      {/* Общая шапка приложения */}
+      <View
+        style={{
+          paddingTop: scale(56),
+          paddingBottom: scale(spacing.md),
+          paddingHorizontal: scale(spacing.xxl),
+        }}
       >
+        <AppHeaderStats
+          energy={currentMood}
+          coins={balance}
+          savings={savings?.currentAmount ?? 0}
+        />
+      </View>
+
+      <View style={[styles.header, { paddingTop: 0, paddingBottom: scale(spacing.lg) }]}>
         <View style={styles.headerTopRow}>
           <View style={styles.titleContainer}>
-            <Text style={[styles.title, { fontSize: scaledFont('title') }]}>Магазин 🛒</Text>
-            <Text style={[styles.subtitle, { fontSize: scaledFont('md') }]}>
-              Покупайте улучшения для питомца
-            </Text>
+            <Text style={[styles.title, { fontSize: scaledFont('xl') }]}>Магазин 🛒</Text>
           </View>
 
-          <View style={styles.headerActionsRow}>
-            {/* Баланс */}
-            <View
-              style={[
-                styles.balanceBadge,
-                {
-                  paddingHorizontal: scale(spacing.lg),
-                  paddingVertical: scale(spacing.sm),
-                },
-              ]}
-            >
-              <Ionicons name="wallet" size={scale(18)} color={theme.coins} />
-              <Text style={[styles.balanceText, { fontSize: scaledFont('md') }]}>
-                {formatCoins(balance)}
-              </Text>
-            </View>
-
-            {/* Кнопка инвентаря */}
-            <TouchableOpacity
-              onPress={() => {
-                triggerHaptic('light');
-                router.push('/(modal)/inventory' as never);
-              }}
-              activeOpacity={0.8}
-              style={[styles.inventoryButton, { width: scale(44), height: scale(44) }]}
-            >
-              <Ionicons name="cube" size={scale(20)} color={theme.textPrimary} />
-              {giftsCount > 0 && (
-                <View
-                  style={[
-                    styles.inventoryBadge,
-                    { width: scale(18), height: scale(18), borderRadius: scale(9) },
-                  ]}
-                >
-                  <Text style={styles.inventoryBadgeText}>{giftsCount}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
+          {/* Кнопка инвентаря */}
+          <TouchableOpacity
+            onPress={() => {
+              triggerHaptic('light');
+              router.push('/(modal)/inventory' as never);
+            }}
+            activeOpacity={0.8}
+            style={[styles.inventoryButton, { width: scale(44), height: scale(44) }]}
+          >
+            <Ionicons name="cube" size={scale(20)} color={theme.textPrimary} />
+            {giftsCount > 0 && (
+              <View
+                style={[
+                  styles.inventoryBadge,
+                  { width: scale(18), height: scale(18), borderRadius: circleRadius(scale(18)) },
+                ]}
+              >
+                <Text style={styles.inventoryBadgeText}>{giftsCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* Баннер подарков, если есть неоткрытые */}
@@ -163,10 +181,10 @@ export default function ShopScreen() {
               <View
                 style={[
                   styles.giftsIconBox,
-                  { width: scale(44), height: scale(44), borderRadius: scale(22) },
+                  { width: scale(44), height: scale(44), borderRadius: circleRadius(scale(44)) },
                 ]}
               >
-                <Text style={{ fontSize: scale(24) }}>🎁</Text>
+                <Text style={{ fontSize: scaledFont('xxxl') }}>🎁</Text>
               </View>
               <View style={styles.giftsTextContainer}>
                 <Text style={[styles.giftsTitle, { fontSize: scaledFont('md') }]}>
@@ -177,53 +195,18 @@ export default function ShopScreen() {
                   Нажмите, чтобы открыть
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={scale(20)} color="#FFFFFF" />
+              <Ionicons name="chevron-forward" size={scale(20)} color={theme.onGradient} />
             </LinearGradient>
           </TouchableOpacity>
         )}
 
         {/* Категории */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoriesRow}
-        >
-          {SHOP_CATEGORIES.map((category) => {
-            const isActive = selectedCategory === category.id;
-            return (
-              <TouchableOpacity
-                key={category.id}
-                onPress={() => handleSelectCategory(category.id)}
-                activeOpacity={0.7}
-                style={[
-                  styles.categoryButton,
-                  isActive ? styles.categoryButtonActive : styles.categoryButtonInactive,
-                  {
-                    paddingHorizontal: scale(spacing.lg),
-                    paddingVertical: scale(spacing.sm),
-                    gap: scale(spacing.xs),
-                  },
-                ]}
-              >
-                <Ionicons
-                  name={category.icon}
-                  size={scale(16)}
-                  color={isActive ? '#FFFFFF' : theme.textSecondary}
-                />
-                <Text
-                  style={[
-                    styles.categoryText,
-                    isActive ? styles.categoryTextActive : styles.categoryTextInactive,
-                    { fontSize: scaledFont('md') },
-                  ]}
-                >
-                  {category.name}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </LinearGradient>
+        <CategoryTabs
+          categories={ITEM_CATEGORIES}
+          selected={selectedCategory}
+          onSelect={handleSelectCategory}
+        />
+      </View>
 
       {/* Товары */}
       <ScrollView
@@ -247,102 +230,6 @@ export default function ShopScreen() {
           ))
         )}
       </ScrollView>
-    </View>
-  );
-}
-
-/**
- * Карточка товара
- */
-function ShopItemCard({
-  item,
-  balance,
-  onPurchase,
-}: {
-  item: ShopItem;
-  balance: number;
-  onPurchase: () => void;
-}) {
-  const { theme } = useTheme();
-  const { scale, scaledFont } = useResponsive();
-
-  const styles = createShopStyles({ theme });
-  const canAfford = balance >= item.price;
-
-  return (
-    <View
-      style={[
-        styles.itemCard,
-        {
-          padding: scale(spacing.lg),
-          borderRadius: scale(spacing.xl),
-        },
-      ]}
-    >
-      {/* Иконка товара */}
-      <View
-        style={[
-          styles.itemIconBox,
-          {
-            width: scale(64),
-            height: scale(64),
-            borderRadius: scale(spacing.lg),
-            marginRight: scale(spacing.lg),
-          },
-        ]}
-      >
-        <Text style={{ fontSize: scale(32) }}>{item.icon}</Text>
-      </View>
-
-      {/* Информация */}
-      <View style={styles.itemInfoContainer}>
-        <Text
-          style={[styles.itemName, { fontSize: scaledFont('lg'), marginBottom: scale(spacing.xs) }]}
-        >
-          {item.name}
-        </Text>
-        <Text
-          style={[
-            styles.itemDescription,
-            { fontSize: scaledFont('sm'), marginBottom: scale(spacing.xs) },
-          ]}
-        >
-          {item.description}
-        </Text>
-        {item.mood_buff > 0 && (
-          <Badge label={`+${item.mood_buff} к настроению`} variant="success" size="sm" />
-        )}
-      </View>
-
-      {/* Цена и кнопка */}
-      <View style={styles.itemPriceContainer}>
-        <Text
-          style={[
-            styles.itemPrice,
-            canAfford ? styles.itemPriceAffordable : styles.itemPriceNotAffordable,
-            { fontSize: scaledFont('lg'), marginBottom: scale(spacing.sm) },
-          ]}
-        >
-          {formatCoins(item.price)}
-        </Text>
-        <TouchableOpacity
-          onPress={onPurchase}
-          disabled={!canAfford}
-          activeOpacity={0.7}
-          style={[
-            styles.buyButton,
-            canAfford ? styles.buyButtonEnabled : styles.buyButtonDisabled,
-            {
-              paddingHorizontal: scale(spacing.lg),
-              paddingVertical: scale(spacing.sm),
-            },
-          ]}
-        >
-          <Text style={[styles.buyButtonText, { fontSize: scaledFont('sm') }]}>
-            {canAfford ? 'Купить' : 'Нет монет'}
-          </Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 }

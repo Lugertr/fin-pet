@@ -1,0 +1,1 @@
+export { ShopItemCard } from './ShopItemCard';

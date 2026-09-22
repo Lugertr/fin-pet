@@ -14,12 +14,16 @@ interface PreferencesState {
   petName: string;
   // Пройден ли онбординг
   hasCompletedOnboarding: boolean;
+  // §10.3 — ветки, исключённые из случайного выбора Аркады
+  excludedTrainerBranches: number[];
 
   // Actions
   setPriorityBranches: (branches: number[]) => void;
   addPriorityBranch: (branchId: number) => void;
   removePriorityBranch: (branchId: number) => void;
   isPriorityBranch: (branchId: number) => boolean;
+  toggleExcludedTrainerBranch: (branchId: number) => void;
+  isTrainerBranchExcluded: (branchId: number) => boolean;
   setPetType: (type: 'robot' | 'dragon' | 'cat') => void;
   setPetName: (name: string) => void;
   completeOnboarding: () => void;
@@ -37,6 +41,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       petType: DEFAULT_PET_TYPE,
       petName: DEFAULT_PET_NAME,
       hasCompletedOnboarding: false,
+      excludedTrainerBranches: [],
 
       setPriorityBranches: (branches) => {
         set({ priorityBranches: branches.slice(0, MAX_PRIORITY_BRANCHES) });
@@ -58,6 +63,19 @@ export const usePreferencesStore = create<PreferencesState>()(
         return get().priorityBranches.includes(branchId);
       },
 
+      toggleExcludedTrainerBranch: (branchId) => {
+        const { excludedTrainerBranches } = get();
+        set({
+          excludedTrainerBranches: excludedTrainerBranches.includes(branchId)
+            ? excludedTrainerBranches.filter((id) => id !== branchId)
+            : [...excludedTrainerBranches, branchId],
+        });
+      },
+
+      isTrainerBranchExcluded: (branchId) => {
+        return get().excludedTrainerBranches.includes(branchId);
+      },
+
       setPetType: (type) => {
         set({ petType: type });
       },
@@ -76,6 +94,7 @@ export const usePreferencesStore = create<PreferencesState>()(
           petType: DEFAULT_PET_TYPE,
           petName: DEFAULT_PET_NAME,
           hasCompletedOnboarding: false,
+          excludedTrainerBranches: [],
         });
       },
     }),

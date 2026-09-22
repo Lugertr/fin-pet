@@ -2,7 +2,8 @@
 // Стили викторины
 
 import type { Theme } from '@/theme';
-import { fontSizes, fontWeights, radius, spacing } from '@/theme/tokens';
+import { withAlpha } from '@/theme/colorUtils';
+import { circleRadius, fontSizes, fontWeights, radius, spacing } from '@/theme/tokens';
 import { StyleSheet } from 'react-native';
 
 interface QuizGameStylesParams {
@@ -42,7 +43,7 @@ export function createQuizGameStyles({ theme }: QuizGameStylesParams) {
     optionLetterCircle: {
       width: 32,
       height: 32,
-      borderRadius: 16,
+      borderRadius: circleRadius(32),
       backgroundColor: theme.surfaceLight,
       alignItems: 'center',
       justifyContent: 'center',
@@ -62,12 +63,12 @@ export function createQuizGameStyles({ theme }: QuizGameStylesParams) {
     optionIconContainer: {
       width: 28,
       height: 28,
-      borderRadius: 14,
+      borderRadius: circleRadius(28),
       alignItems: 'center',
       justifyContent: 'center',
     },
     optionIconText: {
-      color: '#FFFFFF',
+      color: theme.onGradient,
       fontSize: fontSizes.md,
       fontWeight: fontWeights.bold,
     },
@@ -86,9 +87,12 @@ export function createQuizGameStyles({ theme }: QuizGameStylesParams) {
 }
 
 /**
- * Состояния вариантов ответа
+ * Состояния вариантов ответа. 'selected' — карточка выбрана, но ещё не
+ * проверена (используется QuizGridGame: тап только выбирает, оценка — по
+ * кнопке «Проверить»; QuizGame это состояние не производит, т.к. там тап
+ * сразу проверяет ответ).
  */
-export type OptionState = 'idle' | 'correct' | 'selectedWrong' | 'dimmed';
+export type OptionState = 'idle' | 'selected' | 'correct' | 'selectedWrong' | 'dimmed';
 
 /**
  * Цвета для каждого состояния варианта
@@ -104,15 +108,21 @@ export function getOptionColors(
         border: theme.borderLight,
         opacity: 1,
       };
+    case 'selected':
+      return {
+        bg: withAlpha(theme.accent, 0.12),
+        border: theme.accent,
+        opacity: 1,
+      };
     case 'correct':
       return {
-        bg: 'rgba(16, 185, 129, 0.2)',
+        bg: withAlpha(theme.success, 0.2),
         border: theme.success,
         opacity: 1,
       };
     case 'selectedWrong':
       return {
-        bg: 'rgba(239, 68, 68, 0.2)',
+        bg: withAlpha(theme.error, 0.2),
         border: theme.error,
         opacity: 1,
       };

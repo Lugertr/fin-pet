@@ -1,2 +1,1 @@
 export { QuizGame } from './QuizGame';
-

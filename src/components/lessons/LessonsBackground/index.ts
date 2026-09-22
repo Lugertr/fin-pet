@@ -1,0 +1,1 @@
+export { LessonsBackground } from './LessonsBackground';

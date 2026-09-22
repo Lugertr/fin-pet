@@ -17,10 +17,10 @@ interface ButtonStylesParams {
 export function createButtonStyles({ theme, variant, size, disabled }: ButtonStylesParams) {
   // Цвета в зависимости от варианта
   const colorsMap: Record<ButtonVariant, { bg: string; text: string }> = {
-    primary: { bg: theme.primary, text: '#FFFFFF' },
+    primary: { bg: theme.primary, text: theme.onGradient },
     secondary: { bg: theme.surfaceLight, text: theme.textPrimary },
-    success: { bg: theme.success, text: '#FFFFFF' },
-    danger: { bg: theme.error, text: '#FFFFFF' },
+    success: { bg: theme.success, text: theme.onGradient },
+    danger: { bg: theme.error, text: theme.onGradient },
     ghost: { bg: 'transparent', text: theme.primary },
   };
 

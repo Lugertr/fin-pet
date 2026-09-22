@@ -98,6 +98,20 @@ export const colorPalettes = {
     800: '#5B21B6',
     900: '#4C1D95',
   },
+  // Индиго — фирменный акцент уроков/квизов (был разбросан как локальные константы)
+  indigo: {
+    50: '#EEF2FF',
+    100: '#E0E7FF',
+    200: '#C7D2FE',
+    300: '#A5B4FC',
+    400: '#818CF8',
+    500: '#6366F1',
+    600: '#4F46E5',
+    700: '#4338CA',
+    800: '#3730A3',
+    900: '#312E81',
+    950: '#1E1B4B',
+  },
 };
 
 /**
@@ -131,6 +145,14 @@ export const radius = {
   full: 9999,
 } as const;
 
+/** Радиус для круглого элемента диаметром size (кнопка-иконка, аватар,
+ * точка-индикатор) — вместо того, чтобы в каждом .styles.ts вручную делить
+ * размер пополам сырым числом (18/36/60/70/9/11/14/3...), теряя связь между
+ * width/height и borderRadius. */
+export function circleRadius(size: number): number {
+  return size / 2;
+}
+
 /**
  * Размеры шрифтов
  */
@@ -147,16 +169,28 @@ export const fontSizes = {
   hero: 32,
 } as const;
 
+/** Отдельная шкала для декоративных крупных эмодзи/иконок-глифов (заголовки
+ * пустых состояний, награды) — они крупнее любого реального текста и не
+ * относятся к типографской шкале fontSizes (топ — hero: 32). */
+export const emojiSizes = {
+  md: 40,
+  lg: 48,
+  xl: 56,
+  xxl: 64,
+  xxxl: 72,
+  huge: 80,
+} as const;
+
 /**
  * Толщина шрифтов
  */
 export const fontWeights = {
-  regular: '400' as const,
-  medium: '500' as const,
-  semibold: '600' as const,
-  bold: '700' as const,
-  extrabold: '800' as const,
-};
+  regular: '400',
+  medium: '500',
+  semibold: '600',
+  bold: '700',
+  extrabold: '800',
+} as const;
 
 /**
  * Длительности анимаций (в миллисекундах)

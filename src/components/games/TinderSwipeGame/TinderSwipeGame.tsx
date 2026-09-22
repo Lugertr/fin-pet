@@ -2,19 +2,20 @@
 // Мини-игра в стиле Tinder/Reigns — свайпы для оценки финансовых ситуаций
 
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
-    runOnJS,
-    useAnimatedStyle,
-    useSharedValue,
-    withSpring,
-    withTiming,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { useResponsive, useTheme } from '@/theme';
+import { withAlpha } from '@/theme/colorUtils';
 import { createTinderSwipeGameStyles, SWIPE_THRESHOLD } from './TinderSwipeGame.styles';
 
 interface TinderSwipeGameProps {
@@ -37,6 +38,10 @@ export function TinderSwipeGame({
   const { trigger, triggerHaptic } = useFeedback();
 
   const [isAnimating, setIsAnimating] = useState(false);
+  // Ref, а не только state: гарантирует, что повторный swipe/tap в ту же
+  // самую задачу микротасков не проскочит мимо проверки isAnimating из-за
+  // устаревшего замыкания до того, как React применит setIsAnimating(true).
+  const isProcessingRef = useRef(false);
 
   const styles = createTinderSwipeGameStyles({ theme });
 
@@ -56,7 +61,19 @@ export function TinderSwipeGame({
     nopeOpacity.value = withTiming(0, { duration: 150 });
   };
 
+  // Единственная точка входа для обоих путей (жест и кнопки) — раньше
+  // isAnimating выставлялся только в handleButtonSwipe, а сам свайп жестом
+  // (panGesture.onEnd) вызывал эту функцию напрямую, ничего не блокируя. Из-за
+  // задержки в 350мс до onAnswer окно было открыто для повторного свайпа —
+  // второй быстрый свайп успевал запустить handleSwipeComplete ещё раз до
+  // того, как onAnswer вообще срабатывал, и на один вопрос прилетало два
+  // ответа. isProcessingRef проверяется и выставляется синхронно, поэтому не
+  // ловит гонку устаревшего замыкания, в отличие от одного только state.
   const handleSwipeComplete = (direction: 'left' | 'right') => {
+    if (disabled || isProcessingRef.current) return;
+    isProcessingRef.current = true;
+    setIsAnimating(true);
+
     const chosenOption = direction === 'left' ? leftOption : rightOption;
     const isCorrect = chosenOption === correctAnswer;
 
@@ -72,6 +89,8 @@ export function TinderSwipeGame({
       onAnswer(chosenOption, isCorrect);
       setTimeout(() => {
         resetCard();
+        setIsAnimating(false);
+        isProcessingRef.current = false;
       }, 400);
     }, 350);
   };
@@ -94,6 +113,12 @@ export function TinderSwipeGame({
         nopeOpacity.value = 0;
       }
     })
+    // .onEnd(fn) только СОХРАНЯЕТ fn для будущего вызова из нативного жеста
+    // (через runOnJS, на JS-потоке), не выполняет его во время этого рендера —
+    // линтер не умеет отличать билдер-API Gesture Handler от немедленного
+    // вызова и репортит ложное срабатывание на чтение isProcessingRef.current
+    // внутри handleSwipeComplete.
+    // eslint-disable-next-line react-hooks/refs
     .onEnd((event) => {
       if (Math.abs(event.translationX) > SWIPE_THRESHOLD) {
         const direction = event.translationX > 0 ? 'right' : 'left';
@@ -109,9 +134,7 @@ export function TinderSwipeGame({
   const handleButtonSwipe = (direction: 'left' | 'right') => {
     if (disabled || isAnimating) return;
     triggerHaptic('light');
-    setIsAnimating(true);
     handleSwipeComplete(direction);
-    setTimeout(() => setIsAnimating(false), 700);
   };
 
   const animatedCardStyle = useAnimatedStyle(() => ({
@@ -193,7 +216,7 @@ export function TinderSwipeGame({
           onPress={() => handleButtonSwipe('left')}
           disabled={disabled || isAnimating}
           activeOpacity={0.7}
-          style={[styles.swipeButtonOuter, { backgroundColor: 'rgba(239, 68, 68, 0.2)' }]}
+          style={[styles.swipeButtonOuter, { backgroundColor: withAlpha(theme.error, 0.2) }]}
         >
           <View style={[styles.swipeButtonInner, { borderColor: theme.error }]}>
             <Ionicons name="close" size={32} color={theme.error} />
@@ -205,7 +228,7 @@ export function TinderSwipeGame({
           onPress={() => handleButtonSwipe('right')}
           disabled={disabled || isAnimating}
           activeOpacity={0.7}
-          style={[styles.swipeButtonOuter, { backgroundColor: 'rgba(16, 185, 129, 0.2)' }]}
+          style={[styles.swipeButtonOuter, { backgroundColor: withAlpha(theme.success, 0.2) }]}
         >
           <View style={[styles.swipeButtonInner, { borderColor: theme.success }]}>
             <Ionicons name="checkmark" size={32} color={theme.success} />

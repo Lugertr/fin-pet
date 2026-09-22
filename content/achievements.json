@@ -1,0 +1,136 @@
+[
+  {
+    "id": 1,
+    "name": "Первая копилка",
+    "description": "Сделай первое пополнение накоплений",
+    "icon": "🐷",
+    "condition_type": "savings_deposit_count",
+    "condition_value": 1,
+    "reward_type": "coins",
+    "reward_amount": 20
+  },
+  {
+    "id": 2,
+    "name": "Кибер-защитник",
+    "description": "Пройди ветку «Безопасность» полностью",
+    "icon": "🛡️",
+    "condition_type": "branch_complete",
+    "condition_value": 100,
+    "target_branch_id": 2,
+    "reward_type": "gift",
+    "reward_amount": 0,
+    "gift_mode": "guaranteed_choice",
+    "gift_options_count": 2
+  },
+  {
+    "id": 3,
+    "name": "Эрудит",
+    "description": "Дай 20 верных ответов в уроках и тренажёрах",
+    "icon": "🎓",
+    "condition_type": "correct_answers_count",
+    "condition_value": 20,
+    "reward_type": "coins",
+    "reward_amount": 50
+  },
+  {
+    "id": 4,
+    "name": "Коллекционер",
+    "description": "Собери 3 скрытых предмета из подарков",
+    "icon": "💎",
+    "condition_type": "hidden_items_owned",
+    "condition_value": 3,
+    "reward_type": "gift",
+    "reward_amount": 0,
+    "gift_mode": "random"
+  },
+  {
+    "id": 5,
+    "name": "Марафонец",
+    "description": "Пройди 10 уроков в любых ветках",
+    "icon": "🏃",
+    "condition_type": "lessons_completed_count",
+    "condition_value": 10,
+    "reward_type": "coins",
+    "reward_amount": 40
+  },
+  {
+    "id": 6,
+    "name": "Знаток бюджета",
+    "description": "Пройди ветку «Бюджет» полностью",
+    "icon": "📊",
+    "condition_type": "branch_complete",
+    "condition_value": 100,
+    "target_branch_id": 1,
+    "reward_type": "gift",
+    "reward_amount": 0,
+    "gift_mode": "guaranteed_choice",
+    "gift_options_count": 2
+  },
+  {
+    "id": 7,
+    "name": "Инвестор",
+    "description": "Пройди ветку «Инвестиции» полностью",
+    "icon": "📈",
+    "condition_type": "branch_complete",
+    "condition_value": 100,
+    "target_branch_id": 3,
+    "reward_type": "gift",
+    "reward_amount": 0,
+    "gift_mode": "guaranteed_choice",
+    "gift_options_count": 2
+  },
+  {
+    "id": 8,
+    "name": "Верный друг",
+    "description": "Заходи в приложение 7 дней подряд",
+    "icon": "🔥",
+    "condition_type": "streak_days_reached",
+    "condition_value": 7,
+    "reward_type": "coins",
+    "reward_amount": 100
+  },
+  {
+    "id": 9,
+    "name": "Растущий талант",
+    "description": "Достигни 5 уровня",
+    "icon": "⭐",
+    "condition_type": "level_reached",
+    "condition_value": 5,
+    "reward_type": "coins",
+    "reward_amount": 75
+  },
+  {
+    "id": 10,
+    "name": "Коллекционер II",
+    "description": "Собери 5 скрытых предметов из подарков",
+    "icon": "💠",
+    "condition_type": "hidden_items_owned",
+    "condition_value": 5,
+    "reward_type": "gift",
+    "reward_amount": 0,
+    "gift_mode": "random"
+  },
+  {
+    "id": 11,
+    "name": "Модник",
+    "description": "Собери 10 предметов в инвентаре",
+    "icon": "👑",
+    "condition_type": "shop_items_owned_count",
+    "condition_value": 10,
+    "reward_type": "gift",
+    "reward_amount": 0,
+    "gift_mode": "guaranteed_choice",
+    "gift_options_count": 3
+  },
+  {
+    "id": 12,
+    "name": "Мастер на все руки",
+    "description": "Пройди все 7 веток компетенций полностью",
+    "icon": "🏆",
+    "condition_type": "all_branches_complete",
+    "condition_value": 7,
+    "reward_type": "gift",
+    "reward_amount": 0,
+    "gift_mode": "random"
+  }
+]

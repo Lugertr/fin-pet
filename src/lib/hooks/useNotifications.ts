@@ -18,10 +18,7 @@ export function useNotifications() {
           router.push('/(tabs)' as never);
           break;
         case 'mood_restored':
-          router.push('/(tabs)/learn' as never);
-          break;
-        case 'deposit_mature':
-          router.push('/(modal)/deposit' as never);
+          router.push('/(tabs)/lessons' as never);
           break;
         default:
           break;
@@ -35,17 +32,12 @@ export function useNotifications() {
     notifications.scheduleMoodRestored(minutesFromNow);
   }, []);
 
-  const scheduleDepositMature = useCallback((depositId: number, daysUntilMature: number) => {
-    notifications.scheduleDepositMature(depositId, daysUntilMature);
-  }, []);
-
   const showInstant = useCallback((title: string, body: string, data?: NotificationData) => {
     notifications.showInstant(title, body, data);
   }, []);
 
   return {
     scheduleMoodRestored,
-    scheduleDepositMature,
     showInstant,
   };
 }

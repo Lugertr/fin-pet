@@ -92,7 +92,7 @@ class NotificationService {
         identifier: NOTIFICATION_IDS.DAILY_REMINDER,
         content: {
           title: '🎁 Ежедневная награда ждёт!',
-          body: 'Зайдите в ФинСпутник и заберите монеты. Не прерывайте стрик!',
+          body: 'Зайдите в Финни и заберите монеты. Не прерывайте стрик!',
           data: { type: 'daily_reminder' },
           sound: 'default',
         },

@@ -8,7 +8,7 @@ const prettierPlugin = require('eslint-plugin-prettier');
 const prettierConfig = require('eslint-config-prettier');
 
 module.exports = [
-  expoConfig,
+  ...expoConfig,
   prettierConfig,
   {
     files: ['**/*.ts', '**/*.tsx'],
@@ -39,6 +39,14 @@ module.exports = [
       // React Hooks
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
+      // eslint-config-expo подключает React Compiler-ориентированный ruleset
+      // eslint-plugin-react-hooks v7, включая react-hooks/immutability. Проект
+      // не использует React Compiler (babel.config.js — только
+      // react-native-reanimated/plugin), а правило не понимает мутацию
+      // `sharedValue.value = ...` — это официальный, документированный API
+      // Reanimated, а не нарушение иммутабельности React. Без выключения
+      // правило падает error на каждой анимации через useSharedValue.
+      'react-hooks/immutability': 'off',
       
       // React Native
       'react-native/no-inline-styles': 'warn',

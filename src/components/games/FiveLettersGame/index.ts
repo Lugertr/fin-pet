@@ -1,0 +1,1 @@
+export { FiveLettersGame } from './FiveLettersGame';

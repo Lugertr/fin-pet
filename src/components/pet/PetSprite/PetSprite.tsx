@@ -2,7 +2,7 @@
 // Спрайт питомца: переключается между состояниями в зависимости от настроения
 
 import { Image } from 'expo-image';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import Animated, {
   Easing,
@@ -14,31 +14,36 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import {
-  PET_ASSETS_SINGLE,
-  PET_EMOJIS,
-  PET_RENDER_MODE,
-  PetType,
-  getMoodState,
-} from '@/constants/petAssets';
-import { useResponsive, useTheme } from '@/theme';
+import { PET_RENDER_MODE, PetType, getMoodState } from '@/constants/petAssets';
+import { getPetSpecies } from '@/domain/pet/petSpeciesRegistry';
+import { useTheme } from '@/theme';
+import { isPetTapReactionAvailable, PetTapReaction } from '../PetTapReaction';
 import { createPetSpriteStyles } from './PetSprite.styles';
 
 interface PetSpriteProps {
   petType: PetType;
   mood: number;
+  /** Финальный размер в пикселях — вызывающий код сам решает, нужен ли
+   * scale() (например PetRoom уже считает size пропорционально реальной
+   * ширине комнаты и не должен масштабироваться повторно). */
   size?: number;
+  /** Какой скин надет (0 — «Классический», встроенный). См. PetSpecies.getBodyAsset. */
+  skinVariant?: number;
   onPress?: () => void;
 }
 
-export function PetSprite({ petType, mood, size = 120, onPress }: PetSpriteProps) {
+export function PetSprite({ petType, mood, size = 120, skinVariant = 0, onPress }: PetSpriteProps) {
   const { theme } = useTheme();
-  const { scale } = useResponsive();
 
   const moodState = getMoodState(mood);
-  const emoji = PET_EMOJIS[petType][moodState];
+  const species = getPetSpecies(petType);
+  const emoji = species.getFallbackEmoji(moodState);
 
-  const styles = createPetSpriteStyles({ theme, size: scale(size), moodState });
+  const styles = createPetSpriteStyles({ theme, size, moodState });
+
+  // Reaction — одноразовая Rive-анимация по тапу (см. PetTapReaction),
+  // пока идёт — показываем её вместо статичного спрайта/эмодзи.
+  const [showReaction, setShowReaction] = useState(false);
 
   // Анимации
   const breathScale = useSharedValue(1);
@@ -75,17 +80,25 @@ export function PetSprite({ petType, mood, size = 120, onPress }: PetSpriteProps
 
   const handlePress = () => {
     bounceY.value = withSequence(withSpring(-20, { damping: 8 }), withSpring(0, { damping: 8 }));
+    if (isPetTapReactionAvailable(petType)) setShowReaction(true);
     onPress?.();
   };
 
-  const petAsset = PET_ASSETS_SINGLE[petType];
+  const petAsset = species.getBodyAsset(moodState, skinVariant);
 
   return (
     <Animated.View style={animatedStyle}>
       <TouchableOpacity activeOpacity={0.8} onPress={handlePress}>
         <View style={styles.container}>
-          {/* Рендер питомца */}
-          {PET_RENDER_MODE === 'assets' && petAsset ? (
+          {/* Рендер питомца — реакция по тапу (Rive), пока не готова,
+              иначе статичный спрайт/эмодзи как обычно. */}
+          {showReaction ? (
+            <PetTapReaction
+              petType={petType}
+              style={styles.image}
+              onFinished={() => setShowReaction(false)}
+            />
+          ) : PET_RENDER_MODE === 'assets' && petAsset ? (
             <Image source={petAsset} style={styles.image} contentFit="contain" transition={200} />
           ) : (
             <Text style={styles.emoji}>{emoji}</Text>

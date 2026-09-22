@@ -5,6 +5,6 @@ export { ThemeProvider, useTheme } from './ThemeProvider';
 export type { ThemeMode } from './ThemeProvider';
 export * from './themes';
 export * from './tokens';
+export { withAlpha } from './colorUtils';
 export { useResponsive } from './useResponsive';
 export type { DeviceSize } from './useResponsive';
-

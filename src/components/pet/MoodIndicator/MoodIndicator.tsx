@@ -26,7 +26,7 @@ interface MoodIndicatorProps {
 export function MoodIndicator({ mood, showLabel = true, showTip = false }: MoodIndicatorProps) {
   const { theme } = useTheme();
 
-  const moodColor = getMoodColor(mood);
+  const moodColor = getMoodColor(mood, theme);
   const moodEmoji = getMoodEmoji(mood);
 
   const styles = createMoodIndicatorStyles({ theme, moodColor, tipColor: moodColor });
@@ -72,7 +72,7 @@ export function MoodIndicator({ mood, showLabel = true, showTip = false }: MoodI
       {/* Заголовок */}
       {showLabel && (
         <View style={styles.headerRow}>
-          <Text style={styles.label}>Настроение</Text>
+          <Text style={styles.label}>Энергия</Text>
           <Animated.View style={[styles.moodBadge, animatedPulseStyle]}>
             <Text style={styles.moodEmoji}>{moodEmoji}</Text>
             <Text style={styles.moodText}>{mood}%</Text>

@@ -1,0 +1,1 @@
+export { PetAvatarBubble } from './PetAvatarBubble';

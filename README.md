@@ -1,56 +1,117 @@
-# Welcome to your Expo app 👋
+# Финни
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Детская обучающая игра-тамагочи по финансовой грамотности для детей 7–11 лет.
+Конкурсный прототип для хакатона Департамента финансов города Москвы. Полное
+техническое задание — `finni_tz_final.md`; правила и границы разработки —
+`CLAUDE.md`.
 
-## Get started
+## Стек
 
-1. Install dependencies
+- **Клиент:** React Native (Expo 57), TypeScript (строгий режим), Expo Router,
+  Zustand, NativeWind.
+- **Локальное хранилище:** SQLite (`expo-sqlite`) — источник истины для
+  профиля, питомца, игровых периодов и накоплений; Zustand + AsyncStorage —
+  для прогресса уроков, магазина, подарков, достижений и истории чата с
+  ИИ-помощником.
+- **Сервер:** FastAPI (Python 3.11+) — минимальный каркас-заглушка под
+  будущую локальную ИИ-модель (`server/`). Приложение офлайн-first и к
+  серверу не обращается; каркас существует только как задел.
+- **Контент:** JSON-файлы в `content/` (ветки, уроки, товары, достижения,
+  ответы ИИ-заглушки, флаги функций) — отделены от кода и UI.
 
-   ```bash
-   npm install
-   ```
+## Запуск
 
-2. Start the app
+### Требования
 
-   ```bash
-   npx expo start
-   ```
+- Node.js 20+ и npm
+- Android Studio с эмулятором, либо физическое Android-устройство с
+  [Expo Go](https://expo.dev/go) — целевая платформа проекта Android
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+### Клиент
 
 ```bash
-npm run reset-project
+npm install
+npx expo start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+В выводе команды выберите запуск на Android-эмуляторе/устройстве (либо в
+вебе — `npx expo start --web` — для быстрой проверки без эмулятора).
 
-### Other setup steps
+### Сервер-заглушка ИИ-помощника (необязательно)
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+Клиент в нём не нуждается — вся механика ИИ-помощника работает на локальной
+заглушке `StubAiAssistant`. Каркас поднимается отдельно, если нужно
+проверить сам сервис:
 
-## Learn more
+```bash
+docker compose up
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+Поднимет FastAPI на `http://localhost:8000` — `/health` и `POST /ai/ask`.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Структура проекта
 
-## Join the community
+```
+src/app/            — экраны (Expo Router, файловая маршрутизация)
+src/domain/         — доменная логика: сущности, чистые функции, интерфейсы
+                       репозиториев; не зависит ни от UI, ни от хранилища
+src/data/            — реализации репозиториев (SQLite) и локальный
+                       контент-репозиторий поверх content/*.json
+src/lib/stores/      — Zustand-сторы (игровые системы: периоды, магазин,
+src/lib/hooks/         подарки, достижения, ИИ-чат и т.д.)
+content/             — учебный контент и конфигурация, JSON (§25 ТЗ)
+server/              — минимальный FastAPI-каркас (см. выше)
+```
 
-Join our community of developers creating universal apps.
+Репозитории и контент спрятаны за доменными интерфейсами
+(`src/domain/repositories/*`, `ContentRepository`) — источник данных
+(сейчас: SQLite + локальные JSON) можно заменить на серверный без изменения
+экранов и сторов.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Демо-режим
+
+Для ускоренного прохождения обязательного сценария (§19 ТЗ) без ожидания
+реального времени:
+
+1. Профиль → **Для взрослых** → решить пример (барьер входа, §17.1).
+2. Включить переключатель **«Демо-режим»** — профиль сразу возвращается к
+   исходному состоянию, все уроки становятся доступны без прохождения по
+   порядку.
+3. **«Сбросить демо»** — повторный сброс тестового профиля в любой момент,
+   без выхода из демо-режима.
+
+## Сброс и удаление профиля
+
+Из того же раздела «Для взрослых» (§17.2):
+
+- **Сброс профиля** — экономика и игровой прогресс возвращаются к исходному
+  состоянию (50⭐ в кошелёк + 50⭐ в накопления, §4.4), имя и питомец
+  сохраняются.
+- **Удаление профиля** — полное и необратимое удаление всех локальных
+  данных (SQLite + AsyncStorage); приложение возвращается к онбордингу.
+
+Оба действия требуют подтверждения и доступны только после барьера входа.
+
+## Флаги функций
+
+`content/features.json` (§26 ТЗ) — полный список подсистем и их состояние.
+Рантайм-переключателями являются `ai_assistant_local`, `demo_mode` и
+`adult_section`; остальные флаги документируют, какие подсистемы собраны.
+`online_auth`, `content_sync_server` и `admin_panel` — сознательно не
+реализованы (см. «Жёсткие ограничения» в `CLAUDE.md`: офлайн-first, без
+аккаунтов и бэкенда).
+
+## Линт и форматирование
+
+```bash
+npm run lint          # eslint
+npm run lint:fix
+npm run format:check  # prettier --check
+npm run format        # prettier --write
+```
+
+## Тесты
+
+Автотесты на ключевые расчёты (план бюджета, покупки, накопления,
+план/факт периода, рост стадии, восстановление энергии — раздел «Тесты» в
+`CLAUDE.md`) пока не настроены — открытая задача.

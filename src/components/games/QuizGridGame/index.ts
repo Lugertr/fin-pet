@@ -1,0 +1,1 @@
+export { QuizGridGame } from './QuizGridGame';

@@ -1,10 +1,12 @@
 // app/(tabs)/_layout.tsx
 // Tab Navigator для основных экранов (4 таба)
 
-import { COLORS } from '@/constants/theme';
 import type { IconName } from '@/types/icons';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+
+import { useTheme } from '@/theme';
+import { fontWeights } from '@/theme/tokens';
 
 type TabConfig = {
   name: string;
@@ -13,30 +15,33 @@ type TabConfig = {
 };
 
 const TABS: TabConfig[] = [
-  { name: 'index', title: 'Хаб', icon: 'home' },
   { name: 'lessons', title: 'Уроки', icon: 'school' },
+  { name: 'ai-chat', title: 'ИИ-помощник', icon: 'chatbubbles' },
+  { name: 'index', title: 'Хаб', icon: 'home' },
   { name: 'shop', title: 'Магазин', icon: 'cart' },
-  { name: 'profile', title: 'Профиль', icon: 'person' },
+  { name: 'profile', title: 'Настройки', icon: 'settings-outline' },
 ];
 
 export default function TabsLayout() {
+  const { theme } = useTheme();
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: COLORS.surface,
-          borderTopColor: COLORS.surfaceLight,
+          backgroundColor: theme.surface,
+          borderTopColor: theme.surfaceLight,
           borderTopWidth: 1,
           height: 64,
           paddingTop: 8,
           paddingBottom: 8,
         },
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.textSecondary,
+        tabBarActiveTintColor: theme.primary,
+        tabBarInactiveTintColor: theme.textSecondary,
         tabBarLabelStyle: {
           fontSize: 12,
-          fontWeight: '600',
+          fontWeight: fontWeights.semibold,
           marginTop: 4,
         },
         tabBarIconStyle: {

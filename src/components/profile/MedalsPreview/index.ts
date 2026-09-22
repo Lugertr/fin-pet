@@ -1,0 +1,1 @@
+export { MedalsPreview } from './MedalsPreview';

@@ -1,5 +1,5 @@
 // types/models.ts
-// Доменные модели «ФинСпутник» — синхронизированы с бэкендом
+// Доменные модели «Финни» — синхронизированы с бэкендом
 
 /**
  * Пользователь
@@ -9,6 +9,8 @@ export interface User {
   username: string;
   liquid_balance: number; // только int!
   created_at: string; // ISO datetime
+  /** §18 — демо-режим: задания доступны сразу все, без ожидания периодов. */
+  is_demo: boolean;
 }
 
 /**

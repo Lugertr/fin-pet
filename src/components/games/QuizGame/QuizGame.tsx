@@ -7,6 +7,7 @@ import { Text, TouchableOpacity, View } from 'react-native';
 
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { useResponsive, useTheme } from '@/theme';
+import { withAlpha } from '@/theme/colorUtils';
 import { createQuizGameStyles, getOptionColors, OptionState } from './QuizGame.styles';
 
 interface QuizGameProps {
@@ -98,12 +99,12 @@ export function QuizGame({
               {/* Иконка результата */}
               {showResult && state === 'correct' && (
                 <View style={[styles.optionIconContainer, { backgroundColor: theme.success }]}>
-                  <Ionicons name="checkmark" size={scale(16)} color="#FFFFFF" />
+                  <Ionicons name="checkmark" size={scale(16)} color={theme.onGradient} />
                 </View>
               )}
               {showResult && state === 'selectedWrong' && (
                 <View style={[styles.optionIconContainer, { backgroundColor: theme.error }]}>
-                  <Ionicons name="close" size={scale(16)} color="#FFFFFF" />
+                  <Ionicons name="close" size={scale(16)} color={theme.onGradient} />
                 </View>
               )}
             </TouchableOpacity>
@@ -118,11 +119,11 @@ export function QuizGame({
             styles.feedbackContainer,
             {
               backgroundColor: isCorrectSelection
-                ? 'rgba(16, 185, 129, 0.15)'
-                : 'rgba(239, 68, 68, 0.15)',
+                ? withAlpha(theme.success, 0.15)
+                : withAlpha(theme.error, 0.15),
               borderColor: isCorrectSelection
-                ? 'rgba(16, 185, 129, 0.4)'
-                : 'rgba(239, 68, 68, 0.4)',
+                ? withAlpha(theme.success, 0.4)
+                : withAlpha(theme.error, 0.4),
             },
           ]}
         >
@@ -134,7 +135,7 @@ export function QuizGame({
               },
             ]}
           >
-            {isCorrectSelection ? '🎉 Правильно! +10 коинов' : '😔 Неправильно. Настроение -10'}
+            {isCorrectSelection ? '🎉 Правильно!' : '😔 Неправильно. Можно попробовать ещё раз'}
           </Text>
         </View>
       )}

@@ -14,12 +14,7 @@ interface BadgeProps {
   icon?: IconName;
 }
 
-export function Badge({
-  label,
-  variant = 'neutral',
-  size = 'md',
-  icon,
-}: BadgeProps) {
+export function Badge({ label, variant = 'neutral', size = 'md', icon }: BadgeProps) {
   const { theme } = useTheme();
   const { scale } = useResponsive();
 
@@ -31,9 +26,7 @@ export function Badge({
 
   return (
     <View style={styles.container}>
-      {icon && (
-        <Ionicons name={icon} size={scale(iconSize)} color={iconColor} />
-      )}
+      {icon && <Ionicons name={icon} size={scale(iconSize)} color={iconColor} />}
       <Text style={styles.text}>{label}</Text>
     </View>
   );

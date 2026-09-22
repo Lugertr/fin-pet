@@ -7,12 +7,13 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
+import { HistoryGiftCard, PendingGiftCard } from '@/components/gifts';
+import { IconButton } from '@/components/ui';
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { useGifts } from '@/lib/stores/giftsStore';
 import { formatCoins } from '@/lib/utils/formatters';
 import { useResponsive, useTheme } from '@/theme';
-import { spacing } from '@/theme/tokens';
-import { GIFT_RARITY_CONFIGS } from '@/types/gifts';
+import { colorPalettes, emojiSizes, spacing } from '@/theme/tokens';
 import { createGiftsListStyles } from '../../styles/screens/modal/_gifts-list.styles';
 
 type TabType = 'pending' | 'history';
@@ -28,7 +29,7 @@ export default function GiftsListScreen() {
 
   const [tab, setTab] = useState<TabType>('pending');
 
-  const headerGradient: [string, string] = ['#F59E0B', '#EF4444'];
+  const headerGradient: [string, string] = [colorPalettes.amber[500], colorPalettes.red[500]];
 
   const handleOpenGift = (giftId: string) => {
     triggerHaptic('medium');
@@ -48,12 +49,7 @@ export default function GiftsListScreen() {
         style={[styles.header, { paddingTop: scale(56), paddingBottom: scale(spacing.xl) }]}
       >
         <View style={styles.headerTopRow}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={[styles.backButton, { width: scale(36), height: scale(36) }]}
-          >
-            <Ionicons name="arrow-back" size={scale(20)} color="#FFFFFF" />
-          </TouchableOpacity>
+          <IconButton icon="arrow-back" onPress={() => router.back()} variant="onGradient" />
           <Text style={[styles.headerTitle, { fontSize: scaledFont('xl') }]}>Подарки</Text>
           <View style={{ width: scale(36) }} />
         </View>
@@ -97,7 +93,7 @@ export default function GiftsListScreen() {
           <Ionicons
             name="gift"
             size={scale(16)}
-            color={tab === 'pending' ? '#FFFFFF' : theme.textSecondary}
+            color={tab === 'pending' ? theme.onGradient : theme.textSecondary}
           />
           <Text
             style={[
@@ -121,7 +117,7 @@ export default function GiftsListScreen() {
           <Ionicons
             name="time"
             size={scale(16)}
-            color={tab === 'history' ? '#FFFFFF' : theme.textSecondary}
+            color={tab === 'history' ? theme.onGradient : theme.textSecondary}
           />
           <Text
             style={[
@@ -144,7 +140,9 @@ export default function GiftsListScreen() {
         {tab === 'pending' ? (
           pendingGifts.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Text style={{ fontSize: scale(64), marginBottom: scale(spacing.lg) }}>🎁</Text>
+              <Text style={{ fontSize: scale(emojiSizes.xxl), marginBottom: scale(spacing.lg) }}>
+                🎁
+              </Text>
               <Text style={[styles.emptyTitle, { fontSize: scaledFont('xl') }]}>
                 Нет неоткрытых подарков
               </Text>
@@ -154,64 +152,16 @@ export default function GiftsListScreen() {
             </View>
           ) : (
             <View style={styles.pendingList}>
-              {pendingGifts.map((gift) => {
-                const config = GIFT_RARITY_CONFIGS[gift.rarity];
-                return (
-                  <TouchableOpacity
-                    key={gift.id}
-                    onPress={() => handleOpenGift(gift.id)}
-                    activeOpacity={0.85}
-                    style={styles.pendingCard}
-                  >
-                    <LinearGradient
-                      colors={config.gradient}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={[styles.pendingCardInner, { padding: scale(spacing.lg) }]}
-                    >
-                      <View
-                        style={[
-                          styles.pendingIconBox,
-                          {
-                            width: scale(56),
-                            height: scale(56),
-                            borderRadius: scale(spacing.lg),
-                            marginRight: scale(spacing.lg),
-                          },
-                        ]}
-                      >
-                        <Text style={{ fontSize: scale(32) }}>🎁</Text>
-                      </View>
-                      <View style={styles.pendingInfoContainer}>
-                        <Text style={[styles.pendingTitle, { fontSize: scaledFont('md') }]}>
-                          {config.name} подарок
-                        </Text>
-                        <Text style={[styles.pendingSubtitle, { fontSize: scaledFont('sm') }]}>
-                          {gift.themeName ? `За тему «${gift.themeName}»` : 'Специальный подарок'}
-                        </Text>
-                      </View>
-                      <View
-                        style={[
-                          styles.pendingOpenButton,
-                          {
-                            paddingHorizontal: scale(spacing.md),
-                            paddingVertical: scale(spacing.sm),
-                          },
-                        ]}
-                      >
-                        <Text style={[styles.pendingOpenText, { fontSize: scaledFont('sm') }]}>
-                          Открыть
-                        </Text>
-                      </View>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                );
-              })}
+              {pendingGifts.map((gift) => (
+                <PendingGiftCard key={gift.id} gift={gift} onOpen={() => handleOpenGift(gift.id)} />
+              ))}
             </View>
           )
         ) : history.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text style={{ fontSize: scale(64), marginBottom: scale(spacing.lg) }}>📜</Text>
+            <Text style={{ fontSize: scale(emojiSizes.xxl), marginBottom: scale(spacing.lg) }}>
+              📜
+            </Text>
             <Text style={[styles.emptyTitle, { fontSize: scaledFont('xl') }]}>История пуста</Text>
             <Text style={[styles.emptyText, { fontSize: scaledFont('md') }]}>
               Здесь будут отображаться открытые подарки
@@ -219,46 +169,9 @@ export default function GiftsListScreen() {
           </View>
         ) : (
           <View style={styles.historyList}>
-            {history.map((entry) => {
-              const config = GIFT_RARITY_CONFIGS[entry.rarity];
-              return (
-                <View
-                  key={entry.giftId}
-                  style={[styles.historyCard, { padding: scale(spacing.lg) }]}
-                >
-                  <View
-                    style={[
-                      styles.historyIconBox,
-                      {
-                        width: scale(44),
-                        height: scale(44),
-                        borderRadius: scale(spacing.md),
-                        backgroundColor: `${config.accentColor}20`,
-                        marginRight: scale(spacing.md),
-                      },
-                    ]}
-                  >
-                    <Text style={{ fontSize: scale(22) }}>{entry.itemIcon}</Text>
-                  </View>
-                  <View style={styles.historyInfoContainer}>
-                    <Text style={[styles.historyItemName, { fontSize: scaledFont('md') }]}>
-                      {entry.itemName}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.historyRarityText,
-                        { color: config.accentColor, fontSize: scaledFont('sm') },
-                      ]}
-                    >
-                      {config.name} • +{formatCoins(entry.coins)}
-                    </Text>
-                  </View>
-                  <Text style={[styles.historyDate, { fontSize: scaledFont('xs') }]}>
-                    {new Date(entry.openedAt).toLocaleDateString('ru-RU')}
-                  </Text>
-                </View>
-              );
-            })}
+            {history.map((entry) => (
+              <HistoryGiftCard key={entry.giftId} entry={entry} />
+            ))}
           </View>
         )}
       </ScrollView>
