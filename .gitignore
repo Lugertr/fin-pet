@@ -2,6 +2,9 @@
 
 # dependencies
 node_modules/
+# веб-сборка для GitHub Pages: expo export кладёт шрифты иконок и .wasm
+# в docs/assets/node_modules/ — без них на Pages 404
+!/docs/assets/node_modules/
 
 # Expo
 .expo/
