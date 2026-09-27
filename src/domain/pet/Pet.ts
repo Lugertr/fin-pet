@@ -4,6 +4,13 @@
 
 import { ImageSourcePropType } from 'react-native';
 import { PetMoodState, PetType } from '@/constants/petAssets';
+import {
+  getSkinPalette,
+  PetAnimation,
+  PetAnimationAsset,
+  PetAnimationBody,
+  recolorLottie,
+} from './petAnimation';
 
 /**
  * Иконки эмоций питомца для диалогов/шагов урока (радостный/получивший
@@ -39,4 +46,34 @@ export abstract class PetSpecies {
 
   /** Эмодзи-заглушка на случай PET_RENDER_MODE === 'emoji' или отсутствия ассета. */
   abstract getFallbackEmoji(state: PetMoodState): string;
+
+  /** Lottie-анимации тела по состоянию: idle — бодрый (happy), sleeping —
+   * уставший (sleepy). Состояния без анимации рисуются SVG getBodyAsset. */
+  protected abstract readonly animations: Partial<Record<PetMoodState, PetAnimationAsset>>;
+
+  /** Рамка idle-SVG в кадре анимаций этого вида (см. PetAnimationBody). */
+  abstract readonly animationBody: PetAnimationBody;
+
+  private readonly animationCache = new Map<string, PetAnimation>();
+
+  /** Анимация состояния в цветах скина; null — для состояния анимации нет.
+   * Перекраска считается один раз на пару «состояние + скин». */
+  getAnimation(state: PetMoodState, skinVariant = 0): PetAnimation | null {
+    const asset = this.animations[state];
+    if (!asset) return null;
+
+    const key = `${state}:${skinVariant}`;
+    let animation = this.animationCache.get(key);
+    if (!animation) {
+      animation = {
+        source: recolorLottie(asset.json, getSkinPalette(this.type, skinVariant)),
+        loop: asset.loop,
+        canvasWidth: asset.json.w,
+        canvasHeight: asset.json.h,
+        body: this.animationBody,
+      };
+      this.animationCache.set(key, animation);
+    }
+    return animation;
+  }
 }

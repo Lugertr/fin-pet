@@ -69,6 +69,7 @@ export function Step4PetCustomize({
             mood={100}
             height={scale(PREVIEW_HEIGHT)}
             skinVariant={colorVariant}
+            animated
           />
         </View>
 

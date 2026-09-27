@@ -6,8 +6,8 @@
 // её внутренний DevicePushTokenAutoRegistration.fx (глобальный побочный
 // эффект при загрузке модуля) и логирует предупреждение "Listening to push
 // token changes is not yet fully supported on web" ещё до вызова любого
-// нашего кода. Metro сам подхватывает .web.ts вместо .ts при сборке под web
-// (см. LessonsBackground.web.tsx), поэтому здесь просто не импортируем
+// нашего кода. Metro сам подхватывает .web.ts вместо .ts при сборке под web,
+// поэтому здесь просто не импортируем
 // expo-notifications вообще — теми же именами, что в notifications.ts.
 
 export interface NotificationData {

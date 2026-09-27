@@ -62,6 +62,13 @@ module.exports = [
     },
   },
   {
+    // Node-скрипты подготовки ассетов (npm run pets:animations) — CommonJS.
+    files: ['scripts/**/*.js'],
+    languageOptions: {
+      globals: { __dirname: 'readonly' },
+    },
+  },
+  {
     ignores: [
       'node_modules/',
       '.expo/',

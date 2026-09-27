@@ -120,14 +120,20 @@ export function Step3PetType({
 
                 {/* Все питомцы одной высоты (подгонка по высоте, а не по
                     ширине — иначе мишка выше кота) и ровно в свою рамку, так
-                    что подпись ниже не налезает на картинку. */}
+                    что подпись ниже не налезает на картинку. Выбранный
+                    питомец радуется (весёлая анимация), остальные — SVG. */}
                 <View
                   style={[
                     styles.petAvatarCircle,
                     { height: scale(PET_CARD_HEIGHT), marginBottom: scale(spacing.md) },
                   ]}
                 >
-                  <PetSprite petType={pet.id} mood={100} height={scale(PET_CARD_HEIGHT)} />
+                  <PetSprite
+                    petType={pet.id}
+                    mood={100}
+                    height={scale(PET_CARD_HEIGHT)}
+                    animated={isSelected}
+                  />
                 </View>
 
                 <Text
