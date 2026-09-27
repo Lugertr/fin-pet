@@ -27,6 +27,9 @@ export interface AdventureEventTemplate {
   /** По каким состояниям игрока это событие может выпасть (см. selectEventPool).
    * Отсутствует/пусто — трактуется как «normal». */
   pools?: string[];
+  /** Демо-режим (§18): события с demo_order выпадают первыми, по возрастанию
+   * (см. pickDemoEventTemplate) — показ всегда идёт по одному сценарию. */
+  demo_order?: number;
 }
 
 /**
@@ -57,6 +60,17 @@ export const EVENT_PACING = {
   maxPerAdventure: 6,
 } as const;
 
+/**
+ * Демо-режим (§18, решение пользователя 28.09.2026): весь сценарий — за 1–2
+ * минуты, поэтому событие появляется при каждом заходе на экран приключения,
+ * без часового ритма и стартовой задержки. Не больше двух за приключение:
+ * трата с выбором «надо/хочу» и подарок (demo_order в контенте). Лимиты
+ * экономики (§12.3 — платный вариант только при хватке денег) не меняются.
+ */
+export const DEMO_EVENT_PACING = {
+  maxPerAdventure: 2,
+} as const;
+
 /** «На мели» — в бюджете приключения меньше этой доли его дохода. */
 const LOW_MONEY_INCOME_RATIO = 0.2;
 /** Та же граница, что отделяет 'sleeping' от 'idle' — см. constants/petAssets.ts. */
@@ -82,6 +96,8 @@ export interface EventDueContext {
   mood: number;
   /** Сколько событий уже было в этом приключении. */
   eventsSoFar: number;
+  /** Демо-профиль — ритм DEMO_EVENT_PACING вместо обычного. */
+  demo?: boolean;
 }
 
 /**
@@ -106,6 +122,15 @@ export function isEventDue(adventure: AdventureRecord, ctx: EventDueContext): bo
   if (adventure.status !== 'active') return false;
   if (adventure.pendingEventTemplateId) return false;
   if (!adventure.nextEventCheckAt || !adventure.startedAt) return false;
+  if (ctx.demo) {
+    // Демо: событие при каждом заходе на экран (не по тикам), пока не исчерпан
+    // демо-лимит; после окончания времени событий нет, как и в обычном режиме.
+    return (
+      ctx.trigger === 'entry' &&
+      ctx.eventsSoFar < DEMO_EVENT_PACING.maxPerAdventure &&
+      remainingMs(adventure, ctx.nowMs) >= EVENT_PACING.minRemainingMs
+    );
+  }
   if (ctx.nowMs - new Date(adventure.startedAt).getTime() < EVENT_PACING.minSinceStartMs) {
     return false;
   }
@@ -137,6 +162,21 @@ export function pickRandomEventTemplate(
     freshInPool.length > 0 ? freshInPool : freshAnywhere.length > 0 ? freshAnywhere : pool;
   if (candidates.length === 0) return null;
   return candidates[Math.floor(Math.random() * candidates.length)];
+}
+
+/**
+ * Демо-режим: следующее по demo_order ещё не выпадавшее событие. null — все
+ * демо-события уже были (тогда вызывающий берёт случайное, как обычно).
+ */
+export function pickDemoEventTemplate(
+  templates: AdventureEventTemplate[],
+  usedTemplateIds: string[] = []
+): AdventureEventTemplate | null {
+  const used = new Set(usedTemplateIds);
+  const ordered = templates
+    .filter((t) => t.demo_order !== undefined && !used.has(t.id))
+    .sort((a, b) => (a.demo_order ?? 0) - (b.demo_order ?? 0));
+  return ordered[0] ?? null;
 }
 
 /** §12.3: платный вариант доступен, только если хватает денег целиком — без частичной оплаты. */

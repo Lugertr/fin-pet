@@ -1,6 +1,7 @@
 // src/components/lesson/TestStep/TestStep.tsx
-// Шаг «Тест» (новая композиция урока) — 5 вопросов, порог 70% (§9.5), провал
-// — свободный повтор
+// Шаг «Тест» (новая композиция урока) — порог 70% (§9.5), провал — свободный
+// повтор. У урока-викторины в той же пачке первыми идут вопросы мини-игры
+// (5–7 вопросов, см. buildLessonSteps.ts), у остальных — 5 вопросов теста.
 
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';

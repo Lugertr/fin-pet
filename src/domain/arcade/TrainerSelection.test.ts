@@ -18,6 +18,7 @@ import {
   BranchArcadeSources,
   buildBranchGameSession,
   buildQuestTrainerSession,
+  DEMO_ROUND_LIMIT,
   FIVE_LETTERS_TRAINER_WORD_COUNT,
   listBranchGames,
   QUIZ_TRAINER_QUESTION_COUNT,
@@ -184,5 +185,44 @@ describe('arcadeTimeBonusMinutes (Аркада ускоряет слабее у�
     expect(arcadeTimeBonusMinutes(5, 10)).toBe(7);
     expect(arcadeTimeBonusMinutes(0, 10)).toBe(0);
     expect(arcadeTimeBonusMinutes(3, 0)).toBe(0);
+  });
+});
+
+describe('демо-режим (§18): короткие раунды Аркады', () => {
+  const big: BranchArcadeSources = {
+    lessons: [
+      lesson(
+        1,
+        1,
+        'quiz',
+        Array.from({ length: 12 }, (_, i) => question(i + 1)),
+        []
+      ),
+    ],
+    swipeCards: [{ branch_id: 1, cards: Array.from({ length: 8 }, (_, i) => question(100 + i)) }],
+    words: ['ДОХОД', 'ВКЛАД', 'НАЛОГ'].map((word) => ({ word, hint: '', branch_ids: [1] })),
+  };
+
+  it('в демо раунд не длиннее DEMO_ROUND_LIMIT, без демо — обычный', () => {
+    expect(listBranchGames(1, big, true)).toEqual([
+      { type: 'quiz', roundLength: DEMO_ROUND_LIMIT.quiz },
+      { type: 'tinder_swipe', roundLength: DEMO_ROUND_LIMIT.tinder_swipe },
+      { type: 'five_letters', roundLength: DEMO_ROUND_LIMIT.five_letters },
+    ]);
+    expect(listBranchGames(1, big).map((g) => g.roundLength)).toEqual([
+      QUIZ_TRAINER_QUESTION_COUNT,
+      TINDER_SWIPE_TRAINER_QUESTION_COUNT,
+      FIVE_LETTERS_TRAINER_WORD_COUNT,
+    ]);
+  });
+
+  it('buildBranchGameSession и задание-тренировка в демо — тоже короткие', () => {
+    for (const type of ['quiz', 'tinder_swipe', 'five_letters'] as const) {
+      const session = buildBranchGameSession(type, 1, big, false, true);
+      expect(trainerRoundLength(session!)).toBe(DEMO_ROUND_LIMIT[type]);
+    }
+    const quest = buildQuestTrainerSession(1, big, true);
+    expect(trainerRoundLength(quest!)).toBeLessThanOrEqual(3);
+    expect(quest!.countsAsQuest).toBe(true);
   });
 });

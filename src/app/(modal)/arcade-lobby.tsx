@@ -26,6 +26,7 @@ import { useFeedback } from '@/lib/hooks/useFeedback';
 import { BRANCHES } from '@/lib/hooks/useLessons';
 import { useAdventureStore } from '@/lib/stores/adventureStore';
 import { useArcadeSessionStore } from '@/lib/stores/arcadeSessionStore';
+import { useUserStore } from '@/lib/stores/userStore';
 import { Alert } from '@/lib/utils/alert';
 import { formatPrice } from '@/lib/utils/formatters';
 import { useResponsive, useTheme } from '@/theme';
@@ -41,14 +42,16 @@ export default function ArcadeLobbyScreen() {
   const styles = createArcadeStyles({ theme });
 
   const adventure = useAdventureStore((s) => s.currentAdventure);
+  // §18 демо-режим — короткие раунды (DEMO_ROUND_LIMIT).
+  const isDemo = useUserStore((s) => s.user?.is_demo ?? false);
   const branchId = adventure?.status === 'active' ? adventure.branchId : null;
   const branch = branchId !== null ? BRANCHES.find((b) => b.id === branchId) : undefined;
-  const games = branchId !== null ? listBranchGames(branchId, ARCADE_SOURCES) : [];
+  const games = branchId !== null ? listBranchGames(branchId, ARCADE_SOURCES, isDemo) : [];
   const accent = (branchId !== null && BRANCH_GRADIENTS[branchId]?.[0]) || theme.primary;
 
   const handlePlay = (type: ArcadeGameType) => {
     if (branchId === null) return;
-    const session = buildBranchGameSession(type, branchId, ARCADE_SOURCES);
+    const session = buildBranchGameSession(type, branchId, ARCADE_SOURCES, false, isDemo);
     if (!session) {
       Alert.alert('Недоступно', 'Для этой темы пока нет заданий в этой игре');
       return;

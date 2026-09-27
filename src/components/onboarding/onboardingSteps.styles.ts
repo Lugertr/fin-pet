@@ -184,6 +184,38 @@ export function createOnboardingStepsStyles({ theme }: OnboardingStepsStylesPara
       opacity: 0.85,
     },
 
+    // Шаг 1: неприметный переключатель «Режим демонстрации» (§18) под текстом.
+    introDemoToggle: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'center',
+      gap: spacing.sm,
+      minHeight: 48,
+      marginTop: spacing.xl,
+      paddingHorizontal: spacing.lg,
+      borderRadius: radius.full,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    introDemoToggleOn: {
+      borderColor: theme.accent,
+      backgroundColor: withAlpha(theme.accent, 0.1),
+    },
+    introDemoToggleText: {
+      color: theme.textSecondary,
+      fontWeight: fontWeights.semibold,
+      fontSize: fontSizes.md,
+    },
+    introDemoToggleTextOn: {
+      color: theme.accent,
+    },
+    introDemoHint: {
+      color: theme.textSecondary,
+      fontSize: fontSizes.md,
+      textAlign: 'center',
+      marginTop: spacing.sm,
+    },
+
     // Шаг 2: «Три типа решений» — 3 статичные карточки категорий трат
     decisionsCardsRow: {
       flexDirection: 'row',

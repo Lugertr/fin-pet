@@ -7,10 +7,12 @@ import adventureEventsJson from '../../../content/adventure_events.json';
 import { AdventureRecord } from './Adventure';
 import {
   AdventureEventTemplate,
+  DEMO_EVENT_PACING,
   EVENT_PACING,
   EventDueContext,
   isEventDue,
   isOptionAffordable,
+  pickDemoEventTemplate,
   pickRandomEventTemplate,
   selectEventPool,
 } from './AdventureEvent';
@@ -252,6 +254,71 @@ describe('контент событий: скинов нет', () => {
       for (const option of template.options) {
         expect(option).not.toHaveProperty('grantsSkin');
       }
+    }
+  });
+});
+
+describe('демо-режим (§18): событие при каждом заходе, по сценарию', () => {
+  // Приключение только что началось: обычный ритм дал бы первое событие не раньше 30 мин.
+  const justStarted = makeAdventure({
+    startedAt: new Date(0).toISOString(),
+    nextEventCheckAt: new Date(60 * MIN).toISOString(),
+  });
+
+  it('при заходе на экран событие наступает сразу после старта', () => {
+    expect(isEventDue(justStarted, ctx(1000, { trigger: 'entry', demo: true }))).toBe(true);
+  });
+
+  it('по тикам, пока экран открыт, — нет: только при заходе', () => {
+    expect(isEventDue(justStarted, ctx(1000, { trigger: 'tick', demo: true }))).toBe(false);
+  });
+
+  it('не больше демо-лимита за приключение', () => {
+    const limit = DEMO_EVENT_PACING.maxPerAdventure;
+    expect(
+      isEventDue(justStarted, ctx(1000, { trigger: 'entry', demo: true, eventsSoFar: limit - 1 }))
+    ).toBe(true);
+    expect(
+      isEventDue(justStarted, ctx(1000, { trigger: 'entry', demo: true, eventsSoFar: limit }))
+    ).toBe(false);
+  });
+
+  it('не рождает второе, пока первое не решено', () => {
+    const pending = { ...justStarted, pendingEventTemplateId: 'snack' };
+    expect(isEventDue(pending, ctx(1000, { trigger: 'entry', demo: true }))).toBe(false);
+  });
+
+  it('после окончания времени событий нет и в демо', () => {
+    expect(isEventDue(justStarted, ctx(8 * 60 * MIN, { trigger: 'entry', demo: true }))).toBe(
+      false
+    );
+  });
+
+  it('без демо-флага ритм прежний — в первые минуты событий нет', () => {
+    expect(isEventDue(justStarted, ctx(1000, { trigger: 'entry' }))).toBe(false);
+  });
+
+  it('pickDemoEventTemplate идёт по demo_order и пропускает уже выпадавшие', () => {
+    const first = { ...makeTemplate('first', ['normal']), demo_order: 1 };
+    const second = { ...makeTemplate('second', ['normal']), demo_order: 2 };
+    const other = makeTemplate('other', ['normal']);
+    const all = [other, second, first];
+    expect(pickDemoEventTemplate(all, [])).toBe(first);
+    expect(pickDemoEventTemplate(all, ['first'])).toBe(second);
+    expect(pickDemoEventTemplate(all, ['first', 'second'])).toBeNull();
+  });
+
+  it('контент: демо-событий хватает на лимит, первое — выбор «надо» или «хочу»', () => {
+    const templates = adventureEventsJson as AdventureEventTemplate[];
+    const demoTemplates = templates
+      .filter((t) => t.demo_order !== undefined)
+      .sort((a, b) => (a.demo_order ?? 0) - (b.demo_order ?? 0));
+    expect(demoTemplates.length).toBeGreaterThanOrEqual(DEMO_EVENT_PACING.maxPerAdventure);
+    const categories = demoTemplates[0].options.map((o) => o.category);
+    expect(categories).toEqual(expect.arrayContaining(['mandatory', 'optional']));
+    // Демо-события по карману стартовому бюджету приключения (100) — выбор реальный.
+    for (const option of demoTemplates[0].options) {
+      expect(isOptionAffordable(option, 100)).toBe(true);
     }
   });
 });

@@ -12,7 +12,7 @@
 // не собирается (см. LocalProfile.username).
 
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -88,6 +88,10 @@ export default function OnboardingScreen() {
   const styles = createOnboardingStyles();
   const stepStyles = createOnboardingStepsStyles({ theme });
 
+  // «Начать демо заново» (раздел для взрослого) открывает онбординг с ?demo=1 —
+  // переключатель на шаге 1 уже включён.
+  const { demo: demoParam } = useLocalSearchParams<{ demo?: string }>();
+  const [isDemo, setIsDemo] = useState(demoParam === '1');
   const [step, setStep] = useState<Step>(1);
   const [petType, setPetTypeLocal] = useState<PetType>('robot');
   const [colorVariant, setColorVariant] = useState(0);
@@ -136,7 +140,7 @@ export default function OnboardingScreen() {
         petType,
         appearance: { bodyVariant: 0, colorVariant, accessory: null },
         liquidBalance: startingBalance,
-        isDemo: false,
+        isDemo,
         createdAt,
       };
 
@@ -276,7 +280,15 @@ export default function OnboardingScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={[styles.contentColumn, step === 3 && styles.contentColumnWide]}>
-            {step === 1 && <Step1Intro />}
+            {step === 1 && (
+              <Step1Intro
+                demo={isDemo}
+                onToggleDemo={() => {
+                  triggerHaptic('selection');
+                  setIsDemo((prev) => !prev);
+                }}
+              />
+            )}
             {step === 2 && <Step2Decisions />}
             {step === 3 && <Step3PetType petType={petType} onChangePetType={setPetTypeLocal} />}
             {step === 4 && (

@@ -4,6 +4,7 @@
 // стадии по успешным периодам.
 
 import { AdventureRecord } from '@/domain/adventure/Adventure';
+import { computeLevel } from '@/domain/player/PlayerLevel';
 import { useLessonsStore } from '@/lib/hooks/useLessons';
 import { SHOP_CATALOG, useShopStore } from '@/lib/hooks/useShop';
 import { ADVENTURE_XP, useAdventureStore } from './adventureStore';
@@ -364,6 +365,53 @@ describe('adventureStore — демо-режим (§18.2)', () => {
     expect(result?.bonusAwarded).toBe(10);
     expect(useLessonsStore.getState().totalXp).toBe(xpBefore + (result?.xpAwarded ?? 0));
     expect(result?.xpAwarded).toBeGreaterThan(0);
+  });
+});
+
+describe('adventureStore — демо-режим: сценарий за 1–2 минуты', () => {
+  function seedDemoUser(): void {
+    useUserStore.getState().setUser({
+      id: 'test-profile',
+      username: 'Тест',
+      liquid_balance: 0,
+      created_at: new Date().toISOString(),
+      is_demo: true,
+    });
+  }
+
+  it('события при заходе сразу после старта — по сценарию: трата «надо/хочу», затем подарок', async () => {
+    seedDemoUser();
+    seedActiveAdventure({ nextEventCheckAt: new Date(Date.now() + 60 * 60 * 1000).toISOString() });
+
+    await useAdventureStore.getState().checkForDueEvent('entry');
+    expect(useAdventureStore.getState().currentAdventure?.pendingEventTemplateId).toBe('snack');
+
+    await useAdventureStore.getState().resolveEvent('treat');
+    await useAdventureStore.getState().checkForDueEvent('entry');
+    expect(useAdventureStore.getState().currentAdventure?.pendingEventTemplateId).toBe('bonus');
+
+    await useAdventureStore.getState().resolveEvent('keep');
+    await useAdventureStore.getState().checkForDueEvent('entry');
+    // Демо-лимит исчерпан — третьего события нет.
+    expect(useAdventureStore.getState().currentAdventure?.pendingEventTemplateId).toBeNull();
+  });
+
+  it('каждое демо-приключение даёт новый уровень', async () => {
+    seedDemoUser();
+    for (const expectedLevel of [2, 3, 4]) {
+      seedActiveAdventure();
+      const result = await useAdventureStore.getState().completeAdventure();
+      expect(result?.levelUp?.to).toBe(expectedLevel);
+      expect(computeLevel(useLessonsStore.getState().totalXp).level).toBe(expectedLevel);
+    }
+  });
+
+  it('без демо уровень 2 — только после второго приключения', async () => {
+    seedWallet(0);
+    seedActiveAdventure({ ...TIME_UP_OVERRIDES });
+    const first = await useAdventureStore.getState().completeAdventure();
+    expect(first?.levelUp).toBeNull();
+    expect(first?.xpAwarded).toBe(ADVENTURE_XP);
   });
 });
 

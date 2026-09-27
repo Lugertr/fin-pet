@@ -1,6 +1,10 @@
 // domain/lesson/buildLessonSteps.ts
 
-import { FiveLettersWordContent, LessonContent } from '@/domain/content/LessonContent';
+import {
+  FiveLettersWordContent,
+  LessonContent,
+  QuestionContent,
+} from '@/domain/content/LessonContent';
 import { LessonStep } from './LessonStep';
 
 // §9.3 — награда (1-й раз) по типу шага
@@ -13,8 +17,37 @@ export const LESSON_STEP_REWARDS = {
 export const TEST_PASS_THRESHOLD = 0.7; // §9.5
 
 /**
+ * Демо-режим (§18, решение пользователя 28.09.2026): весь сценарий — за 1–2
+ * минуты, поэтому урок укороченный — первые карточки теории и первые вопросы
+ * теста; мини-игра целиком (в ней 1–2 вопроса). Порядок фаз, порог теста и
+ * награда те же, что в обычном уроке.
+ */
+export const DEMO_LESSON_LIMITS = {
+  theoryCards: 2,
+  testQuestions: 2,
+} as const;
+
+/** Вопросы одной пачкой без повторов: одинаковый текст вопроса — один раз. */
+function withoutRepeats(questions: QuestionContent[]): QuestionContent[] {
+  const seen = new Set<string>();
+  return questions.filter((q) => {
+    const key = q.question_text.trim().toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/**
  * Собирает полную композицию шагов урока (§9.1): теория→[мини-игра]→тест→
- * награда→планирование. Порядок фаз зафиксирован ТЗ, а вот включение
+ * награда→планирование.
+ *
+ * Урок-викторина (решение пользователя 28.09.2026): мини-игра «Викторина» и
+ * тест — один и тот же формат, и раньше они шли двумя пачками подряд
+ * («Вопрос 1 из 1», затем «Вопрос 1 из 5»). Теперь вопросы мини-игры идут
+ * первыми в общей пачке теста (повторы по тексту убираются), отдельного шага
+ * мини-игры нет; награда за её фазу остаётся. У «Свайпов» и «5 букв» —
+ * другая игра, они по-прежнему отдельный шаг. Порядок фаз зафиксирован ТЗ, а вот включение
  * мини-игровой фазы зависит от данных — появляется только если у урока есть
  * вопросы с question_type: 'minigame' ИЛИ minigame_type: 'five_letters'
  * (у неё вместо вопросов — слово из общего банка, см. words ниже).
@@ -34,15 +67,23 @@ export const TEST_PASS_THRESHOLD = 0.7; // §9.5
  */
 export function buildLessonSteps(
   lesson: LessonContent,
-  fiveLettersWords: FiveLettersWordContent[]
+  fiveLettersWords: FiveLettersWordContent[],
+  demo = false
 ): LessonStep[] {
+  const theoryCards = demo
+    ? lesson.theory_cards.slice(0, DEMO_LESSON_LIMITS.theoryCards)
+    : lesson.theory_cards;
+  const testQuestions = demo
+    ? lesson.test_questions.slice(0, DEMO_LESSON_LIMITS.testQuestions)
+    : lesson.test_questions;
   const isFiveLetters = lesson.minigame_type === 'five_letters';
   const minigameQuestions = lesson.questions.filter((q) => q.question_type === 'minigame');
   const hasMinigame = isFiveLetters ? fiveLettersWords.length > 0 : minigameQuestions.length > 0;
+  const minigameInTest = hasMinigame && lesson.minigame_type === 'quiz';
 
-  const steps: LessonStep[] = [{ type: 'theory', cards: lesson.theory_cards }];
+  const steps: LessonStep[] = [{ type: 'theory', cards: theoryCards }];
 
-  if (hasMinigame) {
+  if (hasMinigame && !minigameInTest) {
     steps.push(
       isFiveLetters
         ? {
@@ -61,7 +102,9 @@ export function buildLessonSteps(
 
   steps.push({
     type: 'test',
-    questions: lesson.test_questions,
+    questions: minigameInTest
+      ? withoutRepeats([...minigameQuestions, ...testQuestions])
+      : testQuestions,
     passThreshold: TEST_PASS_THRESHOLD,
   });
 

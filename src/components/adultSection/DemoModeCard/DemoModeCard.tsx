@@ -1,5 +1,7 @@
 // src/components/adultSection/DemoModeCard/DemoModeCard.tsx
 // Карточка "Демо-режим" (§18, флаг demo_mode) в разделе для взрослого.
+// Включить демо можно и здесь, и переключателем на первом экране онбординга;
+// «Начать демо заново» удаляет демо-профиль и открывает онбординг.
 
 import { Switch, Text, TouchableOpacity, View } from 'react-native';
 
@@ -34,7 +36,8 @@ export function DemoModeCard({
               Режим для демонстрации
             </Text>
             <Text style={[styles.switchHint, { fontSize: scaledFont('xs') }]}>
-              Все уроки доступны сразу, приключение можно завершить без ожидания
+              Весь сценарий за 1–2 минуты: все уроки открыты, события сразу, короткие раунды Аркады
+              и урока, каждое приключение — новый уровень
             </Text>
           </View>
           <Switch value={user?.is_demo ?? false} onValueChange={onToggleDemo} disabled={isBusy} />
@@ -48,7 +51,7 @@ export function DemoModeCard({
           activeOpacity={0.8}
           style={[styles.neutralButton, { opacity: isBusy ? 0.6 : 1 }]}
         >
-          <Text style={styles.neutralButtonText}>Сбросить демо</Text>
+          <Text style={styles.neutralButtonText}>Начать демо заново</Text>
         </TouchableOpacity>
       )}
     </>

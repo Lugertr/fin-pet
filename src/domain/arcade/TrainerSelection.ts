@@ -118,6 +118,21 @@ const ROUND_LIMIT: Record<ArcadeGameType, number> = {
   five_letters: FIVE_LETTERS_TRAINER_WORD_COUNT,
 };
 
+/**
+ * Демо-режим (§18, решение пользователя 28.09.2026): все три игры Аркады
+ * показываются за полминуты — короткие раунды. Ускорение приключения считается
+ * по доле верных ответов (arcadeTimeBonusMinutes), так что короче — не выгоднее.
+ */
+export const DEMO_ROUND_LIMIT: Record<ArcadeGameType, number> = {
+  quiz: 3,
+  tinder_swipe: 3,
+  five_letters: 1,
+};
+
+function roundLimit(type: ArcadeGameType, demo: boolean): number {
+  return (demo ? DEMO_ROUND_LIMIT : ROUND_LIMIT)[type];
+}
+
 /** Сколько «вопросов» в раунде (слов для «5 букв»). */
 export function trainerRoundLength(session: TrainerSession): number {
   return session.minigameType === 'five_letters' ? session.words.length : session.questions.length;
@@ -125,17 +140,19 @@ export function trainerRoundLength(session: TrainerSession): number {
 
 /**
  * Раунд выбранной игры по теме: перемешанный пул, не больше лимита игры
- * (10 вопросов / 5 карточек / 3 слова). null — для темы нет контента этой игры.
+ * (10 вопросов / 5 карточек / 3 слова; в демо — DEMO_ROUND_LIMIT). null — для
+ * темы нет контента этой игры.
  */
 export function buildBranchGameSession(
   type: ArcadeGameType,
   branchId: number,
   sources: BranchArcadeSources,
-  countsAsQuest = false
+  countsAsQuest = false,
+  demo = false
 ): TrainerSession | null {
   const pool = gamePool(type, branchId, sources);
-  const questions = shuffle(pool.questions).slice(0, ROUND_LIMIT[type]);
-  const words = shuffle(pool.words).slice(0, ROUND_LIMIT[type]);
+  const questions = shuffle(pool.questions).slice(0, roundLimit(type, demo));
+  const words = shuffle(pool.words).slice(0, roundLimit(type, demo));
   const session: TrainerSession = { branchId, minigameType: type, questions, words, countsAsQuest };
   return trainerRoundLength(session) > 0 ? session : null;
 }
@@ -143,12 +160,13 @@ export function buildBranchGameSession(
 /** Игры, в которые по теме можно сыграть, и длина их раунда — для списка Аркады. */
 export function listBranchGames(
   branchId: number,
-  sources: BranchArcadeSources
+  sources: BranchArcadeSources,
+  demo = false
 ): { type: ArcadeGameType; roundLength: number }[] {
   return ARCADE_GAME_TYPES.map((type) => {
     const pool = gamePool(type, branchId, sources);
     const available = type === 'five_letters' ? pool.words.length : pool.questions.length;
-    return { type, roundLength: Math.min(available, ROUND_LIMIT[type]) };
+    return { type, roundLength: Math.min(available, roundLimit(type, demo)) };
   }).filter((game) => game.roundLength > 0);
 }
 
@@ -158,8 +176,9 @@ export function listBranchGames(
  */
 export function buildQuestTrainerSession(
   branchId: number,
-  sources: BranchArcadeSources
+  sources: BranchArcadeSources,
+  demo = false
 ): TrainerSession | null {
-  const game = pickRandom(listBranchGames(branchId, sources));
-  return game ? buildBranchGameSession(game.type, branchId, sources, true) : null;
+  const game = pickRandom(listBranchGames(branchId, sources, demo));
+  return game ? buildBranchGameSession(game.type, branchId, sources, true, demo) : null;
 }

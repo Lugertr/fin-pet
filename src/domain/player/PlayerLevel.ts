@@ -39,6 +39,12 @@ export function computeLevel(totalXp: number): LevelInfo {
   };
 }
 
+/** Сколько XP не хватает до следующего уровня (всегда > 0). */
+export function xpToNextLevel(totalXp: number): number {
+  const { level } = computeLevel(totalXp);
+  return totalXpForLevel(level + 1) - totalXp;
+}
+
 export const LEVEL_TITLES: Record<number, string> = {
   1: 'Стажёр',
   2: 'Ученик Финансов',

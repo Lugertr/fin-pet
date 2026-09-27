@@ -3,7 +3,26 @@
 // игрока (см. память проекта: level поглощает стадии), тестируем рост уровня
 // по накопленному опыту.
 
-import { computeLevel, pickLookToGrant, totalXpForLevel, xpForLevel } from './PlayerLevel';
+import {
+  computeLevel,
+  pickLookToGrant,
+  totalXpForLevel,
+  xpForLevel,
+  xpToNextLevel,
+} from './PlayerLevel';
+
+describe('xpToNextLevel (демо: ровно до следующего уровня)', () => {
+  it('с нуля — весь порог уровня 2', () => {
+    expect(xpToNextLevel(0)).toBe(totalXpForLevel(2));
+  });
+
+  it('внутри уровня — остаток до следующего, и его ровно хватает на level-up', () => {
+    const xp = totalXpForLevel(2) + 40;
+    const need = xpToNextLevel(xp);
+    expect(computeLevel(xp + need).level).toBe(3);
+    expect(computeLevel(xp + need - 1).level).toBe(2);
+  });
+});
 
 describe('xpForLevel / totalXpForLevel', () => {
   it('требование к следующему уровню растёт с уровнем', () => {

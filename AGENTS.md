@@ -89,8 +89,12 @@ Rules:
   priced ≥ 10 coins per 1⚡. Bank bonus is paid only on new money
   (`withdrawalCredit`).
 - New lessons are taken only as adventure quests. Completed lessons can be
-  replayed without rewards (§9). Demo mode opens any lesson and completes
-  adventures instantly with full reward (§18.2).
+  replayed without rewards (§9). Demo mode (§18: toggle on onboarding step 1
+  or in the adult section) is a 1–2 minute showcase: any lesson opens and is
+  shortened (DEMO_LESSON_LIMITS), short Arcade rounds (DEMO_ROUND_LIMIT),
+  events on every entry to the adventure screen in demo_order (max 2), ✕
+  completes with full reward and each adventure is a level-up (xpToNextLevel).
+  All of it only for is_demo profiles.
 
 ---
 

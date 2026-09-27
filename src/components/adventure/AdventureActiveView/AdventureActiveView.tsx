@@ -47,6 +47,8 @@ const EVENT_CHECK_INTERVAL_MS = 30_000;
 // захода на экран — иначе модалка события выскакивала бы в первый же миг,
 // раньше, чем ребёнок успеет увидеть сцену и план/факт.
 const EVENT_CHECK_INITIAL_DELAY_MS = 5_000;
+// Демо-режим (§18): событие при каждом заходе — почти сразу, показ идёт 1–2 минуты.
+const DEMO_EVENT_CHECK_INITIAL_DELAY_MS = 1_500;
 // Сцена ограничена по ширине — на широких экранах/планшетах фон иначе
 // разрастался и перекрывал остальной контент, а питомец превращался в точку.
 // Потолок не срабатывает на обычном телефоне — ограничивает только широкие окна.
@@ -69,6 +71,7 @@ export function AdventureActiveView() {
   const currentMood = usePetStore((s) => s.currentMood);
   const equippedSkinVariant = usePetStore((s) => s.equippedSkinVariant);
   const coins = useUserStore((s) => s.user?.liquid_balance ?? 0);
+  const isDemo = useUserStore((s) => s.user?.is_demo ?? false);
 
   const styles = createAdventureActiveViewStyles({ theme });
   // Модалку события можно закрыть тапом на фон, не выбирая — она останется
@@ -91,14 +94,14 @@ export function AdventureActiveView() {
       if (!countdown.active) return;
       const initialCheck = setTimeout(
         () => checkForDueEvent('entry'),
-        EVENT_CHECK_INITIAL_DELAY_MS
+        isDemo ? DEMO_EVENT_CHECK_INITIAL_DELAY_MS : EVENT_CHECK_INITIAL_DELAY_MS
       );
       const interval = setInterval(() => checkForDueEvent('tick'), EVENT_CHECK_INTERVAL_MS);
       return () => {
         clearTimeout(initialCheck);
         clearInterval(interval);
       };
-    }, [countdown.active, checkForDueEvent])
+    }, [countdown.active, checkForDueEvent, isDemo])
   );
 
   // Время вышло, пока открыт этот экран, — завершаем сразу (итоги — на хабе).
@@ -144,7 +147,7 @@ export function AdventureActiveView() {
     // идёт через Аркаду: раунд случайной игры этой темы с countsAsQuest, и
     // arcade.tsx при получении награды засчитывает его как задание.
     if (branchFullyDone && adventure.branchId !== null) {
-      const trainerSession = buildQuestTrainerSession(adventure.branchId, ARCADE_SOURCES);
+      const trainerSession = buildQuestTrainerSession(adventure.branchId, ARCADE_SOURCES, isDemo);
       if (!trainerSession) {
         Alert.alert('Недоступно', 'Для этой темы пока нет вопросов для тренировки');
         return;

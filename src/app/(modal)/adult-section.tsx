@@ -123,28 +123,34 @@ export default function AdultSectionScreen() {
     }
   };
 
+  // «Начать демо заново» — показ целиком, с онбординга (решение пользователя
+  // 28.09.2026): демо-профиль удаляется полностью, онбординг открывается с уже
+  // включённым режимом демонстрации (?demo=1).
   const handleResetDemo = () => {
     Alert.alert(
-      'Сбросить демо?',
-      'Тестовый профиль вернётся к исходному состоянию.',
+      'Начать демо заново?',
+      'Демо-профиль удалится, и показ начнётся с онбординга.',
       [
         { text: 'Отмена', style: 'cancel' },
         {
-          text: 'Сбросить',
+          text: 'Начать заново',
           style: 'destructive',
           onPress: async () => {
             setIsBusy(true);
             try {
-              await resetProfileToInitialState();
+              await deleteProfileCompletely();
               triggerHaptic('success');
-              router.replace('/(tabs)' as never);
+              router.replace({ pathname: '/(auth)/onboarding', params: { demo: '1' } } as never);
+            } catch (error) {
+              console.error('[AdultSection] Не удалось перезапустить демо:', error);
+              Alert.alert('Ошибка', 'Не удалось начать демо заново');
             } finally {
               setIsBusy(false);
             }
           },
         },
       ],
-      { icon: 'refresh', badgeLabel: 'Сброс', badgeVariant: 'warning' }
+      { icon: 'refresh', badgeLabel: 'Демо', badgeVariant: 'warning' }
     );
   };
 

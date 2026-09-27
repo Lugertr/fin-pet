@@ -27,9 +27,11 @@ import {
   EventTrigger,
   isEventDue,
   isOptionAffordable,
+  pickDemoEventTemplate,
   pickRandomEventTemplate,
   selectEventPool,
 } from '@/domain/adventure/AdventureEvent';
+import { xpToNextLevel } from '@/domain/player/PlayerLevel';
 import { LevelUpResult, useLessonsStore } from '@/lib/hooks/useLessons';
 import { create } from 'zustand';
 import { useShopStore } from '@/lib/hooks/useShop';
@@ -190,7 +192,12 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
     const completionRatio = isDemo ? 1 : adventureProgressRatio(currentAdventure, Date.now());
     const fullBonus = isPlanBonusEligible(currentAdventure) ? PLAN_BONUS : 0;
     const bonusAwarded = Math.floor(fullBonus * completionRatio);
-    const xpAwarded = Math.floor(ADVENTURE_XP * completionRatio);
+    // §18 демо-режим (решение пользователя 28.09.2026): каждое демо-приключение
+    // — новый уровень (и новый облик на уровнях 2 и 3), иначе рост уровня за
+    // 1–2 минуты показа не увидеть: обычный уровень 2 — только после двух приключений.
+    const xpAwarded = isDemo
+      ? Math.max(ADVENTURE_XP, xpToNextLevel(useLessonsStore.getState().totalXp))
+      : Math.floor(ADVENTURE_XP * completionRatio);
     // Остаток бюджета (с бонусом за план) уходит в хаб. При досрочном
     // завершении — только доля, равная пройденной части времени (решение
     // пользователя 27.09.2026): иначе «начал и сразу закрыл» приносило бы
@@ -511,12 +518,15 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
       // Деньги событий — бюджет приключения, а не кошелёк хаба.
       const balance = currentAdventure.budget;
       const mood = usePetStore.getState().currentMood;
+      // §18 демо-режим: событие при каждом заходе, по сценарию (demo_order).
+      const demo = useUserStore.getState().user?.is_demo ?? false;
       const due = isEventDue(currentAdventure, {
         nowMs: Date.now(),
         trigger,
         balance,
         mood,
         eventsSoFar: usedEventTemplateIds.length,
+        demo,
       });
       if (!due) return;
 
@@ -529,7 +539,9 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
         mood,
         projectedIncome: currentAdventure.projectedIncome,
       });
-      const template = pickRandomEventTemplate(pool, usedEventTemplateIds, templates);
+      const template =
+        (demo ? pickDemoEventTemplate(templates, usedEventTemplateIds) : null) ??
+        pickRandomEventTemplate(pool, usedEventTemplateIds, templates);
       if (!template) return;
 
       const rolledAt = new Date().toISOString();

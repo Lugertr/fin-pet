@@ -14,6 +14,7 @@ import { StepRunner } from '@/components/lesson';
 import { buildLessonSteps } from '@/domain/lesson/buildLessonSteps';
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { FIVE_LETTERS_WORDS, LESSONS, useLessonsStore } from '@/lib/hooks/useLessons';
+import { useUserStore } from '@/lib/stores/userStore';
 import { Alert } from '@/lib/utils/alert';
 import { formatPrice } from '@/lib/utils/formatters';
 import { useTheme } from '@/theme';
@@ -40,9 +41,11 @@ export default function LessonScreen() {
   // set-state внутри эффекта).
   const lesson = useMemo(() => LESSONS.find((l) => l.id === lessonId) ?? null, [lessonId]);
 
+  // §18 демо-режим — укороченный урок (DEMO_LESSON_LIMITS).
+  const isDemo = useUserStore((s) => s.user?.is_demo ?? false);
   const steps = useMemo(
-    () => (lesson ? buildLessonSteps(lesson, FIVE_LETTERS_WORDS) : null),
-    [lesson]
+    () => (lesson ? buildLessonSteps(lesson, FIVE_LETTERS_WORDS, isDemo) : null),
+    [lesson, isDemo]
   );
   const isFinished = stepRunnerComplete;
 

@@ -159,7 +159,8 @@ export default function ArcadeScreen() {
           session.minigameType,
           session.branchId,
           ARCADE_SOURCES,
-          session.countsAsQuest
+          session.countsAsQuest,
+          useUserStore.getState().user?.is_demo ?? false
         )
       : null;
     if (!nextRound) {

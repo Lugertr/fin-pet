@@ -5,6 +5,7 @@
     "description": "Пока питомец работал, проголодался. Как поступим?",
     "icon": "🍪",
     "pools": ["normal", "low_money"],
+    "demo_order": 1,
     "options": [
       {
         "id": "buy",
@@ -125,6 +126,7 @@
     "description": "Знакомый прислал немного монет просто так!",
     "icon": "🎁",
     "pools": ["low_money", "normal"],
+    "demo_order": 2,
     "options": [
       {
         "id": "keep",
