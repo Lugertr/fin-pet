@@ -24,10 +24,10 @@ export interface LottieAnimation {
 /** '#RRGGBB' классического облика → '#RRGGBB' скина. */
 export type SkinPalette = Readonly<Record<string, string>>;
 
-/** Где в кадре анимации стоит тело питомца — рамка idle-SVG того же вида
+/** Где в кадре анимации стоит тело питомца — рамка SVG того же состояния
  * (анимации нарисованы в масштабе SVG 1:1). По ней анимация совмещается с
- * местом, которое раскладка отводит под питомца, а сердечки/«Zzz» вокруг
- * тела выходят за эту рамку. Координаты — пиксели кадра анимации. */
+ * местом, которое раскладка отводит под статичный спрайт, а сердечки/«Zzz»
+ * вокруг тела выходят за эту рамку. Координаты — пиксели кадра анимации. */
 export interface PetAnimationBody {
   x: number;
   y: number;
@@ -35,16 +35,20 @@ export interface PetAnimationBody {
   height: number;
 }
 
-/** Анимация одного состояния вида: JSON и нужно ли её зацикливать. */
+/** Анимация одного состояния вида — проигрывается один раз по нажатию. */
 export interface PetAnimationAsset {
   json: LottieAnimation;
-  loop: boolean;
+  /** Рамка SVG этого состояния (v0/idle.svg или v0/sleeping.svg) в кадре. */
+  body: PetAnimationBody;
+  /** До какого кадра играть: исходники длинные (до 32 с — несколько циклов
+   * разной длины), поэтому берётся кадр, где картинка снова совпадает с
+   * первым кадром, — возврат к статичному SVG проходит без скачка. */
+  endFrame: number;
 }
 
-/** Готовая к показу анимация: уже в цветах скина. */
+/** Готовая к показу анимация: уже в цветах скина и обрезанная до endFrame. */
 export interface PetAnimation {
   source: LottieAnimation;
-  loop: boolean;
   canvasWidth: number;
   canvasHeight: number;
   body: PetAnimationBody;

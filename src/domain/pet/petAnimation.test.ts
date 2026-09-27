@@ -129,6 +129,18 @@ describe('PetSpecies.getAnimation', () => {
     expect(getPetSpecies('bear').getAnimation('sleeping')).toBeNull();
   });
 
+  it('по нажатию играется короткий отрывок (≤ 6 с), а не весь исходник', () => {
+    for (const petType of PET_TYPES) {
+      for (const state of STATES) {
+        const animation = getPetSpecies(petType).getAnimation(state);
+        if (!animation) continue;
+        const { ip, op, fr } = animation.source;
+        expect(op).toBeGreaterThan(ip);
+        expect((op - ip) / fr).toBeLessThanOrEqual(6);
+      }
+    }
+  });
+
   it('в анимациях нет текстовых слоёв — шрифтов в приложении нет', () => {
     for (const petType of PET_TYPES) {
       for (const state of STATES) {

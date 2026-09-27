@@ -256,7 +256,7 @@ export function PetRoom({
                 mood={mood}
                 skinVariant={skinVariant}
                 size={petSize}
-                animated
+                animateOnPress
                 onPress={onPetPress}
               />
             )}

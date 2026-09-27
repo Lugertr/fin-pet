@@ -2,7 +2,7 @@
 
 import { PetMoodState } from '@/constants/petAssets';
 import { PetEmotion, PetSpecies } from '../Pet';
-import { PetAnimationAsset, PetAnimationBody } from '../petAnimation';
+import { PetAnimationAsset } from '../petAnimation';
 
 /** variant 0 — «Классический» (встроенный, не товар), 1/2 — покупные скины
  * (content/items.json, category 'skin', pet_type 'cat'). */
@@ -36,16 +36,23 @@ const EMOTION_ASSETS: Record<number, Partial<Record<PetEmotion, number>>> = {
   },
 };
 
-/** Lottie-анимации (assets/animations/pets, scripts/build-pet-animations.js);
- * скины 1/2 — перекраска по palettes.json. */
+/** Lottie-анимации по нажатию (assets/animations/pets, scripts/build-pet-animations.js);
+ * скины 1/2 — перекраска по palettes.json. body — рамка SVG того же
+ * состояния в кадре 1200×1600 (подобрана наложением SVG на первый кадр),
+ * endFrame — кадр, совпадающий с первым: радость — два цикла танца (4,8 с),
+ * сонливость — 4 с. */
 const ANIMATIONS: Partial<Record<PetMoodState, PetAnimationAsset>> = {
-  idle: { json: require('../../../../assets/animations/pets/cat_happy.json'), loop: true },
-  sleeping: { json: require('../../../../assets/animations/pets/cat_sleepy.json'), loop: true },
+  idle: {
+    json: require('../../../../assets/animations/pets/cat_happy.json'),
+    body: { x: 272, y: 331, width: 655, height: 921 },
+    endFrame: 144,
+  },
+  sleeping: {
+    json: require('../../../../assets/animations/pets/cat_sleepy.json'),
+    body: { x: 272, y: 330, width: 655, height: 922 },
+    endFrame: 120,
+  },
 };
-
-/** Рамка v0/idle.svg (655×921) в кадре анимаций 1200×1600 — подобрана
- * наложением SVG на кадр анимации. */
-const ANIMATION_BODY: PetAnimationBody = { x: 272, y: 331, width: 655, height: 921 };
 
 const FALLBACK_EMOJI: Record<PetMoodState, string> = {
   idle: '🐱',
@@ -56,7 +63,6 @@ export class CatPet extends PetSpecies {
   readonly type = 'cat' as const;
   readonly displayName = 'Кот';
   protected readonly animations = ANIMATIONS;
-  readonly animationBody = ANIMATION_BODY;
 
   getBodyAsset(state: PetMoodState, skinVariant = 0) {
     return (BODY_ASSETS[skinVariant] ?? BODY_ASSETS[0])[state];

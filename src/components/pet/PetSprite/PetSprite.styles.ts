@@ -26,6 +26,11 @@ export function createPetSpriteStyles({ theme, width, height }: PetSpriteStylesP
       width: '100%',
       height: '100%',
     },
+    // SVG под идущей анимацией — не размонтируется, чтобы после неё не
+    // загружаться заново.
+    hidden: {
+      opacity: 0,
+    },
     emoji: {
       fontSize: width * 0.5,
     },

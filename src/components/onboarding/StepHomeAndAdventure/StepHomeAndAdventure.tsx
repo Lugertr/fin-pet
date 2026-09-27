@@ -71,7 +71,6 @@ export function StepHomeAndAdventure({
                 mood={100}
                 skinVariant={skinVariant}
                 height={scale(86)}
-                animated
               />
             </View>
           </View>
