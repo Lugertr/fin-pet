@@ -19,9 +19,17 @@ export function createPetAvatarBubbleStyles({ theme, size }: PetAvatarBubbleStyl
       backgroundColor: theme.surfaceLight,
       overflow: 'visible',
     },
+    // SVG эмоции — готовая плитка 487×487 со своим фоном и скруглёнными углами
+    // (радиус ≈17% стороны): рисуем её во весь размер, без круглой подложки.
+    assetContainer: {
+      width: size,
+      height: size,
+      borderRadius: size * 0.17,
+      overflow: 'hidden',
+    },
     image: {
-      width: size * 0.7,
-      height: size * 0.7,
+      width: size,
+      height: size,
     },
     emoji: {
       fontSize: size * 0.5,

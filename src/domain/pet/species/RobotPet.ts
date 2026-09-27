@@ -36,6 +36,12 @@ const EMOTION_ASSETS: Record<number, Partial<Record<PetEmotion, number>>> = {
   },
 };
 
+const WORK_ASSETS: Record<number, number> = {
+  0: require('../../../../assets/images/pets/robot/v0/work.svg'),
+  1: require('../../../../assets/images/pets/robot/v1/work.svg'),
+  2: require('../../../../assets/images/pets/robot/v2/work.svg'),
+};
+
 /** Lottie-анимации по нажатию (assets/animations/pets, scripts/build-pet-animations.js);
  * скины 1/2 — перекраска по palettes.json. body — рамка SVG того же
  * состояния в кадре 1200×1600 (подобрана наложением SVG на первый кадр),
@@ -70,6 +76,10 @@ export class RobotPet extends PetSpecies {
 
   getEmotionAsset(emotion: PetEmotion, skinVariant = 0) {
     return (EMOTION_ASSETS[skinVariant] ?? EMOTION_ASSETS[0])[emotion] ?? null;
+  }
+
+  getWorkAsset(skinVariant = 0) {
+    return WORK_ASSETS[skinVariant] ?? WORK_ASSETS[0];
   }
 
   getFallbackEmoji(state: PetMoodState) {

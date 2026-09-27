@@ -5,6 +5,8 @@ import { withAlpha } from '@/theme/colorUtils';
 import { fontSizes, fontWeights, radius, shadows, spacing } from '@/theme/tokens';
 import { StyleSheet } from 'react-native';
 
+const WORK_SCENE_BACKGROUND = '#FBE6D4';
+
 export function createStepHomeAndAdventureStyles({ theme }: { theme: Theme }) {
   return StyleSheet.create({
     container: {
@@ -52,6 +54,10 @@ export function createStepHomeAndAdventureStyles({ theme }: { theme: Theme }) {
     image: {
       width: '100%',
       height: '100%',
+    },
+    // Фон сцены work.svg (#FBE6D4) — заливка полей по бокам вписанной картинки.
+    workImageBox: {
+      backgroundColor: WORK_SCENE_BACKGROUND,
     },
     chip: {
       position: 'absolute',

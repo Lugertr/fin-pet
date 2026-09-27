@@ -38,6 +38,10 @@ export abstract class PetSpecies {
    * не поставлен для этой эмоции (сейчас есть только question/reward). */
   abstract getEmotionAsset(emotion: PetEmotion, skinVariant?: number): ImageSourcePropType | null;
 
+  /** SVG-сцена «питомец работает» (work.svg, 297×275, фон уже внутри) для
+   * экрана приключения, для выбранного скина. */
+  abstract getWorkAsset(skinVariant?: number): ImageSourcePropType;
+
   /** Эмодзи-заглушка на случай PET_RENDER_MODE === 'emoji' или отсутствия ассета. */
   abstract getFallbackEmoji(state: PetMoodState): string;
 

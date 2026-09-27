@@ -2,7 +2,8 @@
 // Аватар питомца с эмоцией (радостный/получивший награду/задающий вопрос/
 // сожалеющий) — используется в шагах урока. Пробует SVG-ассет эмоции для
 // текущего скина (getEmotionAsset) — реально есть только для question/reward,
-// по одной паре на каждый скин-вариант; для happy/regretful (и для скина,
+// по одной паре на каждый скин-вариант; ассет — квадратная плитка со своим
+// фоном, рисуется во весь размер без подложки. Для happy/regretful (и для скина,
 // под который ассета ещё нет) — плейсхолдер: базовое эмодзи вида + маленький
 // бейдж-эмодзи эмоции в углу (тот же приём, что у PetSprite для 💤/✨).
 
@@ -40,18 +41,20 @@ export function PetAvatarBubble({
 
   const styles = createPetAvatarBubbleStyles({ theme, size: scale(size) });
 
+  if (PET_RENDER_MODE === 'assets' && emotionAsset) {
+    return (
+      <View style={styles.assetContainer}>
+        <Image source={emotionAsset} style={styles.image} contentFit="contain" transition={200} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      {PET_RENDER_MODE === 'assets' && emotionAsset ? (
-        <Image source={emotionAsset} style={styles.image} contentFit="contain" transition={200} />
-      ) : (
-        <>
-          <Text style={styles.emoji}>{baseEmoji}</Text>
-          <View style={styles.badge}>
-            <Text style={styles.badgeEmoji}>{badgeEmoji}</Text>
-          </View>
-        </>
-      )}
+      <Text style={styles.emoji}>{baseEmoji}</Text>
+      <View style={styles.badge}>
+        <Text style={styles.badgeEmoji}>{badgeEmoji}</Text>
+      </View>
     </View>
   );
 }

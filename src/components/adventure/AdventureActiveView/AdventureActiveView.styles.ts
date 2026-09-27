@@ -1,7 +1,7 @@
 // src/components/adventure/AdventureActiveView/AdventureActiveView.styles.ts
-// Сцена (SVG-фон-плейсхолдер + спрайт питомца) ограничена по ширине (см.
-// AdventureActiveView.tsx: sceneWidth/sceneHeight/petSize), чтобы на широких
-// экранах фон не растягивался на весь экран, превращая питомца в точку.
+// Сцена (work.svg — питомец за работой, фон уже внутри картинки) ограничена
+// по ширине (см. AdventureActiveView.tsx: sceneWidth/sceneHeight), чтобы на
+// широких экранах не растягивалась на весь экран.
 // Полоска прогресса с оставшимся временем — сразу под сценой, той же ширины.
 
 import type { Theme } from '@/theme';
@@ -35,17 +35,9 @@ export function createAdventureActiveViewStyles({ theme }: AdventureActiveViewSt
       backgroundColor: theme.surfaceLight,
       overflow: 'hidden',
     },
-    sceneBackground: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-    },
-    scenePetWrap: {
-      position: 'absolute',
-      bottom: '16%',
-      left: '50%',
+    sceneImage: {
+      width: '100%',
+      height: '100%',
     },
     // Прогресс приключения под сценой — заполнение по adventureProgressRatio
     // (тот же расчёт, что у награды при досрочном завершении), рядом текстом

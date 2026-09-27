@@ -20,6 +20,10 @@ const EMOTION_ASSETS: Record<number, Partial<Record<PetEmotion, number>>> = {
   },
 };
 
+const WORK_ASSETS: Record<number, number> = {
+  0: require('../../../../assets/images/pets/bear/v0/work.svg'),
+};
+
 /** Lottie-анимация по нажатию (assets/animations/pets, scripts/build-pet-animations.js).
  * bear_happy — «сборка» статичного рисунка по деталям (0,8 с), играется
  * целиком. body — рамка v0/idle.svg в кадре 1200×1600 (подобрана наложением
@@ -49,6 +53,10 @@ export class BearPet extends PetSpecies {
 
   getEmotionAsset(emotion: PetEmotion, skinVariant = 0) {
     return (EMOTION_ASSETS[skinVariant] ?? EMOTION_ASSETS[0])[emotion] ?? null;
+  }
+
+  getWorkAsset(skinVariant = 0) {
+    return WORK_ASSETS[skinVariant] ?? WORK_ASSETS[0];
   }
 
   getFallbackEmoji(state: PetMoodState) {

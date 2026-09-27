@@ -2,7 +2,7 @@
 // Активная фаза «Приключения» — отдельный экран (app/(modal)/adventure.tsx),
 // открывается с хаба. Порядок сверху вниз: шапка (слева «назад» на хаб,
 // справа «?» и ✕ — завершить досрочно — рядом с монетами и энергией),
-// сцена «работы» с питомцем, полоска прогресса с оставшимся временем, задание
+// сцена «питомец работает» (work.svg вида и скина), полоска прогресса с оставшимся временем, задание
 // по выбранной ветке, внизу — тема урока и кнопка «План». «Банка» здесь нет:
 // он только на хабе (тап по копилке) — деньги приключения живут отдельно.
 // Случайные события проверяются, только пока вкладка в фокусе. Итоги здесь не
@@ -18,10 +18,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { Modal, ScrollView, TouchableOpacity, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
 
-import { PetSprite } from '@/components/pet';
 import { AppHeaderStats, CoinAmount, useAppHeaderPadding } from '@/components/shared';
 import { Card, IconButton } from '@/components/ui';
 import { actualSpend, plannedSpend } from '@/domain/adventure/Adventure';
+import { getPetSpecies } from '@/domain/pet/petSpeciesRegistry';
 import { buildQuestTrainerSession } from '@/domain/arcade/TrainerSelection';
 import { formatDuration } from '@/lib/adventure/formatDuration';
 import { ARCADE_SOURCES } from '@/lib/arcade/arcadeSources';
@@ -40,7 +40,6 @@ import { useResponsive, useTheme } from '@/theme';
 import { AdventureEventModal } from '../AdventureEventModal';
 import { createAdventureActiveViewStyles } from './AdventureActiveView.styles';
 
-const WORKSPACE_BACKGROUND = require('../../../../assets/images/adventure/workspace-background.svg');
 const ADVENTURE_EVENTS = getLocalContentRepository().getAdventureEventsSync();
 const EVENT_CHECK_INTERVAL_MS = 30_000;
 // Первую проверку событий (trigger 'entry' — может сработать раньше обычного
@@ -50,11 +49,12 @@ const EVENT_CHECK_INTERVAL_MS = 30_000;
 const EVENT_CHECK_INITIAL_DELAY_MS = 5_000;
 // Демо-режим (§18): событие при каждом заходе — почти сразу, показ идёт 1–2 минуты.
 const DEMO_EVENT_CHECK_INITIAL_DELAY_MS = 1_500;
-// Сцена ограничена по ширине — на широких экранах/планшетах фон иначе
-// разрастался и перекрывал остальной контент, а питомец превращался в точку.
-// Потолок не срабатывает на обычном телефоне — ограничивает только широкие окна.
-const SCENE_MAX_WIDTH = 640;
-const SCENE_ASPECT_RATIO = 4 / 3;
+// Сцена ограничена по ширине — на широких экранах/планшетах картинка иначе
+// разрасталась и перекрывала остальной контент. Потолок не срабатывает на
+// обычном телефоне — ограничивает только широкие окна (сцена до ~480 в высоту).
+const SCENE_MAX_WIDTH = 520;
+// Соотношение сторон work.svg (297×275) — одинаковое у всех видов и скинов.
+const SCENE_ASPECT_RATIO = 297 / 275;
 const SCENE_HORIZONTAL_PADDING = 24;
 
 export function AdventureActiveView() {
@@ -222,12 +222,10 @@ export function AdventureActiveView() {
   };
 
   // Ширина сцены — вся доступная ширина за вычетом отступов, но не больше
-  // SCENE_MAX_WIDTH; высота — по фиксированному соотношению сторон фона;
-  // размер питомца — доля от РЕАЛЬНОЙ ширины сцены, а не константа, поэтому
-  // остаётся заметным независимо от размера экрана.
+  // SCENE_MAX_WIDTH; высота — по соотношению сторон work.svg.
   const sceneWidth = Math.min(screenWidth - SCENE_HORIZONTAL_PADDING * 2, SCENE_MAX_WIDTH);
   const sceneHeight = sceneWidth / SCENE_ASPECT_RATIO;
-  const petSize = Math.round(sceneWidth * 0.28);
+  const species = getPetSpecies(petType);
   // Оставшееся время — по реальным часам (не демо-флаг timeUp, который в
   // демо-профиле истинен сразу и показал бы «время вышло» с первой минуты).
   const remainingLabel = expired ? 'Время вышло' : `Осталось ${formatDuration(remaining)}`;
@@ -263,18 +261,11 @@ export function AdventureActiveView() {
         <View style={styles.sceneOuter}>
           <View style={[styles.sceneBox, { width: sceneWidth, height: sceneHeight }]}>
             <Image
-              source={WORKSPACE_BACKGROUND}
-              style={styles.sceneBackground}
-              contentFit="cover"
+              source={species.getWorkAsset(equippedSkinVariant)}
+              style={styles.sceneImage}
+              contentFit="contain"
+              accessibilityLabel={`${species.displayName} работает в приключении`}
             />
-            <View style={[styles.scenePetWrap, { transform: [{ translateX: -petSize / 2 }] }]}>
-              <PetSprite
-                petType={petType}
-                mood={currentMood}
-                skinVariant={equippedSkinVariant}
-                size={petSize}
-              />
-            </View>
           </View>
 
           <View style={[styles.timeBlock, { width: sceneWidth }]}>
