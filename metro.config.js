@@ -7,4 +7,6 @@ const config = getDefaultConfig(__dirname);
 // не резолвит .wasm как ассет, из-за чего веб-бандл падает с Resolution Error.
 config.resolver.assetExts.push('wasm');
 
-module.exports = withNativeWind(config, { input: './src/app/styles/global.css' });
+// input должен указывать на существующий файл: с несуществующим путём
+// `expo export --platform web` зависает на запуске Tailwind CLI (NativeWind).
+module.exports = withNativeWind(config, { input: './src/global.css' });
