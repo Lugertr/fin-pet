@@ -2,7 +2,8 @@
 // Spider Chart на SVG — работает на всех платформах без CanvasKit
 
 import { useMemo } from 'react';
-import { Text, useWindowDimensions, View } from 'react-native';
+import { useWindowDimensions, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import Svg, { G, Line, Polygon, Circle as SvgCircle } from 'react-native-svg';
 
 import { useTheme } from '@/theme';

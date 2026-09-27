@@ -2,7 +2,8 @@
 // Пузырь сообщения в чате с ИИ. У ответов ассистента со ссылкой на урок — кнопка перехода.
 
 import { Ionicons } from '@expo/vector-icons';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { AiChatMessage } from '@/lib/stores/aiChatStore';
 import { useResponsive, useTheme } from '@/theme';

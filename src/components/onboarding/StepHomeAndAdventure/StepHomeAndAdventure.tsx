@@ -6,7 +6,8 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import Animated, { FadeInRight } from 'react-native-reanimated';
 
 import { PetSprite } from '@/components/pet';

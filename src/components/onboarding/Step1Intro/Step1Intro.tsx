@@ -6,7 +6,8 @@
 // онбординга, без PIN и раздела для взрослого.
 
 import { Ionicons } from '@expo/vector-icons';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import Animated, { FadeInRight } from 'react-native-reanimated';
 
 import { CoinIcon } from '@/components/shared';

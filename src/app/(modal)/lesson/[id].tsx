@@ -8,7 +8,8 @@
 
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { BackHandler, Modal, Text, TouchableOpacity, View } from 'react-native';
+import { BackHandler, Modal, TouchableOpacity, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { StepRunner } from '@/components/lesson';
 import { buildLessonSteps } from '@/domain/lesson/buildLessonSteps';

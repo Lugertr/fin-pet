@@ -3,7 +3,7 @@
 // размера и отступа.
 
 import { ReactNode } from 'react';
-import { Text } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { useResponsive, useTheme } from '@/theme';
 import { fontSizes, spacing } from '@/theme/tokens';

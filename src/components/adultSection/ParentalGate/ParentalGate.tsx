@@ -2,7 +2,8 @@
 // Барьер входа в раздел для взрослого (§17 ТЗ) — арифметический пример.
 
 import { LinearGradient } from 'expo-linear-gradient';
-import { Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
+import { Text, TextInput } from '@/components/ui/Text';
 
 import { IconButton } from '@/components/ui';
 import { ADULT_SECTION_HEADER_GRADIENT } from '../adultSectionVisuals';

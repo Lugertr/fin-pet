@@ -4,7 +4,8 @@
 // ноутбука, копилки и кровати (lib/savings/goalOptions), те же, что в выборе
 // цели «Копилки». Стартовые монеты банка сразу начинают копиться на неё.
 
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import Animated, { FadeInRight } from 'react-native-reanimated';
 
 import { GoalOptionCard } from '@/components/savings';

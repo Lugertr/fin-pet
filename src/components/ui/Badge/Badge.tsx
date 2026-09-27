@@ -1,7 +1,8 @@
 // src/components/ui/Badge/Badge.tsx
 
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, useResponsive } from '@/theme';
 import { createBadgeStyles, BadgeVariant, BadgeSize } from './Badge.styles';

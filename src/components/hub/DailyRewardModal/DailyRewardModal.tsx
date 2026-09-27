@@ -5,7 +5,8 @@
 // Закрывается только получением награды: это подарок, а не выбор.
 
 import { LinearGradient } from 'expo-linear-gradient';
-import { Modal, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, TouchableOpacity, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { StreakDayCircle } from '@/components/shared';
 import { formatCoins, formatPrice } from '@/lib/utils/formatters';

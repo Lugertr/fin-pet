@@ -8,7 +8,8 @@
 // на уровнях 2 и 3 (PlayerLevel.pickLookToGrant). Облики не продаются.
 
 import { Ionicons } from '@expo/vector-icons';
-import { Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
+import { Text, TextInput } from '@/components/ui/Text';
 import Animated, { FadeInRight } from 'react-native-reanimated';
 
 import { PetSprite } from '@/components/pet';

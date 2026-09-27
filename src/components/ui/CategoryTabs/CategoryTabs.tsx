@@ -5,7 +5,8 @@
 // здесь — единая схема на theme.primary/theme.surfaceLight.
 
 import { Ionicons } from '@expo/vector-icons';
-import { Text, TouchableOpacity } from 'react-native';
+import { TouchableOpacity } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { ScrollableRow } from '@/components/ui/ScrollableRow';
 import { useResponsive, useTheme } from '@/theme';

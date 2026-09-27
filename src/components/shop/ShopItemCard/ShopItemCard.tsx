@@ -1,7 +1,8 @@
 // src/components/shop/ShopItemCard/ShopItemCard.tsx
 // Карточка товара в магазине
 
-import { Text, TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { CoinAmount, ItemImage } from '@/components/shared';
 import { Badge, Card } from '@/components/ui';

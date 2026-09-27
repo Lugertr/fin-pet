@@ -1,7 +1,8 @@
 // src/components/lesson/HighlightedText/HighlightedText.tsx
 // Рендерит текст карточки урока, выделяя **term**-сегменты цветной пилюлей.
 
-import { Text, TextStyle } from 'react-native';
+import { TextStyle } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { parseInlineHighlights } from '@/lib/utils/richText';
 import { useTheme } from '@/theme';

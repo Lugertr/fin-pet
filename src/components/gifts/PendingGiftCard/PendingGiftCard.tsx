@@ -2,7 +2,8 @@
 // Карточка неоткрытого подарка в списке подарков.
 
 import { LinearGradient } from 'expo-linear-gradient';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { Gift, getGiftRarityConfig } from '@/types/gifts';
 import { useResponsive, useTheme } from '@/theme';

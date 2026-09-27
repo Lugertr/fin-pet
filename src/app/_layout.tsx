@@ -4,6 +4,8 @@
 import { AlertHost } from '@/components/shared';
 import { useApplySettings } from '@/lib/settings/useApplySettings';
 import { ThemeProvider, useTheme } from '@/theme';
+import { FONT_SOURCES } from '@/theme/fonts';
+import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -54,6 +56,11 @@ function RootStack() {
 }
 
 export default function RootLayout() {
+  // Manrope из бандла грузится за доли секунды — ждём, чтобы текст не
+  // мигал системным шрифтом; если загрузка не удалась, работаем на системном.
+  const [fontsLoaded, fontError] = useFonts(FONT_SOURCES);
+  if (!fontsLoaded && !fontError) return null;
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>

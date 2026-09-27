@@ -7,7 +7,8 @@
 // бейдж-эмодзи эмоции в углу (тот же приём, что у PetSprite для 💤/✨).
 
 import { Image } from 'expo-image';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { PET_RENDER_MODE, PetType } from '@/constants/petAssets';
 import { EMOTION_BADGE_EMOJI, PetEmotion } from '@/domain/pet/Pet';

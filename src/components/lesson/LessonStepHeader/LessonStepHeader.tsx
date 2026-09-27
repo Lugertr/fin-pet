@@ -5,7 +5,8 @@
 // четвёртую по счёту, систему mood-порогов), не штрафная механика — ошибка
 // ребёнка не наказывается (§8 ТЗ). Справа — «?» с подсказкой, как устроен урок.
 
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { HelpButton } from '@/components/shared';
 import type { ScreenHelpId } from '@/domain/content/ReferenceContent';

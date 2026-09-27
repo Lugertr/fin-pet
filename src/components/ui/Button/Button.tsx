@@ -1,7 +1,8 @@
 // src/components/ui/Button/Button.tsx
 
 import React from 'react';
-import { Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { TouchableOpacity, ActivityIndicator } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, useResponsive } from '@/theme';

@@ -7,15 +7,8 @@
 // Монтируется только открытым — сумма и ошибка сбрасываются сами.
 
 import { useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, TouchableOpacity, View } from 'react-native';
+import { Text, TextInput } from '@/components/ui/Text';
 
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { formatPrice } from '@/lib/utils/formatters';

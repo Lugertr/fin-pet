@@ -4,7 +4,8 @@
 // нет (еда, трофеи) — эмодзи. Декоративная: название вещи всегда рядом.
 
 import { Image } from 'expo-image';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { getItemImage } from '@/constants/itemAssets';
 import type { ItemContent } from '@/domain/content/ItemContent';

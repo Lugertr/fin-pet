@@ -1,7 +1,8 @@
 // src/components/inventory/ItemDetailModal/ItemDetailModal.tsx
 // Модалка с деталями предмета — реальные действия (§12.1, §12.4)
 
-import { Modal, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, TouchableOpacity, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { ItemImage } from '@/components/shared';
 import { useShallow } from 'zustand/react/shallow';

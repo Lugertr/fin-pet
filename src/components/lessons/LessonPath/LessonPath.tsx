@@ -14,7 +14,8 @@
 // остатка экрана под матрицей и лентой.
 
 import { ReactNode } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import Svg, { Path } from 'react-native-svg';
 
 import { LessonPathNode } from '@/domain/lesson/LessonPathNode';

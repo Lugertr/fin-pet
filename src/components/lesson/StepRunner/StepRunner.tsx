@@ -2,7 +2,8 @@
 // Раннер полной композиции шагов (новый формат урока, §9.1)
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { LessonStep } from '@/domain/lesson/LessonStep';
 import { useShopStore } from '@/lib/hooks/useShop';

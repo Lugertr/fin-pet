@@ -33,7 +33,8 @@
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { LayoutChangeEvent, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { LayoutChangeEvent, ScrollView, TouchableOpacity, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import {
   CARPET_ASSETS,

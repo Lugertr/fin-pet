@@ -2,7 +2,8 @@
 // Стадия "opening": анимация раскрытия подарка (random).
 
 import { LinearGradient } from 'expo-linear-gradient';
-import { Text, ViewStyle } from 'react-native';
+import { ViewStyle } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import Animated, { AnimatedStyle } from 'react-native-reanimated';
 
 import { GiftRarityConfig } from '@/types/gifts';

@@ -5,7 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, TouchableOpacity, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { CoinAmount, HelpButton } from '@/components/shared';
 import { HistoryGiftCard, PendingGiftCard } from '@/components/gifts';

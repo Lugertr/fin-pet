@@ -3,7 +3,8 @@
 // Включить демо можно и здесь, и переключателем на первом экране онбординга;
 // «Начать демо заново» удаляет демо-профиль и открывает онбординг.
 
-import { Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Switch, TouchableOpacity, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { isFeatureEnabled } from '@/config/featureFlags';
 import { useUserStore } from '@/lib/stores/userStore';

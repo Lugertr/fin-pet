@@ -1,7 +1,8 @@
 // src/components/gifts/HistoryGiftCard/HistoryGiftCard.tsx
 // Карточка записи истории открытых подарков.
 
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { Card } from '@/components/ui';
 import { GiftHistoryEntry } from '@/lib/stores/giftsStore';

@@ -3,7 +3,8 @@
 // периоды (§8 ТЗ) убраны отсюда — эта шкала поглощена уровнем игрока (см.
 // PlayerLevel.ts), который теперь начисляется и за уроки, и за приключения.
 
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { computeLevel, getLevelTitle } from '@/domain/player/PlayerLevel';
 import { ACHIEVEMENTS, useAchievementsStore } from '@/lib/stores/achievementsStore';

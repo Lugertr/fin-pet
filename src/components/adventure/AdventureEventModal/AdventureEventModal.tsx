@@ -9,7 +9,8 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Modal, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, TouchableOpacity, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { CoinAmount } from '@/components/shared';
 import { AdventureEventTemplate, isOptionAffordable } from '@/domain/adventure/AdventureEvent';

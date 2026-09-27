@@ -8,7 +8,7 @@ import { Tabs } from 'expo-router';
 import { MAIN_TABS } from '@/constants/mainTabs';
 import { useEnergyTicker } from '@/lib/pet/useEnergyTicker';
 import { useTheme } from '@/theme';
-import { fontWeights } from '@/theme/tokens';
+import { fontFamilies } from '@/theme/fonts';
 
 export default function TabsLayout() {
   const { theme } = useTheme();
@@ -32,7 +32,8 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: theme.textSecondary,
         tabBarLabelStyle: {
           fontSize: 12,
-          fontWeight: fontWeights.semibold,
+          // Подписи вкладок рисует React Navigation, не наш Text — шрифт явно.
+          fontFamily: fontFamilies.semibold,
           marginTop: 4,
         },
         tabBarIconStyle: {

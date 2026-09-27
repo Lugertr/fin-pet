@@ -5,7 +5,8 @@
 
 import { format } from 'date-fns';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { SubpageHeader } from '@/components/shared';
 import { getTransactionRepository } from '@/data/local/repositories';

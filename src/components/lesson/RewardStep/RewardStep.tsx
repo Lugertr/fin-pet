@@ -12,7 +12,8 @@
 
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef } from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, TouchableOpacity, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { QUEST_TIME_BONUS_MS } from '@/lib/stores/adventureStore';
 import { CoinAmount } from '@/components/shared';

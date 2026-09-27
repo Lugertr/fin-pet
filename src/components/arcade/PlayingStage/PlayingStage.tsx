@@ -2,7 +2,8 @@
 // Этап 2 Аркады — сам игровой процесс: викторина, свайпы или «5 букв».
 
 import { LinearGradient } from 'expo-linear-gradient';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { FiveLettersGame, QuizGame, TinderSwipeGame } from '@/components/games';
 import { TrainerSession, trainerRoundLength } from '@/domain/arcade/TrainerSelection';

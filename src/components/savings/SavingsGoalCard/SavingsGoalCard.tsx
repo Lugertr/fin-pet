@@ -6,7 +6,8 @@
 // Прогресс передаётся и полосой, и числами (§23).
 
 import { Ionicons } from '@expo/vector-icons';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { ItemImage } from '@/components/shared';
 import { AnimatedFill } from '@/components/ui';

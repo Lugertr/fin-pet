@@ -2,7 +2,8 @@
 // Опасная зона (§17.3): сброс и удаление профиля — только с подтверждением.
 
 import { Ionicons } from '@expo/vector-icons';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { useResponsive, useTheme } from '@/theme';
 import { spacing } from '@/theme/tokens';

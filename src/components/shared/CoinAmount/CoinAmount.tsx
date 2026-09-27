@@ -3,7 +3,8 @@
 // числом (шапка, цены, план/факт, награды, итоги) — см. formatPrice.
 // Для скринридера — «120 монет» (буква «C» вслух непонятна).
 
-import { StyleProp, Text, TextStyle, View, ViewStyle } from 'react-native';
+import { StyleProp, TextStyle, View, ViewStyle } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { formatCoins, formatPrice } from '@/lib/utils/formatters';
 import { coinAmountStyles as styles } from './CoinAmount.styles';

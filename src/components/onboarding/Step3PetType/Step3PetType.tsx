@@ -5,7 +5,8 @@
 // входит, оно переехало на шаг 4 (Step4PetCustomize) вместе с цветом корпуса.
 
 import { Ionicons } from '@expo/vector-icons';
-import { Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import Animated, { FadeInRight } from 'react-native-reanimated';
 
 import { PetSprite } from '@/components/pet';

@@ -4,7 +4,8 @@
 // награда за тему — монеты уроков и достижения («Кибер-защитник» и др.).
 
 import { LinearGradient } from 'expo-linear-gradient';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { useResponsive, useTheme } from '@/theme';

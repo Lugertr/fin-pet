@@ -18,9 +18,9 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
   ScrollView,
-  Text,
   View,
 } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import { useShallow } from 'zustand/react/shallow';
 
 import { SpiderChart } from '@/components/charts/SpiderChart';

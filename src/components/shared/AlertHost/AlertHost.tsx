@@ -13,7 +13,8 @@
 //   снизу, а не ещё одной закрашенной кнопкой — см. референс дизайна.
 
 import { Ionicons } from '@expo/vector-icons';
-import { Modal, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, TouchableOpacity, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import type { IconName } from '@/types/icons';
 import { AlertButton, useAlertStore } from '@/lib/stores/alertStore';

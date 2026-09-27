@@ -3,7 +3,8 @@
 // прогресса, белый прогресс-бар на акцентном градиенте (theme.gradients.accent).
 
 import { LinearGradient } from 'expo-linear-gradient';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { useResponsive, useTheme } from '@/theme';
 import { createModuleHeaderCardStyles } from './ModuleHeaderCard.styles';

@@ -4,7 +4,8 @@
 // облик открывается на уровнях 2 и 3), справа — откуда берётся опыт: только
 // из завершённых приключений (уроки дают монеты, но не XP).
 
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { useResponsive, useTheme } from '@/theme';
 import { createProfileCardStyles } from '../profileCards.styles';

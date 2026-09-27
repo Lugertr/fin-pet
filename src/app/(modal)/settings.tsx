@@ -5,7 +5,8 @@
 // lib/settings/useApplySettings (раньше сбрасывались при каждом открытии).
 
 import { Ionicons } from '@expo/vector-icons';
-import { ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Switch, TouchableOpacity, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { createProfileCardStyles } from '@/components/profile';
 import { SubpageHeader } from '@/components/shared';

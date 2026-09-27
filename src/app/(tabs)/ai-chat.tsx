@@ -11,11 +11,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { Text, TextInput } from '@/components/ui/Text';
 import { useShallow } from 'zustand/react/shallow';
 
 import { ChatBubble } from '@/components/aiChat';

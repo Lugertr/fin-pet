@@ -4,7 +4,8 @@
 // состояние; просмотр PDF добавится вместе с самими файлами.
 
 import { Ionicons } from '@expo/vector-icons';
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { SubpageHeader } from '@/components/shared';
 import { getLocalContentRepository } from '@/data/content';

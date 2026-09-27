@@ -16,11 +16,11 @@ import {
   LayoutChangeEvent,
   ScrollView,
   StyleProp,
-  Text,
   TouchableOpacity,
   View,
   ViewStyle,
 } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 

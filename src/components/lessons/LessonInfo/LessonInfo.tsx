@@ -1,7 +1,8 @@
 // src/components/lessons/LessonInfo/LessonInfo.tsx
 // Информация об уроке рядом с кружком на дереве уроков
 
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { Lesson } from '@/lib/hooks/useLessons';
 import { useResponsive, useTheme } from '@/theme';

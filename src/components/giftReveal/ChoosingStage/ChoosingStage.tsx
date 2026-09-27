@@ -2,7 +2,8 @@
 // Стадия "choosing": выбор 1 из предложенных предметов (guaranteed_choice, §14.1).
 
 import { Ionicons } from '@expo/vector-icons';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { SHOP_CATALOG } from '@/lib/hooks/useShop';
 import { Gift } from '@/types/gifts';

@@ -3,7 +3,8 @@
 // цель» в онбординге (GoalOptionCard). Копить можно только на улучшения
 // ноутбука, копилки и кровати (решение пользователя 27.09.2026).
 
-import { FlatList, Modal, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Modal, TouchableOpacity, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { ShopItem } from '@/lib/hooks/useShop';
 import { getSavingsGoalItems } from '@/lib/savings/goalOptions';

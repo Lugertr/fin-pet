@@ -13,7 +13,8 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { IconButton } from '@/components/ui';
 import { PLAN_CATEGORY_COLORS } from '@/constants/planCategories';

@@ -4,7 +4,8 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { ScrollView, Text, TextInput, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
+import { Text, TextInput } from '@/components/ui/Text';
 
 import { SubpageHeader } from '@/components/shared';
 import { getLocalContentRepository } from '@/data/content';

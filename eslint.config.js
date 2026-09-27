@@ -49,6 +49,20 @@ module.exports = [
       'react-hooks/immutability': 'off',
       
       // React Native
+      // Шрифт Manrope ставит обёртка src/components/ui/Text — Text/TextInput
+      // из react-native напрямую рисовали бы системным шрифтом.
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'react-native',
+              importNames: ['Text', 'TextInput'],
+              message: 'Импортируйте Text/TextInput из @/components/ui/Text (шрифт Manrope).',
+            },
+          ],
+        },
+      ],
       'react-native/no-inline-styles': 'warn',
       'react-native/no-color-literals': 'warn',
       

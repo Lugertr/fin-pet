@@ -12,7 +12,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, TouchableOpacity, View } from 'react-native';
+import { Text, TextInput } from '@/components/ui/Text';
 
 import { BRANCH_GRADIENTS, BRANCH_ICONS } from '@/components/lessons/branchVisuals';
 import { AppHeaderStats, CoinAmount, useAppHeaderPadding } from '@/components/shared';

@@ -13,7 +13,8 @@
 // отступление от общего правила (см. ADVENTURE_WRONG_ANSWER_ENERGY_COST).
 
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { FiveLettersGame, QuizGame, TinderSwipeGame } from '@/components/games';
 import { MinigameStep as MinigameStepData } from '@/domain/lesson/LessonStep';

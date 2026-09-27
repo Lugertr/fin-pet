@@ -3,7 +3,8 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, TouchableOpacity, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { ScreenFooter } from '@/components/ui';

@@ -2,7 +2,8 @@
 // Превью достижений на экране «Прогресс» (макет S31): до трёх последних
 // открытых достижений и ссылка «все достижения» на отдельный экран.
 
-import { Text, TouchableOpacity, View } from 'react-native';
+import { TouchableOpacity, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import { useResponsive, useTheme } from '@/theme';
 import { withAlpha } from '@/theme/colorUtils';

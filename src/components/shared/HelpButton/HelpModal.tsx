@@ -3,7 +3,8 @@
 // Карточка по центру фиксированной ширины (не растягивается на планшете).
 
 import { Ionicons } from '@expo/vector-icons';
-import { Modal, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, ScrollView, TouchableOpacity, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 import type { ScreenHelpContent } from '@/domain/content/ReferenceContent';
 import { useResponsive, useTheme } from '@/theme';
