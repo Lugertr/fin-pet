@@ -24,9 +24,19 @@ interface SavingsActionResult {
 interface SavingsState {
   savings: SavingsRecord | null;
   isLoading: boolean;
+  /**
+   * Цель, достигнутая в этой сессии, — её поздравляет окно выбора новой цели
+   * (RequiredGoalPicker). Только в памяти: после перезапуска окно просто
+   * просит выбрать цель, без поздравления.
+   */
+  lastCompletedGoalId: number | null;
 
   loadOrCreate: (profileId: string) => Promise<void>;
+  /** Цель — только ещё не купленное улучшение (isSavingsGoalItem). Если на неё
+   * уже накоплено, она покупается сразу (§11.3), а не при следующем пополнении. */
   setTarget: (itemId: number | null) => Promise<void>;
+  /** Поздравление показано — окно выбора цели больше его не повторяет. */
+  clearCompletedGoal: () => void;
   /** Переводит монеты из кошелька в накопления и сразу начисляет бонус за новые деньги (§11.4). */
   deposit: (amount: number) => Promise<SavingsActionResult>;
   /**
@@ -67,6 +77,7 @@ async function checkGoalCompletion(record: SavingsRecord): Promise<SavingsRecord
   };
 
   useShopStore.getState().addItem(targetItem.id);
+  useSavingsStore.setState({ lastCompletedGoalId: targetItem.id });
 
   const bonusCoins = goalCompletionBonus(targetItem.price);
   useUserStore
@@ -144,6 +155,7 @@ async function applyDeposit(
 export const useSavingsStore = create<SavingsState>((set, get) => ({
   savings: null,
   isLoading: true,
+  lastCompletedGoalId: null,
 
   loadOrCreate: async (profileId) => {
     set({ isLoading: true });
@@ -169,12 +181,18 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
     if (itemId !== null) {
       const item = SHOP_CATALOG.find((i) => i.id === itemId);
       if (!item || !isSavingsGoalItem(item)) return;
+      // Уже купленную вещь копить незачем — checkGoalCompletion выдал бы её второй раз.
+      if ((useShopStore.getState().ownedItems[itemId] ?? 0) > 0) return;
     }
 
-    const updated: SavingsRecord = { ...savings, targetItemId: itemId };
+    // §11.3: накоплено ≥ цены → покупка. После достигнутой цели в банке может
+    // остаться больше цены следующей — тогда она покупается сразу.
+    const updated = await checkGoalCompletion({ ...savings, targetItemId: itemId });
     set({ savings: updated });
     await persistSavings(updated);
   },
+
+  clearCompletedGoal: () => set({ lastCompletedGoalId: null }),
 
   deposit: async (amount) => {
     const { savings } = get();
@@ -253,5 +271,5 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
     await persistSavings(updated);
   },
 
-  reset: () => set({ savings: null, isLoading: true }),
+  reset: () => set({ savings: null, isLoading: true, lastCompletedGoalId: null }),
 }));

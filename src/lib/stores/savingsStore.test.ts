@@ -38,7 +38,7 @@ function seedWallet(liquidBalance: number): void {
 beforeEach(() => {
   useUserStore.getState().reset();
   useShopStore.getState().resetInventory();
-  useSavingsStore.setState({ savings: null, isLoading: true });
+  useSavingsStore.setState({ savings: null, isLoading: true, lastCompletedGoalId: null });
 });
 
 describe('savingsStore.deposit (перевод в накопления)', () => {
@@ -131,6 +131,8 @@ describe('savingsStore — прогресс и достижение цели (§
 
     expect(useSavingsStore.getState().savings?.targetItemId).toBeNull();
     expect(useShopStore.getState().ownedItems[GOAL_ITEM.id]).toBeGreaterThanOrEqual(1);
+    // окно выбора новой цели поздравит именно с этой вещью
+    expect(useSavingsStore.getState().lastCompletedGoalId).toBe(GOAL_ITEM.id);
   });
 });
 
@@ -203,5 +205,40 @@ describe('savingsStore.setTarget — только ноутбук, копилка
       await useSavingsStore.getState().setTarget(item.id);
       expect(useSavingsStore.getState().savings?.targetItemId).toBeNull();
     }
+  });
+});
+
+describe('savingsStore.setTarget — только то, что ещё можно купить', () => {
+  const laptop = SHOP_CATALOG.find((i) => i.category === 'laptop' && !i.is_starter)!;
+
+  it('уже купленную вещь выбрать целью нельзя', async () => {
+    seedSavings();
+    useShopStore.getState().addItem(laptop.id);
+
+    await useSavingsStore.getState().setTarget(laptop.id);
+
+    expect(useSavingsStore.getState().savings?.targetItemId).toBeNull();
+  });
+
+  it('если на цель уже накоплено — она покупается сразу, остаток остаётся в банке', async () => {
+    seedSavings({ currentAmount: laptop.price + 7 });
+    seedWallet(0);
+
+    await useSavingsStore.getState().setTarget(laptop.id);
+
+    const { savings, lastCompletedGoalId } = useSavingsStore.getState();
+    expect(savings?.targetItemId).toBeNull();
+    expect(savings?.currentAmount).toBe(7);
+    expect(useShopStore.getState().ownedItems[laptop.id]).toBe(1);
+    expect(lastCompletedGoalId).toBe(laptop.id);
+  });
+
+  it('если не накоплено — цель просто выбирается', async () => {
+    seedSavings({ currentAmount: laptop.price - 1 });
+
+    await useSavingsStore.getState().setTarget(laptop.id);
+
+    expect(useSavingsStore.getState().savings?.targetItemId).toBe(laptop.id);
+    expect(useSavingsStore.getState().lastCompletedGoalId).toBeNull();
   });
 });

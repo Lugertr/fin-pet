@@ -44,6 +44,13 @@ export function createGoalPickerModalStyles({ theme }: GoalPickerModalStylesPara
       marginTop: spacing.xs,
       marginBottom: spacing.lg,
     },
+    savedNote: {
+      color: theme.textPrimary,
+      fontWeight: fontWeights.semibold,
+      fontSize: fontSizes.md,
+      marginTop: -spacing.sm,
+      marginBottom: spacing.lg,
+    },
     // Отступ сверху/справа — под галочку выбранной карточки (она торчит за край).
     list: {
       gap: spacing.md,

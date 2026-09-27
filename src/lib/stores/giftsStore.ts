@@ -9,6 +9,7 @@
 
 import { Gift, GiftRarity, GiftSource, rollCoinsForRarity, rollRarity } from '@/types/gifts';
 import { equipSkin } from '@/lib/pet/petSkin';
+import { isLockedRoomSkin } from '@/lib/utils/itemCategories';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { v4 as uuidv4 } from 'uuid';
 import { create } from 'zustand';
@@ -62,7 +63,7 @@ function getOwnedItemIds(): Set<number> {
  */
 function pickCollectible(rarity: GiftRarity, ownedIds: Set<number>): ShopItem | null {
   const candidates = SHOP_CATALOG.filter(
-    (i) => i.is_hidden && i.rarity === rarity && !ownedIds.has(i.id)
+    (i) => i.is_hidden && !isLockedRoomSkin(i) && i.rarity === rarity && !ownedIds.has(i.id)
   );
   if (candidates.length === 0) return null;
   return candidates[Math.floor(Math.random() * candidates.length)];

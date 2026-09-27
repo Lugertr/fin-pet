@@ -15,6 +15,15 @@ export function getSavingsGoalItems(): ShopItem[] {
   );
 }
 
+/**
+ * Цели, которые ещё можно купить: улучшения, которых нет в инвентаре. Уже
+ * купленную вещь целью не выбрать; пустой список — копить больше не на что,
+ * и окно обязательного выбора цели не показывается.
+ */
+export function getAvailableSavingsGoalItems(ownedItems: Record<number, number>): ShopItem[] {
+  return getSavingsGoalItems().filter((item) => (ownedItems[item.id] ?? 0) <= 0);
+}
+
 /** Первая цель в онбординге — ближайшее (самое дешёвое) улучшение каждой из трёх вещей. */
 export function getFirstGoalOptions(): ShopItem[] {
   return SAVINGS_GOAL_CATEGORIES.map((category) =>

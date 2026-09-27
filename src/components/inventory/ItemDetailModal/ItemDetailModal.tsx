@@ -99,6 +99,7 @@ export function ItemDetailModal({
       }
       const result = equipFurniture(item.id);
       onFeedback(result.success ? 'purchase' : 'error');
+      if (!result.success) Alert.alert('Пока нельзя', result.message);
       onClose();
     }
   };

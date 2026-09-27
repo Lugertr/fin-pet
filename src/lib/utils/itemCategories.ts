@@ -2,6 +2,7 @@
 // Категории товаров (§12.2 ТЗ) — общие для магазина и инвентаря, раньше были
 // продублированы дословно в обоих экранах под разными именами.
 
+import { isFeatureEnabled } from '@/config/featureFlags';
 import type { PetType } from '@/constants/petAssets';
 import type { ItemContent } from '@/domain/content/ItemContent';
 import type { IconName } from '@/types/icons';
@@ -14,9 +15,23 @@ export const ITEM_CATEGORIES: { id: string; name: string; icon: IconName }[] = [
   { id: 'skin', name: 'Скины', icon: 'color-palette' },
 ];
 
+/**
+ * Скин комнаты (category:'room', кроме стартового) закрыт, пока выключен флаг
+ * room_skins (решение пользователя 28.09.2026): его нет в магазине и в
+ * подарках, а уже купленный нельзя надеть — комната остаётся классической.
+ */
+export function isLockedRoomSkin(item: Pick<ItemContent, 'category' | 'is_starter'>): boolean {
+  return item.category === 'room' && !item.is_starter && !isFeatureEnabled('room_skins');
+}
+
 /** Вкладки магазина — без «Скинов»: облик питомца не продаётся, он приходит
- * с новым уровнем (решение пользователя 27.09.2026). В инвентаре вкладка есть. */
-export const SHOP_ITEM_CATEGORIES = ITEM_CATEGORIES.filter((category) => category.id !== 'skin');
+ * с новым уровнем (решение пользователя 27.09.2026). В инвентаре вкладка есть.
+ * «Комнаты» нет, пока скины комнаты закрыты (isLockedRoomSkin) — иначе
+ * вкладка была бы пустой: стартовая комната не продаётся. */
+export const SHOP_ITEM_CATEGORIES = ITEM_CATEGORIES.filter(
+  (category) =>
+    category.id !== 'skin' && (category.id !== 'room' || isFeatureEnabled('room_skins'))
+);
 
 /** Вкладка «Декор» объединяет обычный decor и обязательные предметы комнаты
  * (ноутбук/копилка/кровать/ковёр/окно, см. PetRoom.tsx) — они физически стоят
@@ -61,8 +76,8 @@ export const CATEGORY_DISPLAY_NAMES: Record<string, string> = {
 /**
  * Продаётся ли вещь в магазине этого питомца — одно правило для витрины
  * магазина и выбора цели в банке: не скрытый трофей (только из подарков), не
- * стартовая вещь (есть у всех), не облик питомца (только за уровень) и
- * подходит виду питомца.
+ * стартовая вещь (есть у всех), не облик питомца (только за уровень), не
+ * закрытый скин комнаты и подходит виду питомца.
  */
 export function isShopItem(
   item: Pick<ItemContent, 'category' | 'pet_type' | 'is_hidden' | 'is_starter'>,
@@ -72,6 +87,7 @@ export function isShopItem(
     !item.is_hidden &&
     !item.is_starter &&
     item.category !== 'skin' &&
+    !isLockedRoomSkin(item) &&
     itemMatchesPetType(item, petType)
   );
 }

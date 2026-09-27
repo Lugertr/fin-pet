@@ -8,6 +8,7 @@ import { useAchievementsStore } from '@/lib/stores/achievementsStore';
 import { usePetStore } from '@/lib/stores/petStore';
 import { useUserStore } from '@/lib/stores/userStore';
 import { formatPrice } from '@/lib/utils/formatters';
+import { isLockedRoomSkin } from '@/lib/utils/itemCategories';
 import { isPetHungry } from '@/lib/utils/moodCalculator';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
@@ -339,6 +340,9 @@ export const useShopStore = create<ShopState>()(
         const item = SHOP_CATALOG.find((i) => i.id === itemId);
         if (!item || !FURNITURE_CATEGORIES.includes(item.category as FurnitureCategory)) {
           return { success: false, message: 'Этот предмет нельзя поставить в комнату' };
+        }
+        if (isLockedRoomSkin(item)) {
+          return { success: false, message: 'Менять вид комнаты пока нельзя' };
         }
 
         const { ownedItems, equippedFurniture } = get();

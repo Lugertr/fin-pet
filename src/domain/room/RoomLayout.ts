@@ -88,12 +88,12 @@ export const ROOM_LAYOUTS: Record<string, RoomLayout> = {
     id: 'classic',
     name: 'Классическая',
     window: fromBackgroundPx({ left: 255.11, top: 190.47, width: 681.6, height: 618.79 }),
-    laptop: fromBackgroundPx({ left: 28.55, top: 775.14, width: 300.06, height: 185.24 }),
+    laptop: fromBackgroundPx({ left: 18, top: 775.14, width: 300.06, height: 185.24 }),
     // Кровать рисуется раньше питомца (см. PetRoom.tsx) — он стоит перед ней.
     bed: fromBackgroundPx({ left: 464.6, top: 876.16, width: 533.29, height: 374.63 }),
     piggybank: fromBackgroundPx({ left: 827.88, top: 1240.37, width: 183.64, height: 140.58 }),
-    carpet: fromBackgroundPx({ left: 54, top: 1267, width: 917.1, height: 423.56 }),
-    pet: { bottom: 20, sizePercent: 30 },
+    carpet: fromBackgroundPx({ left: 285.55, top: 1405.78, width: 454, height: 146 }),
+    pet: { bottom: 12, sizePercent: 30 },
   },
 };
 

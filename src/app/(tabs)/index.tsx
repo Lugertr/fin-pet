@@ -3,7 +3,10 @@
 // HubHeader.tsx. Пока идёт приключение, хаба нет: на его месте (на этой же
 // вкладке) показывается экран приключения — AdventureActiveView.
 // Ежедневная награда — модалка DailyRewardModal при первом за день заходе
-// (не в день создания профиля, см. domain/daily/DailyReward.ts). Этот файл отвечает
+// (не в день создания профиля, см. domain/daily/DailyReward.ts). Если цели
+// накопления нет, а купить ещё есть что, — обязательный выбор цели
+// (RequiredGoalPicker). Окна идут по очереди: итоги приключения → выбор
+// цели → ежедневная награда. Этот файл отвечает
 // за загрузку общих данных (сторы, эффекты) и рендер комнаты; фоновая
 // загрузка прогресса/накоплений/текущего приключения остаётся здесь, даже
 // когда сами карточки не видны на этом экране — это данные для других экранов
@@ -27,14 +30,17 @@ import { useShallow } from 'zustand/react/shallow';
 
 import { AdventureSummaryModal } from '@/components/adventure';
 import { DailyRewardModal, HubHeader } from '@/components/hub';
+import { RequiredGoalPicker } from '@/components/savings';
 import { useAdventureCountdown } from '@/lib/adventure/useAdventureCountdown';
 import { useDailyRewardOffer } from '@/lib/daily/useDailyRewardOffer';
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { useNotifications } from '@/lib/hooks/useNotifications';
+import { useSavingsGoalGate } from '@/lib/savings/useSavingsGoalGate';
 import { useShopStore } from '@/lib/hooks/useShop';
 import { feedback } from '@/lib/services/feedback';
 import { notifications } from '@/lib/services/notifications';
 import { useAdventureStore } from '@/lib/stores/adventureStore';
+import { useAlertStore } from '@/lib/stores/alertStore';
 import { usePetStore } from '@/lib/stores/petStore';
 import { usePreferencesStore } from '@/lib/stores/preferencesStore';
 import { useSavingsStore } from '@/lib/stores/savingsStore';
@@ -84,9 +90,14 @@ export default function HubScreen() {
   // без фокуса модалка итогов всплыла бы поверх урока/магазина, а
   // приключение закрывалось бы посреди задания.
   const isFocused = useIsFocused();
-  // Ежедневная награда — только на открытом хабе и после итогов приключения
-  // (два окна подряд, а не друг поверх друга).
-  const dailyOffer = useDailyRewardOffer(isFocused && !completionSummary);
+  const alertVisible = useAlertStore((s) => s.visible);
+  const goalGate = useSavingsGoalGate();
+  // Ежедневная награда — только на открытом хабе, после итогов приключения и
+  // выбора цели (окна подряд, а не друг поверх друга). goalGate.ready — ждём
+  // загрузки банка, иначе награда успела бы всплыть раньше окна выбора цели.
+  const dailyOffer = useDailyRewardOffer(
+    isFocused && !completionSummary && goalGate.ready && !goalGate.needsGoal
+  );
   const savings = useSavingsStore((s) => s.savings);
   const loadOrCreateSavings = useSavingsStore((s) => s.loadOrCreate);
 
@@ -190,6 +201,11 @@ export default function HubScreen() {
           }}
         />
       )}
+
+      <RequiredGoalPicker
+        gate={goalGate}
+        visible={isFocused && !completionSummary && !dailyOffer.visible && !alertVisible}
+      />
 
       {dailyOffer.visible && (
         <DailyRewardModal

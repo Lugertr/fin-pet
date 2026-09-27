@@ -2,7 +2,12 @@
 // Цели накопления — только улучшения ноутбука, копилки и кровати (27.09.2026).
 
 import { SHOP_CATALOG } from '@/lib/hooks/useShop';
-import { getFirstGoalOptions, getSavingsGoalItems, goalBonusCaption } from './goalOptions';
+import {
+  getAvailableSavingsGoalItems,
+  getFirstGoalOptions,
+  getSavingsGoalItems,
+  goalBonusCaption,
+} from './goalOptions';
 
 describe('цели накопления', () => {
   it('в списке только улучшения ноутбука, копилки и кровати (без стартовых)', () => {
@@ -30,5 +35,23 @@ describe('цели накопления', () => {
   it('подпись показывает реальный бонус вещи', () => {
     const laptop = getFirstGoalOptions().find((i) => i.category === 'laptop')!;
     expect(goalBonusCaption(laptop)).toBe(`бонус к урокам +${laptop.coin_bonus_percent}%`);
+  });
+});
+
+describe('цели, которые ещё можно купить', () => {
+  it('без покупок доступны все цели', () => {
+    expect(getAvailableSavingsGoalItems({})).toEqual(getSavingsGoalItems());
+  });
+
+  it('купленная вещь из списка пропадает (проданная — возвращается)', () => {
+    const [first, second] = getSavingsGoalItems();
+    const available = getAvailableSavingsGoalItems({ [first.id]: 1, [second.id]: 0 });
+    expect(available.map((i) => i.id)).not.toContain(first.id);
+    expect(available.map((i) => i.id)).toContain(second.id);
+  });
+
+  it('всё куплено — целей нет', () => {
+    const owned = Object.fromEntries(getSavingsGoalItems().map((i) => [i.id, 1]));
+    expect(getAvailableSavingsGoalItems(owned)).toEqual([]);
   });
 });

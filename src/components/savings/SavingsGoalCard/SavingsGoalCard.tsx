@@ -6,7 +6,9 @@
 //   - сколько осталось, награда за цель (§11.5) и бонус копилки (§11.4);
 //   - «Дополнить из хотений» (из кошелька), «Снять» и «Сменить цель».
 // Без цели (выбрана не была или уже достигнута) — приглашение выбрать цель
-// и, если в банке что-то осталось, сумма и «Снять».
+// (обычно поверх уже открыто обязательное окно выбора, RequiredGoalPicker),
+// а если все улучшения уже куплены — что копить больше не на что. В обоих
+// случаях, если в банке что-то осталось, — сумма и «Снять».
 // Прогресс передаётся и полосой, и числами (§23).
 
 import { Ionicons } from '@expo/vector-icons';
@@ -28,6 +30,7 @@ export function SavingsGoalCard({
   targetItem,
   saved,
   bonusRate,
+  canPickGoal,
   onDeposit,
   onWithdraw,
   onChangeGoal,
@@ -37,6 +40,8 @@ export function SavingsGoalCard({
   saved: number;
   /** Текущий бонус копилки за новые монеты, % (§11.4). */
   bonusRate: number;
+  /** Есть улучшения, которые ещё можно купить (иначе выбирать цель не из чего). */
+  canPickGoal: boolean;
   onDeposit: () => void;
   /** Снять из «Коплю» в кошелёк — неприметная ссылка, показывается при saved > 0. */
   onWithdraw: () => void;
@@ -62,10 +67,13 @@ export function SavingsGoalCard({
   if (!targetItem) {
     return (
       <View style={styles.card}>
-        <Text style={[styles.emptyTitle, { fontSize: scaledFont('xl') }]}>Цель не выбрана</Text>
+        <Text style={[styles.emptyTitle, { fontSize: scaledFont('xl') }]}>
+          {canPickGoal ? 'Цель не выбрана' : 'Все улучшения твои!'}
+        </Text>
         <Text style={[styles.emptyText, { fontSize: scaledFont('md') }]}>
-          Выбери, на что копить: улучшение ноутбука, копилки или кровати. Монеты из «Коплю» пойдут
-          на неё.
+          {canPickGoal
+            ? 'Выбери, на что копить: улучшение ноутбука, копилки или кровати. Монеты из «Коплю» пойдут на неё.'
+            : 'Ноутбук, копилка и кровать уже улучшены — копить больше не на что. Монеты из «Коплю» можно снять в «Хочу».'}
         </Text>
         {saved > 0 && (
           <Text
@@ -75,16 +83,18 @@ export function SavingsGoalCard({
             В «Коплю» уже {formatPrice(saved)}
           </Text>
         )}
-        <TouchableOpacity
-          onPress={onChangeGoal}
-          activeOpacity={0.85}
-          style={styles.primaryButton}
-          accessibilityRole="button"
-        >
-          <Text style={[styles.primaryButtonText, { fontSize: scaledFont('lg') }]}>
-            Выбрать цель
-          </Text>
-        </TouchableOpacity>
+        {canPickGoal && (
+          <TouchableOpacity
+            onPress={onChangeGoal}
+            activeOpacity={0.85}
+            style={styles.primaryButton}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.primaryButtonText, { fontSize: scaledFont('lg') }]}>
+              Выбрать цель
+            </Text>
+          </TouchableOpacity>
+        )}
         {withdrawLink && <View style={styles.linkRow}>{withdrawLink}</View>}
       </View>
     );

@@ -2,6 +2,7 @@
 // Единственная точка открытия локальной SQLite БД — источник истины офлайн-профиля.
 
 import * as SQLite from 'expo-sqlite';
+import { Platform } from 'react-native';
 import { MIGRATIONS } from './migrations';
 
 const DB_NAME = 'finni.db';
@@ -17,8 +18,20 @@ const DB_NAME = 'finni.db';
 // проде модуль и так исполняется один раз, это чисто dev-фикс.
 interface GlobalWithDbCache {
   __finniDbPromise__?: Promise<SQLite.SQLiteDatabase>;
+  /** Автоперезагрузка вкладки ради БД уже была на этой странице (см. openOrReload). */
+  __finniDbReloadUsed__?: boolean;
 }
 const globalCache = globalThis as GlobalWithDbCache;
+
+/** Метка в window.name — переживает перезагрузку вкладки (в отличие от
+ * переменных) и не является хранилищем (localStorage/sessionStorage в проекте
+ * не используются). Ставится перед автоперезагрузкой, снимается сразу после. */
+const DB_RELOAD_MARK = 'finni-db-reload';
+
+if (Platform.OS === 'web' && typeof window !== 'undefined' && window.name === DB_RELOAD_MARK) {
+  window.name = '';
+  globalCache.__finniDbReloadUsed__ = true;
+}
 
 async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
@@ -43,25 +56,20 @@ async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
   return db;
 }
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-/** true — та самая OPFS-коллизия хендла (см. комментарий выше): почти всегда
- * временная, старый хендл на вебе иногда освобождается с небольшой задержкой
- * после того, как предыдущая вкладка/воркер реально завершились. */
+/** true — та самая OPFS-коллизия хендла (см. комментарий выше): файлы БД
+ * держит другой воркер — соседняя вкладка приложения или воркер предыдущей
+ * страницы, ещё не завершившийся после перезагрузки. */
 function isStaleOpfsHandleError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return message.includes('createSyncAccessHandle') || message.includes('Access Handles cannot');
 }
 
-/** wa-sqlite (веб-бэкенд expo-sqlite поверх OPFS) бросает эту ошибку, когда
- * состояние VFS в этой вкладке уже несогласовано — обычно после того, как
- * предыдущий воркер этой же вкладки оборвался посреди операции (например,
- * dev-сервер перезапустили, пока страница была открыта). В отличие от
- * isStaleOpfsHandleError выше, это НЕ гарантированно временно: иногда пара
- * попыток с паузой всё же помогает (гонка с ещё не до конца завершившимся
- * terminate() старого воркера), но если нет — само не пройдёт, нужна ПОЛНАЯ
- * перезагрузка вкладки (закрыть все вкладки приложения, не просто F5), а
- * если и это не помогло — сброс OPFS-хранилища сайта в браузере. */
+/** Следствие ошибки выше, баг expo-sqlite 57 (web/worker.ts, maybeInitAsync):
+ * воркер запоминает wa-sqlite ДО создания OPFS-VFS, и если создание упало
+ * (хендл занят), каждый следующий вызов в этом воркере сразу бросает
+ * «Invalid VFS state», а уже открытые хендлы так и висят. Воркер у
+ * expo-sqlite один на страницу и пересоздать его нельзя — повторы в этой же
+ * вкладке бесполезны, лечит только перезагрузка (новый воркер). */
 function isInvalidVfsStateError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return message.includes('Invalid VFS state');
@@ -80,38 +88,44 @@ export function describeDatabaseError(error: unknown): string | null {
     return 'Не удалось открыть локальную базу данных в этой вкладке. Закройте ВСЕ вкладки приложения и откройте заново. Если не помогло — очистите данные сайта в браузере (Настройки сайта → Очистить данные) и зайдите снова.';
   }
   if (isStaleOpfsHandleError(error)) {
-    return 'Локальная база данных ещё занята предыдущей вкладкой. Подождите пару секунд и перезагрузите страницу.';
+    return 'Локальная база данных открыта в другой вкладке. Закройте другие вкладки приложения и перезагрузите страницу.';
   }
   return null;
 }
 
-/** Несколько попыток с паузой — самолечится, если старый хендл/воркер ещё не
- * успел освободиться. Не помогает, если хендл держит ДРУГАЯ реально открытая
- * вкладка того же сайта, или если состояние VFS повреждено по-настоящему —
- * тогда после исчерпания попыток наверх летит ошибка, а describeDatabaseError
- * выше даёт вызывающему коду понятный текст для пользователя. */
-async function openWithRetry(attempts = 4, delayMs = 400): Promise<SQLite.SQLiteDatabase> {
-  for (let attempt = 1; attempt <= attempts; attempt++) {
-    try {
-      return await openAndMigrate();
-    } catch (error) {
-      const isLastAttempt = attempt === attempts;
-      if (!isRecoverableOpenError(error) || isLastAttempt) {
-        throw error;
-      }
-      console.warn(
-        `[Database] ${describeDatabaseError(error)} Повтор ${attempt}/${attempts - 1}...`
-      );
-      await sleep(delayMs * attempt);
-    }
+/**
+ * Открывает БД. На вебе при занятом OPFS-хендле воркер expo-sqlite ломается
+ * до конца страницы (см. isInvalidVfsStateError), поэтому вместо повторов —
+ * одна автоперезагрузка вкладки: к её концу воркер прошлой страницы уже
+ * завершён, а новый воркер чистый. Это происходит при старте (первым БД
+ * открывает useAppBootstrap), ребёнок ещё ничего не ввёл. Не помогло — значит,
+ * базу держит другая открытая вкладка: второй раз не перезагружаем (иначе
+ * цикл и потеря введённого в онбординге), ошибка уходит наверх, а
+ * describeDatabaseError даёт понятный текст.
+ */
+async function openOrReload(): Promise<SQLite.SQLiteDatabase> {
+  try {
+    return await openAndMigrate();
+  } catch (error) {
+    const canReload =
+      Platform.OS === 'web' &&
+      typeof window !== 'undefined' &&
+      isRecoverableOpenError(error) &&
+      !globalCache.__finniDbReloadUsed__;
+    if (!canReload) throw error;
+
+    globalCache.__finniDbReloadUsed__ = true;
+    console.warn('[Database] Файлы БД заняты другим воркером — перезагружаю вкладку', error);
+    window.name = DB_RELOAD_MARK;
+    window.location.reload();
+    // Страница уходит на перезагрузку — промис намеренно не завершается.
+    return new Promise<SQLite.SQLiteDatabase>(() => {});
   }
-  // Недостижимо (цикл либо возвращает, либо бросает выше), но нужно для типов.
-  throw new Error('[Database] Не удалось открыть БД');
 }
 
 export function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (!globalCache.__finniDbPromise__) {
-    globalCache.__finniDbPromise__ = openWithRetry().catch((error) => {
+    globalCache.__finniDbPromise__ = openOrReload().catch((error) => {
       // Не кэшируем отклонённый промис — иначе любой следующий вызов
       // getDatabase() в этой же вкладке будет молча получать ту же ошибку
       // навсегда, даже если проблема на самом деле уже исчезла.

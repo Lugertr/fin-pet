@@ -11,6 +11,7 @@ import { usePetStore } from '@/lib/stores/petStore';
 import { usePreferencesStore } from '@/lib/stores/preferencesStore';
 import { useUserStore } from '@/lib/stores/userStore';
 import { Alert } from '@/lib/utils/alert';
+import { isLockedRoomSkin } from '@/lib/utils/itemCategories';
 
 /** Онбординг выдаёт стартовые предметы мебели один раз при создании профиля
  * (см. onboarding.tsx) — если новая категория (например carpet/window/room)
@@ -29,6 +30,17 @@ function backfillMissingStarterFurniture() {
       useShopStore.getState().equipFurniture(itemId);
     }
   });
+}
+
+/** Скин комнаты, надетый до того, как скины закрыли флагом room_skins (см.
+ * isLockedRoomSkin), снимается — возвращается стартовая комната. Покупка
+ * остаётся в инвентаре; no-op, если надета стартовая. */
+function resetLockedRoomSkin() {
+  const { equippedFurniture } = useShopStore.getState();
+  const equipped = SHOP_CATALOG.find((i) => i.id === equippedFurniture.room);
+  if (!equipped || !isLockedRoomSkin(equipped)) return;
+  const starterRoom = SHOP_CATALOG.find((i) => i.category === 'room' && i.is_starter);
+  if (starterRoom) useShopStore.getState().equipFurniture(starterRoom.id);
 }
 
 export function useAppBootstrap() {
@@ -65,6 +77,7 @@ export function useAppBootstrap() {
           usePreferencesStore.getState().setPetName(profile.petName);
           usePetStore.getState().setEquippedSkinVariant(profile.appearance.colorVariant);
           backfillMissingStarterFurniture();
+          resetLockedRoomSkin();
           useUserStore.getState().setOnboarded(true);
         }
       } catch (error) {

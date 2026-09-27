@@ -7,4 +7,9 @@ module.exports = {
   preset: 'jest-expo',
   setupFiles: ['./jest.setup.js'],
   testPathIgnorePatterns: ['/node_modules/', '/android/', '/ios/'],
+  // jest-expo резолвит uuid по условию "browser" в ESM-сборку, которую Jest не
+  // транспилирует («Unexpected token 'export'») — берём CommonJS-сборку для Node.
+  moduleNameMapper: {
+    '^uuid$': require.resolve('uuid'),
+  },
 };

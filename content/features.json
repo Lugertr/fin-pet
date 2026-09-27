@@ -9,6 +9,7 @@
     "learning_branch_safety": true,
     "trainers_arcade": true,
     "room_decor": true,
+    "room_skins": false,
     "gifts": true,
     "achievements": true,
     "ai_assistant_local": true,

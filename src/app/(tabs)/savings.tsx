@@ -7,18 +7,21 @@
 //             §11.4), там же остаток, награда за цель и бонус копилки;
 //   «Хочу»  — кошелёк хаба, его тратит магазин;
 //   история копилки — последние операции банка (§11.6).
+// Без цели (достигнута или не выбрана), пока есть что покупать, — обязательный
+// выбор цели (RequiredGoalPicker), когда другие окна экрана закрыты.
 // «Коплю» на экране один раз (решение пользователя 27.09.2026): отдельная
 // строка «Коплю» и пояснение внизу повторяли карточку цели — убраны.
 // Корзины «Нужно» из макета нет: резерва на обязательные траты в хабе нет
 // (решение пользователя 27.09.2026 — строку убрать).
 
-import { useRouter } from 'expo-router';
+import { useIsFocused, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 
 import { useAppHeaderPadding } from '@/components/shared';
 import {
   GoalPickerModal,
+  RequiredGoalPicker,
   SavingsAmountModal,
   SavingsAmountMode,
   SavingsBucketRow,
@@ -31,6 +34,8 @@ import { getSavingsRepository } from '@/data/local/repositories';
 import { BASE_SAVINGS_BONUS_RATE, SavingsTransactionRecord } from '@/domain/savings/Savings';
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { SHOP_CATALOG, ShopItem, useShopStore } from '@/lib/hooks/useShop';
+import { useSavingsGoalGate } from '@/lib/savings/useSavingsGoalGate';
+import { useAlertStore } from '@/lib/stores/alertStore';
 import { useSavingsStore } from '@/lib/stores/savingsStore';
 import { useUserStore } from '@/lib/stores/userStore';
 import { Alert } from '@/lib/utils/alert';
@@ -46,6 +51,9 @@ export default function SavingsScreen() {
   const headerPadding = useAppHeaderPadding();
   const { scale } = useResponsive();
   const { trigger, triggerHaptic } = useFeedback();
+  const isFocused = useIsFocused();
+  const alertVisible = useAlertStore((s) => s.visible);
+  const goalGate = useSavingsGoalGate();
   const user = useUserStore((s) => s.user);
   const savings = useSavingsStore((s) => s.savings);
   const setTarget = useSavingsStore((s) => s.setTarget);
@@ -122,6 +130,7 @@ export default function SavingsScreen() {
           targetItem={targetItem}
           saved={saved}
           bonusRate={effectiveBonusRate}
+          canPickGoal={goalGate.availableGoals.length > 0}
           onDeposit={() => {
             triggerHaptic('light');
             setAmountMode('deposit');
@@ -165,9 +174,16 @@ export default function SavingsScreen() {
 
       <GoalPickerModal
         visible={showGoalPicker}
+        goals={goalGate.availableGoals}
         onClose={() => setShowGoalPicker(false)}
         onPick={handlePickGoal}
         selectedId={savings?.targetItemId ?? null}
+      />
+
+      {/* Цель достигнута пополнением — окно выбора после «Готово». */}
+      <RequiredGoalPicker
+        gate={goalGate}
+        visible={isFocused && !alertVisible && amountMode === null && !showGoalPicker}
       />
     </View>
   );
