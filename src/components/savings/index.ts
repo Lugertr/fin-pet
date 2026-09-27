@@ -5,3 +5,4 @@ export type { SavingsAmountMode } from './SavingsAmountModal';
 export { SavingsBucketRow } from './SavingsBucketRow';
 export { SavingsGoalCard } from './SavingsGoalCard';
 export { SavingsHeader } from './SavingsHeader';
+export { SavingsHistory } from './SavingsHistory';

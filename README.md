@@ -15,8 +15,12 @@
   темы (`src/theme`, светлая/тёмная тема); графика — `react-native-svg`,
   анимации интерфейса — `react-native-reanimated`, анимации питомца — Lottie
   (`lottie-react-native`, Apache-2.0; в вебе — `@lottiefiles/dotlottie-react`,
-  MIT, WASM-рендер берётся из бандла, без CDN). Пакет NativeWind установлен, но
-  в коде не используется.
+  MIT, WASM-рендер берётся из бандла, без CDN). Шрифт — Manrope (OFL-1.1, файлы
+  из `@expo-google-fonts/manrope`, MIT; загружаются `expo-font` из бандла):
+  `Text`/`TextInput` импортируются из `@/components/ui/Text` — обёртка
+  подставляет файл Manrope по `fontWeight` стиля (прямой импорт из
+  `react-native` запрещён правилом ESLint). Пакет NativeWind установлен, но в
+  коде не используется.
 - **Локальное хранилище:** SQLite (`expo-sqlite`, версионируемые миграции в
   `src/data/local/migrations`) — источник истины для профиля, питомца,
   приключений, журнала событий и накоплений; Zustand + AsyncStorage — для

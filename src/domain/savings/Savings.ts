@@ -6,6 +6,11 @@
 export const BASE_SAVINGS_BONUS_RATE = 1; // §11.4 «фиксированное небольшое значение»
 export const GOAL_COMPLETION_BONUS_PERCENT = 10; // §11.5 «+10% цены предмета»
 
+/** §11.5: награда монетами за достигнутую цель — 10% цены, целым числом. */
+export function goalCompletionBonus(targetPrice: number): number {
+  return Math.floor((targetPrice * GOAL_COMPLETION_BONUS_PERCENT) / 100);
+}
+
 export type SavingsOperationType = 'deposit' | 'withdraw' | 'bonus' | 'reward';
 
 export interface SavingsRecord {

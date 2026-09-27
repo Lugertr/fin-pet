@@ -2,17 +2,19 @@
 // Вкладка «Копилка» — накопления и финансовая цель (§11 ТЗ). По решению
 // пользователя (27.09.2026) стоит в нижней панели на месте ИИ-помощника;
 // копилка в комнате ведёт сюда же. Вёрстка — по макету «Копилка» (27.09):
-// шапка с общей суммой, карточка главной цели и «корзины» денег:
+// шапка с общей суммой, затем
+//   «Коплю» — карточка цели: банк копится на цель (снять в кошелёк можно —
+//             §11.4), там же остаток, награда за цель и бонус копилки;
 //   «Хочу»  — кошелёк хаба, его тратит магазин;
-//   «Коплю» — банк, копится на цель (снять в кошелёк можно — §11.4).
+//   история копилки — последние операции банка (§11.6).
+// «Коплю» на экране один раз (решение пользователя 27.09.2026): отдельная
+// строка «Коплю» и пояснение внизу повторяли карточку цели — убраны.
 // Корзины «Нужно» из макета нет: резерва на обязательные траты в хабе нет
 // (решение пользователя 27.09.2026 — строку убрать).
 
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
-import { Text } from '@/components/ui/Text';
-import { Ionicons } from '@expo/vector-icons';
 
 import { useAppHeaderPadding } from '@/components/shared';
 import {
@@ -22,9 +24,11 @@ import {
   SavingsBucketRow,
   SavingsGoalCard,
   SavingsHeader,
+  SavingsHistory,
 } from '@/components/savings';
 import { PLAN_CATEGORY_COLORS, planCategoryTextColor } from '@/constants/planCategories';
-import { BASE_SAVINGS_BONUS_RATE } from '@/domain/savings/Savings';
+import { getSavingsRepository } from '@/data/local/repositories';
+import { BASE_SAVINGS_BONUS_RATE, SavingsTransactionRecord } from '@/domain/savings/Savings';
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { SHOP_CATALOG, ShopItem, useShopStore } from '@/lib/hooks/useShop';
 import { useSavingsStore } from '@/lib/stores/savingsStore';
@@ -33,11 +37,14 @@ import { Alert } from '@/lib/utils/alert';
 import { useResponsive, useTheme } from '@/theme';
 import { createSavingsStyles } from '@/styles/screens/tabs/_savings.styles';
 
+/** Сколько последних операций банка показывать. */
+const HISTORY_LIMIT = 5;
+
 export default function SavingsScreen() {
   const router = useRouter();
   const { theme, isDark } = useTheme();
   const headerPadding = useAppHeaderPadding();
-  const { scale, scaledFont } = useResponsive();
+  const { scale } = useResponsive();
   const { trigger, triggerHaptic } = useFeedback();
   const user = useUserStore((s) => s.user);
   const savings = useSavingsStore((s) => s.savings);
@@ -53,6 +60,26 @@ export default function SavingsScreen() {
 
   const [amountMode, setAmountMode] = useState<SavingsAmountMode | null>(null);
   const [showGoalPicker, setShowGoalPicker] = useState(false);
+  const [history, setHistory] = useState<SavingsTransactionRecord[] | null>(null);
+
+  // Стор заменяет объект savings после каждой операции (операции пишутся в
+  // SQLite раньше, чем обновляется стор) — по нему и перечитываем историю.
+  useEffect(() => {
+    if (!savings) return;
+    let cancelled = false;
+    getSavingsRepository()
+      .listTransactions(savings.id, HISTORY_LIMIT)
+      .then((rows) => {
+        if (!cancelled) setHistory(rows);
+      })
+      .catch((error) => {
+        console.warn('[Savings] Не удалось загрузить историю копилки:', error);
+        if (!cancelled) setHistory([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [savings]);
 
   const walletBalance = user?.liquid_balance ?? 0;
   const saved = savings?.currentAmount ?? 0;
@@ -90,13 +117,18 @@ export default function SavingsScreen() {
         contentContainerStyle={[styles.scrollContent, { gap: scale(14) }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Цель накопления (§11.2–11.3) */}
+        {/* «Коплю» — цель накопления (§11.2–11.5) */}
         <SavingsGoalCard
           targetItem={targetItem}
           saved={saved}
+          bonusRate={effectiveBonusRate}
           onDeposit={() => {
             triggerHaptic('light');
             setAmountMode('deposit');
+          }}
+          onWithdraw={() => {
+            triggerHaptic('light');
+            setAmountMode('withdraw');
           }}
           onChangeGoal={() => setShowGoalPicker(true)}
         />
@@ -118,32 +150,8 @@ export default function SavingsScreen() {
           }}
         />
 
-        <SavingsBucketRow
-          icon="radio-button-on-outline"
-          color={PLAN_CATEGORY_COLORS.save}
-          amountColor={planCategoryTextColor('save', isDark)}
-          title="Коплю"
-          description="Копится на цель — в магазине не тратится"
-          amount={saved}
-          action={{
-            label: 'Снять',
-            variant: 'link',
-            accessibilityLabel: 'Снять монеты из «Коплю» в кошелёк',
-            onPress: () => {
-              triggerHaptic('light');
-              setAmountMode('withdraw');
-            },
-          }}
-        />
+        {history && <SavingsHistory items={history} />}
       </ScrollView>
-
-      <View style={styles.infoBanner}>
-        <Ionicons name="information-circle-outline" size={scale(22)} color={theme.primary} />
-        <Text style={[styles.infoBannerText, { fontSize: scaledFont('md') }]}>
-          Магазин берёт монеты только из «Хочу» — «Коплю» копится на цель. За новые монеты в «Коплю»
-          копилка добавляет +{effectiveBonusRate}%.
-        </Text>
-      </View>
 
       {amountMode && (
         <SavingsAmountModal

@@ -34,6 +34,7 @@ export default function TabsLayout() {
           fontSize: 12,
           // Подписи вкладок рисует React Navigation, не наш Text — шрифт явно.
           fontFamily: fontFamilies.semibold,
+          fontWeight: 'normal',
           marginTop: 4,
         },
         tabBarIconStyle: {

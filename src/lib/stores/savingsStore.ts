@@ -4,9 +4,9 @@
 import { getSavingsRepository } from '@/data/local/repositories';
 import {
   BASE_SAVINGS_BONUS_RATE,
-  GOAL_COMPLETION_BONUS_PERCENT,
   SavingsRecord,
   computeDepositBonus,
+  goalCompletionBonus,
 } from '@/domain/savings/Savings';
 import { create } from 'zustand';
 import { SHOP_CATALOG, useShopStore } from '../hooks/useShop';
@@ -68,7 +68,7 @@ async function checkGoalCompletion(record: SavingsRecord): Promise<SavingsRecord
 
   useShopStore.getState().addItem(targetItem.id);
 
-  const bonusCoins = Math.floor((targetItem.price * GOAL_COMPLETION_BONUS_PERCENT) / 100);
+  const bonusCoins = goalCompletionBonus(targetItem.price);
   useUserStore
     .getState()
     .recordTransaction(bonusCoins, 'savings_goal_reward', `Цель достигнута: ${targetItem.name}`);

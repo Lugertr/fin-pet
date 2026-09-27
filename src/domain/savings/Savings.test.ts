@@ -3,7 +3,7 @@
 // пополнение); перевод/снятие/невозможность уйти в минус — интеграционные
 // тесты стора, см. lib/stores/savingsStore.test.ts.
 
-import { computeDepositBonus } from './Savings';
+import { computeDepositBonus, goalCompletionBonus } from './Savings';
 
 describe('computeDepositBonus (§11.4 — бонус только за новые деньги)', () => {
   it('считает целочисленный процент от суммы пополнения', () => {
@@ -33,5 +33,13 @@ describe('computeDepositBonus (§11.4 — бонус только за новы�
     const base = computeDepositBonus(1000, 0, 1).bonus;
     const withPiggybank = computeDepositBonus(1000, 0, 1 + 2).bonus; // +2 от купленной копилки
     expect(withPiggybank).toBeGreaterThan(base);
+  });
+});
+
+describe('goalCompletionBonus (§11.5 — +10% цены цели)', () => {
+  it('10% цены целым числом, округление вниз', () => {
+    expect(goalCompletionBonus(500)).toBe(50);
+    expect(goalCompletionBonus(1255)).toBe(125); // 125.5 -> 125
+    expect(goalCompletionBonus(9)).toBe(0);
   });
 });

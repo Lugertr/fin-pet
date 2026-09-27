@@ -42,6 +42,11 @@ export function createSavingsGoalCardStyles({ theme }: { theme: Theme }) {
     info: {
       flex: 1,
     },
+    overline: {
+      color: theme.textSecondary,
+      fontWeight: fontWeights.semibold,
+      fontSize: fontSizes.md,
+    },
     name: {
       color: theme.textPrimary,
       fontWeight: fontWeights.bold,
@@ -52,10 +57,26 @@ export function createSavingsGoalCardStyles({ theme }: { theme: Theme }) {
       fontSize: fontSizes.md,
       marginTop: 2,
     },
+    amountRow: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      gap: spacing.xs,
+      marginBottom: spacing.sm,
+    },
     // Цвет цифр — зелёный, как «Коплю» (planCategoryTextColor, задаётся в компоненте).
-    progressValue: {
+    amountSaved: {
       fontWeight: fontWeights.bold,
-      fontSize: fontSizes.xl,
+      fontSize: fontSizes.xxl,
+    },
+    amountTotal: {
+      flex: 1,
+      color: theme.textSecondary,
+      fontSize: fontSizes.md,
+    },
+    percent: {
+      color: theme.textPrimary,
+      fontWeight: fontWeights.bold,
+      fontSize: fontSizes.lg,
     },
     progressTrack: {
       height: 10,
@@ -67,11 +88,20 @@ export function createSavingsGoalCardStyles({ theme }: { theme: Theme }) {
       height: '100%',
       borderRadius: radius.full,
     },
-    hint: {
-      color: theme.textSecondary,
-      fontSize: fontSizes.md,
-      marginTop: spacing.sm,
+    facts: {
+      gap: spacing.sm,
+      marginTop: spacing.md,
       marginBottom: spacing.lg,
+    },
+    factRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
+    factText: {
+      flex: 1,
+      color: theme.textPrimary,
+      fontSize: fontSizes.md,
     },
     outlineButton: {
       flexDirection: 'row',
@@ -89,11 +119,18 @@ export function createSavingsGoalCardStyles({ theme }: { theme: Theme }) {
       fontWeight: fontWeights.bold,
       fontSize: fontSizes.lg,
     },
+    linkRow: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: spacing.xl,
+      marginBottom: -spacing.sm,
+    },
     linkButton: {
       minHeight: touchTarget.recommended,
+      minWidth: touchTarget.recommended,
+      paddingHorizontal: spacing.sm,
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: -spacing.sm,
     },
     linkButtonText: {
       color: theme.textSecondary,
@@ -113,6 +150,12 @@ export function createSavingsGoalCardStyles({ theme }: { theme: Theme }) {
       textAlign: 'center',
       marginTop: spacing.xs,
       marginBottom: spacing.lg,
+    },
+    emptySaved: {
+      fontWeight: fontWeights.bold,
+      fontSize: fontSizes.lg,
+      textAlign: 'center',
+      marginBottom: spacing.md,
     },
     primaryButton: {
       minHeight: 52,
