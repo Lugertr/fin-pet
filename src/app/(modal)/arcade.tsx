@@ -1,6 +1,8 @@
 // src/app/(modal)/arcade.tsx
-// Аркада (§10 ТЗ): случайный раунд по пройденной ветке, 10⚡ за игру,
-// +10⭐ за верный ответ, подарки не выпадают (§10.2).
+// Аркада (§10 ТЗ): раунд выбранной мини-игры по теме приключения (см.
+// (modal)/arcade-lobby.tsx), 10⚡ за игру, +10 монет за верный ответ,
+// подарки не выпадают (§10.2). Заданием приключения раунд считается, только
+// если его запустила кнопка задания (session.countsAsQuest).
 //
 // Этапы (старт/игра/результаты) живут в src/components/arcade/ — этот файл
 // отвечает только за сессию, энергозатраты и переключение между этапами.
@@ -10,19 +12,32 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 
-import { COINS_PER_CORRECT, PlayingStage, ResultsStage, StartStage } from '@/components/arcade';
+import {
+  ARCADE_GAME_META,
+  COINS_PER_CORRECT,
+  PlayingStage,
+  ResultsStage,
+  StartStage,
+} from '@/components/arcade';
+import { HelpButton } from '@/components/shared';
 import { IconButton } from '@/components/ui';
 import { ARCADE_ENERGY_COST } from '@/constants/gameplay';
-import { TrainerSession } from '@/domain/arcade/TrainerSelection';
-import { rollTrainerSession } from '@/lib/arcade/rollTrainerSession';
+import {
+  arcadeTimeBonusMinutes,
+  buildBranchGameSession,
+  TrainerSession,
+  trainerRoundLength,
+} from '@/domain/arcade/TrainerSelection';
+import { ARCADE_SOURCES } from '@/lib/arcade/arcadeSources';
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { Alert } from '@/lib/utils/alert';
 import { BRANCHES } from '@/lib/hooks/useLessons';
 import { useAchievementsStore } from '@/lib/stores/achievementsStore';
+import { useAdventureStore } from '@/lib/stores/adventureStore';
 import { useArcadeSessionStore } from '@/lib/stores/arcadeSessionStore';
 import { usePetStore } from '@/lib/stores/petStore';
 import { useUserStore } from '@/lib/stores/userStore';
-import { formatCoins } from '@/lib/utils/formatters';
+import { formatPrice } from '@/lib/utils/formatters';
 import { canAffordEnergy } from '@/lib/utils/moodCalculator';
 import { useResponsive, useTheme } from '@/theme';
 import { spacing } from '@/theme/tokens';
@@ -43,8 +58,12 @@ export default function ArcadeScreen() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [correctAnswers, setCorrectAnswers] = useState(0);
   const [coinsEarned, setCoinsEarned] = useState(0);
+  // Награда забирается один раз — обработчик асинхронный (ускорение приключения
+  // пишется в БД), без защиты второй тап начислил бы монеты дважды.
+  const [isClaiming, setIsClaiming] = useState(false);
 
   const branch = session ? BRANCHES.find((b) => b.id === session.branchId) : null;
+  const roundLength = session ? trainerRoundLength(session) : 0;
 
   useEffect(() => {
     return () => {
@@ -59,7 +78,7 @@ export default function ArcadeScreen() {
     if (!canAffordEnergy(freshMood, ARCADE_ENERGY_COST)) {
       Alert.alert(
         'Недостаточно энергии',
-        `Аркада стоит ${ARCADE_ENERGY_COST}⚡. Подождите, пока энергия восстановится, или покормите питомца.`
+        `Аркада стоит ${ARCADE_ENERGY_COST}⚡. Подожди, пока энергия восстановится, или покорми питомца.`
       );
       return;
     }
@@ -90,14 +109,16 @@ export default function ArcadeScreen() {
       useAchievementsStore.getState().recordCorrectAnswer(); // §15.2 «Эрудит»
     }
 
-    if (session && currentQuestionIndex < session.questions.length - 1) {
+    if (session && currentQuestionIndex < roundLength - 1) {
       setCurrentQuestionIndex((prev) => prev + 1);
     } else {
       setStage('results');
     }
   };
 
-  const handleClaimReward = () => {
+  const handleClaimReward = async () => {
+    if (isClaiming) return;
+    setIsClaiming(true);
     triggerHaptic('success');
 
     if (coinsEarned > 0) {
@@ -106,18 +127,42 @@ export default function ArcadeScreen() {
         .recordTransaction(coinsEarned, 'minigame_reward', `Аркада: ${branch?.name ?? ''}`);
     }
 
+    // Раунд, запущенный кнопкой задания (тема уже пройдена на 100%, тренажёр
+    // вместо урока — см. AdventureActiveView.tsx), засчитывается как задание
+    // (−45 мин). Игра, выбранная в Аркаде, — тренировка: ускоряет приключение
+    // слабее урока, до 15 минут по доле верных ответов.
+    const adventureStore = useAdventureStore.getState();
+    let savedMinutes = 0;
+    if (session && adventureStore.isActiveBranch(session.branchId)) {
+      if (session.countsAsQuest) {
+        await adventureStore.registerQuestCompletion();
+      } else {
+        savedMinutes = await adventureStore.registerArcadeRound(
+          arcadeTimeBonusMinutes(correctAnswers, roundLength)
+        );
+      }
+    }
+
     Alert.alert(
       '🎉 Раунд завершён!',
-      `Правильных ответов: ${correctAnswers} из ${session?.questions.length || 0}\nПолучено: +${formatCoins(coinsEarned)}`
+      `Правильных ответов: ${correctAnswers} из ${roundLength}\nПолучено: +${formatPrice(coinsEarned)}` +
+        (savedMinutes > 0 ? `\nПриключение ближе на ${savedMinutes} мин` : '')
     );
     router.back();
   };
 
-  // §10.1: не ограничено по числу прохождений — каждый раз новый случайный раунд
+  // §10.1: не ограничено по числу прохождений — та же игра той же темы,
+  // новый перемешанный раунд.
   const handlePlayAgain = () => {
-    const nextRound = rollTrainerSession();
+    const nextRound = session
+      ? buildBranchGameSession(
+          session.minigameType,
+          session.branchId,
+          ARCADE_SOURCES,
+          session.countsAsQuest
+        )
+      : null;
     if (!nextRound) {
-      Alert.alert('Недоступно', 'Нет пройденных тем для тренировки');
       router.back();
       return;
     }
@@ -147,10 +192,12 @@ export default function ArcadeScreen() {
           <Text style={[styles.headerTitle, { fontSize: scaledFont('lg') }]} numberOfLines={1}>
             {branch.name}
           </Text>
-          <Text style={[styles.headerSubtitle, { fontSize: scaledFont('sm') }]}>Аркада</Text>
+          <Text style={[styles.headerSubtitle, { fontSize: scaledFont('sm') }]}>
+            Аркада · {ARCADE_GAME_META[session.minigameType].title}
+          </Text>
         </View>
 
-        <View style={{ width: scale(36) }} />
+        <HelpButton screen={ARCADE_GAME_META[session.minigameType].help} variant="onGradient" />
       </LinearGradient>
 
       {stage === 'start' && (
@@ -169,7 +216,7 @@ export default function ArcadeScreen() {
       {stage === 'results' && (
         <ResultsStage
           correctAnswers={correctAnswers}
-          totalQuestions={session.questions.length}
+          totalQuestions={roundLength}
           coinsEarned={coinsEarned}
           onClaimReward={handleClaimReward}
           onPlayAgain={handlePlayAgain}

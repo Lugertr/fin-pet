@@ -17,7 +17,7 @@ interface LessonStepsStylesParams {
 export function createLessonStepsStyles({ theme }: LessonStepsStylesParams) {
   return StyleSheet.create({
     // Общий внешний контейнер шага: ScrollView-зона + ScreenFooter с кнопкой
-    // как соседний элемент после неё (см. ResourcePlanningStep.tsx).
+    // как соседний элемент после неё (см. RewardStep.tsx).
     stepContainer: {
       flex: 1,
     },
@@ -211,101 +211,64 @@ export function createLessonStepsStyles({ theme }: LessonStepsStylesParams) {
       justifyContent: 'center',
       padding: spacing.xxl,
     },
+    // Монеты награды (CoinAmount) — отступы у строки, чтобы иконка монеты
+    // стояла на одной линии с числом.
+    rewardCoinsRow: {
+      marginTop: spacing.lg,
+      marginBottom: spacing.xs,
+    },
     rewardCoinsText: {
       color: theme.coins,
       fontWeight: fontWeights.bold,
       fontSize: fontSizes.hero,
+    },
+    // Ускорение приключения — основная награда за задание внутри активного
+    // приключения (заменяет монеты, см. RewardStep.tsx); тот же акцент, что
+    // и у монет, просто другой текст/иконка.
+    rewardTimeText: {
+      color: theme.accent,
+      fontWeight: fontWeights.bold,
+      fontSize: fontSizes.title,
       marginTop: spacing.lg,
-      marginBottom: spacing.xs,
+      textAlign: 'center',
+    },
+    // Отдельная, визуально более яркая карточка «Идеально!» — только когда
+    // урок пройден без единой ошибки (см. StepRunner.tsx wrongAnswersRef).
+    rewardPerfectCard: {
+      backgroundColor: withAlpha(theme.success, 0.12),
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: withAlpha(theme.success, 0.3),
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.xl,
+      alignItems: 'center',
+      marginTop: spacing.lg,
+    },
+    rewardPerfectTitle: {
+      color: theme.success,
+      fontWeight: fontWeights.bold,
+      fontSize: fontSizes.md,
+    },
+    rewardPerfectCoinsRow: {
+      marginTop: spacing.xxs,
+    },
+    rewardPerfectCoins: {
+      color: theme.coins,
+      fontWeight: fontWeights.bold,
+      fontSize: fontSizes.xxl,
+    },
+    // Подсказка для урока ВНЕ активного приключения — что эти же ответы
+    // сэкономили бы времени, будь это задание приключения (см. C.3 плана).
+    rewardTimeHint: {
+      color: theme.textMuted,
+      fontSize: fontSizes.xs,
+      textAlign: 'center',
+      marginTop: spacing.sm,
     },
     rewardReasonText: {
       color: theme.textSecondary,
       fontSize: fontSizes.md,
       marginBottom: spacing.xxxl,
-    },
-
-    // Шаг «Планирование ресурсов» (§9.6) — контент в ScrollView, кнопка
-    // «Подтвердить» в ScreenFooter снаружи него (см. ResourcePlanningStep.tsx):
-    // без этого длинный контент мог вытолкнуть кнопку за экран без возможности
-    // прокрутить и достать её.
-    planningContainer: {
-      flex: 1,
-    },
-    planningScrollArea: {
-      flex: 1,
-    },
-    planningScrollContent: {
-      padding: spacing.xxl,
-    },
-    planningSplitRow: {
-      flexDirection: 'row',
-      gap: spacing.md,
-      marginVertical: spacing.xl,
-    },
-    planningSplitBox: {
-      flex: 1,
-      backgroundColor: theme.surface,
-      borderRadius: radius.lg,
-      padding: spacing.lg,
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: theme.borderLight,
-    },
-    planningSplitLabel: {
-      color: theme.textMuted,
-      fontSize: fontSizes.xs,
-      marginBottom: spacing.xxs,
-    },
-    planningSplitValue: {
-      color: theme.textPrimary,
-      fontWeight: fontWeights.bold,
-      fontSize: fontSizes.xl,
-    },
-    planningPresetsRow: {
-      flexDirection: 'row',
-      gap: spacing.sm,
-      marginBottom: spacing.xl,
-    },
-    planningPresetButton: {
-      flex: 1,
-      paddingVertical: spacing.sm,
-      borderRadius: radius.md,
-      backgroundColor: theme.surfaceLight,
-      alignItems: 'center',
-    },
-    planningPresetButtonActive: {
-      backgroundColor: theme.primary,
-    },
-    planningPresetText: {
-      color: theme.textPrimary,
-      fontWeight: fontWeights.semibold,
-      fontSize: fontSizes.xs,
-      textAlign: 'center',
-    },
-    planningPresetTextActive: {
-      color: theme.onGradient,
-    },
-    planningStepperRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.lg,
-      justifyContent: 'center',
-      marginBottom: spacing.xl,
-    },
-    planningStepperButton: {
-      width: 44,
-      height: 44,
-      borderRadius: radius.md,
-      backgroundColor: theme.surfaceLight,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    planningStepperValue: {
-      color: theme.textPrimary,
-      fontWeight: fontWeights.bold,
-      fontSize: fontSizes.xxl,
-      minWidth: 72,
-      textAlign: 'center',
     },
   });
 }

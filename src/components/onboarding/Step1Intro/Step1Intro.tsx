@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Text, View } from 'react-native';
 import Animated, { FadeInRight } from 'react-native-reanimated';
 
+import { CoinIcon } from '@/components/shared';
 import { useResponsive, useTheme } from '@/theme';
 import { withAlpha } from '@/theme/colorUtils';
 import { circleRadius, colorPalettes, spacing } from '@/theme/tokens';
@@ -79,7 +80,7 @@ export function Step1Intro() {
             { backgroundColor: withAlpha(colorPalettes.amber[500], 0.9) },
           ]}
         >
-          <Text style={{ fontSize: scaledFont('md') }}>🪙</Text>
+          <CoinIcon size={scaledFont('lg')} />
         </View>
       </View>
 

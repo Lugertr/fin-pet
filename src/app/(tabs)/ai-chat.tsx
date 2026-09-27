@@ -5,7 +5,6 @@
 // локально и может быть очищена пользователем (§16.2/§16.5).
 
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -20,12 +19,12 @@ import {
 import { useShallow } from 'zustand/react/shallow';
 
 import { ChatBubble } from '@/components/aiChat';
-import { AppHeaderStats } from '@/components/shared';
+import { AppHeaderStats, useAppHeaderPadding } from '@/components/shared';
 import { IconButton, ScrollableRow } from '@/components/ui';
 import { useFeedback } from '@/lib/hooks/useFeedback';
+import { openLessonOrExplain } from '@/lib/lessons/openLesson';
 import { useAiChatStore } from '@/lib/stores/aiChatStore';
 import { usePetStore } from '@/lib/stores/petStore';
-import { useSavingsStore } from '@/lib/stores/savingsStore';
 import { useUserStore } from '@/lib/stores/userStore';
 import { Alert } from '@/lib/utils/alert';
 import { canAffordEnergy } from '@/lib/utils/moodCalculator';
@@ -42,15 +41,14 @@ const QUICK_QUESTIONS = [
 ];
 
 export default function AiChatScreen() {
-  const router = useRouter();
   const { theme } = useTheme();
   const { scale, scaledFont } = useResponsive();
+  const headerPadding = useAppHeaderPadding();
   const { triggerHaptic } = useFeedback();
   // Точечные селекторы — вкладка чата держится смонтированной в таб-баре и не
   // должна перерисовываться при изменениях в других сторах, которые ей не нужны.
   const user = useUserStore((s) => s.user);
   const currentMood = usePetStore((s) => s.currentMood);
-  const savings = useSavingsStore((s) => s.savings);
   const { messages, isAsking, ask, clearHistory, getEnergyCost } = useAiChatStore(
     useShallow((s) => ({
       messages: s.messages,
@@ -82,7 +80,7 @@ export default function AiChatScreen() {
       triggerHaptic('error');
       Alert.alert(
         'Недостаточно энергии',
-        `Вопрос стоит ${energyCost}⚡. Покормите питомца или подождите восстановления.`
+        `Вопрос стоит ${energyCost}⚡. Покорми питомца или подожди, пока энергия восстановится.`
       );
       return;
     }
@@ -106,15 +104,22 @@ export default function AiChatScreen() {
   const handleClearHistory = () => {
     if (messages.length === 0) return;
     triggerHaptic('medium');
-    Alert.alert('Очистить историю?', 'Все сообщения чата будут удалены без возможности отмены.', [
-      { text: 'Отмена', style: 'cancel' },
-      { text: 'Очистить', style: 'destructive', onPress: () => clearHistory() },
-    ]);
+    Alert.alert(
+      'Очистить историю?',
+      'Все сообщения чата будут удалены без возможности отмены.',
+      [
+        { text: 'Отмена', style: 'cancel' },
+        { text: 'Очистить', style: 'destructive', onPress: () => clearHistory() },
+      ],
+      { icon: 'trash', badgeLabel: 'Удаление', badgeVariant: 'error' }
+    );
   };
 
   const handleOpenLesson = (lessonId: number) => {
     triggerHaptic('selection');
-    router.push({ pathname: '/(modal)/lesson/[id]', params: { id: String(lessonId) } } as never);
+    // Та же проверка, что на вкладке «Уроки»: ссылка помощника не должна
+    // открывать новый урок в обход приключения (lib/lessons/openLesson.ts).
+    openLessonOrExplain(lessonId);
   };
 
   return (
@@ -123,18 +128,8 @@ export default function AiChatScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       {/* Общая шапка приложения */}
-      <View
-        style={{
-          paddingTop: scale(56),
-          paddingBottom: scale(spacing.md),
-          paddingHorizontal: scale(spacing.xxl),
-        }}
-      >
-        <AppHeaderStats
-          energy={currentMood}
-          coins={user?.liquid_balance ?? 0}
-          savings={savings?.currentAmount ?? 0}
-        />
+      <View style={headerPadding}>
+        <AppHeaderStats help="ai_chat" energy={currentMood} coins={user?.liquid_balance ?? 0} />
       </View>
 
       <View style={[styles.header, { paddingTop: 0, paddingBottom: scale(spacing.md) }]}>
@@ -264,7 +259,7 @@ export default function AiChatScreen() {
           <TextInput
             value={inputText}
             onChangeText={setInputText}
-            placeholder="Задайте вопрос о финансах..."
+            placeholder="Задай вопрос о деньгах…"
             placeholderTextColor={theme.textMuted}
             style={[styles.inputField, { fontSize: scaledFont('md') }]}
             multiline

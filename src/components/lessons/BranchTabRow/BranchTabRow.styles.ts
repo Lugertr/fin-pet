@@ -60,6 +60,17 @@ export function createBranchTabRowStyles({ theme }: BranchTabRowStylesParams) {
       fontSize: fontSizes.xxs,
       textAlign: 'center',
     },
+    // «X/Y» пройденных уроков темы — прогресс любой темы виден без переключения.
+    progressActive: {
+      color: theme.onGradient,
+      fontWeight: fontWeights.bold,
+      fontSize: fontSizes.xxs,
+    },
+    progressInactive: {
+      color: theme.textMuted,
+      fontWeight: fontWeights.semibold,
+      fontSize: fontSizes.xxs,
+    },
     priorityBadge: {
       position: 'absolute',
       top: -3,

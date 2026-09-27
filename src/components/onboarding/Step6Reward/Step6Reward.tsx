@@ -16,6 +16,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { CoinAmount, CoinIcon } from '@/components/shared';
 import { STARTING_WALLET_BALANCE } from '@/domain/profile/Profile';
 import { useResponsive, useTheme } from '@/theme';
 import { emojiSizes, spacing } from '@/theme/tokens';
@@ -44,7 +45,7 @@ export function Step6Reward() {
     <Animated.View entering={FadeInRight.duration(300)} style={styles.rewardContainer}>
       <View style={[styles.rewardIllustrationBox, { marginBottom: scale(spacing.xl) }]}>
         <Animated.View style={animatedBounceStyle}>
-          <Text style={{ fontSize: scale(emojiSizes.huge) }}>🪙</Text>
+          <CoinIcon size={scale(emojiSizes.huge)} />
         </Animated.View>
       </View>
 
@@ -61,9 +62,13 @@ export function Step6Reward() {
         <Text style={[styles.rewardCardLabel, { fontSize: scaledFont('sm') }]}>
           ПРИВЕТСТВЕННЫЙ КУШ
         </Text>
-        <Text style={[styles.rewardCardValue, { fontSize: scaledFont('hero') }]}>
-          +{STARTING_WALLET_BALANCE} 💰
-        </Text>
+        <CoinAmount
+          amount={STARTING_WALLET_BALANCE}
+          prefix="+"
+          fontSize={scaledFont('hero')}
+          style={styles.rewardCardValueRow}
+          textStyle={styles.rewardCardValue}
+        />
         <View style={[styles.rewardCardBadge, { paddingHorizontal: scale(spacing.md) }]}>
           <View style={styles.rewardCardBadgeDot} />
           <Text style={[styles.rewardCardBadgeText, { fontSize: scaledFont('xs') }]}>

@@ -1,8 +1,7 @@
 // domain/lesson/LessonPathNode.ts
-// Элемент дорожки уроков на вкладке «Уроки»: урок или узел-подарок,
-// объединённые и отсортированные функцией buildLessonPath.
+// Элемент дорожки уроков на вкладке «Уроки» (узлов-подарков больше нет:
+// подарки только за 7 дней подряд, решение пользователя 27.09.2026).
 
-import { GiftPathNodeContent, LessonContent } from '@/domain/content/LessonContent';
+import { LessonContent } from '@/domain/content/LessonContent';
 
-export type LessonPathNode =
-  { type: 'lesson'; lesson: LessonContent } | { type: 'gift'; node: GiftPathNodeContent };
+export type LessonPathNode = { type: 'lesson'; lesson: LessonContent };

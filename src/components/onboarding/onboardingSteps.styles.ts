@@ -6,7 +6,7 @@
 //
 // Акцентный цвет здесь — theme.accent (индиго по умолчанию), отдельный от
 // theme.primary (изумрудный) — тот же акцент используется для CTA/выделений
-// в хабе, шагах урока и квизе (см. HubHeader/lessonSteps/QuizGridGame).
+// в хабе, шагах урока и квизе (см. HubHeader/lessonSteps/QuizGame).
 
 import type { Theme } from '@/theme';
 import { withAlpha } from '@/theme/colorUtils';
@@ -27,12 +27,21 @@ interface OnboardingStepsStylesParams {
 export function createOnboardingStepsStyles({ theme }: OnboardingStepsStylesParams) {
   return StyleSheet.create({
     // Заголовки шагов (везде — слева, шаг 6/реворд — по центру, см. rewardTitle)
+    // Заголовок/подзаголовок шага, когда сам шаг шире колонки (лента питомцев).
+    stepTextColumn: {
+      width: '100%',
+      maxWidth: 520,
+      alignSelf: 'center',
+    },
     stepTitle: {
       color: theme.textPrimary,
       fontSize: fontSizes.xxl,
       fontWeight: fontWeights.bold,
       textAlign: 'left',
       marginBottom: spacing.xs,
+    },
+    centeredText: {
+      textAlign: 'center',
     },
     stepSubtitle: {
       color: theme.textSecondary,
@@ -212,8 +221,11 @@ export function createOnboardingStepsStyles({ theme }: OnboardingStepsStylesPara
     },
 
     // Шаг 3: карусель питомцев
+    // flexGrow + center: если все карточки помещаются (широкий экран), лента
+    // стоит по центру; если нет — листается как обычно.
     carouselTrackContent: {
-      paddingRight: spacing.xxl,
+      flexGrow: 1,
+      justifyContent: 'center',
     },
     carouselCard: {
       borderRadius: radius.xl,
@@ -230,11 +242,16 @@ export function createOnboardingStepsStyles({ theme }: OnboardingStepsStylesPara
       padding: spacing.lg,
       alignItems: 'center',
     },
+    // Высота фиксирована (равна чекмарку, см. petCardCheckmark) и не зависит
+    // от того, показан ли чекмарк — иначе при выборе карточки эта строка
+    // меняла бы высоту (0 -> высота чекмарка), и всё под ней (аватар/имя/
+    // тэглайн) заметно «прыгало» бы вниз/вверх.
     petCardTopRow: {
       flexDirection: 'row',
       alignItems: 'flex-start',
       justifyContent: 'flex-end',
       width: '100%',
+      height: 22,
       marginBottom: spacing.xs,
     },
     petCardCheckmark: {
@@ -405,11 +422,13 @@ export function createOnboardingStepsStyles({ theme }: OnboardingStepsStylesPara
       letterSpacing: 1,
       marginBottom: spacing.sm,
     },
+    rewardCardValueRow: {
+      marginBottom: spacing.md,
+    },
     rewardCardValue: {
       color: theme.onGradient,
       fontWeight: fontWeights.bold,
       fontSize: fontSizes.hero,
-      marginBottom: spacing.md,
     },
     rewardCardBadge: {
       flexDirection: 'row',

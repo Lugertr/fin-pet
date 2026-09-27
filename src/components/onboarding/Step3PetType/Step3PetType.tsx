@@ -12,7 +12,6 @@ import { PetSprite } from '@/components/pet';
 import { ScrollableRow } from '@/components/ui/ScrollableRow';
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { useResponsive, useTheme } from '@/theme';
-import { withAlpha } from '@/theme/colorUtils';
 import { circleRadius, colorPalettes, spacing } from '@/theme/tokens';
 import { createOnboardingStepsStyles } from '../onboardingSteps.styles';
 
@@ -26,11 +25,11 @@ export const PET_TYPES = [
     accentColor: colorPalettes.indigo[500],
   },
   {
-    id: 'dragon' as const,
-    name: 'Дракоша',
-    nameAccusative: 'дракошу',
-    tagline: 'хранитель монет',
-    accentColor: colorPalettes.emerald[500],
+    id: 'bear' as const,
+    name: 'Мишка',
+    nameAccusative: 'мишку',
+    tagline: 'спокойный и надёжный друг',
+    accentColor: colorPalettes.orange[600],
   },
   {
     id: 'cat' as const,
@@ -42,6 +41,9 @@ export const PET_TYPES = [
 ];
 
 export type PetType = (typeof PET_TYPES)[number]['id'];
+
+/** Высота питомца в карточке выбора — одинаковая для всех видов. */
+const PET_CARD_HEIGHT = 110;
 
 export function Step3PetType({
   petType,
@@ -56,21 +58,30 @@ export function Step3PetType({
   const { width: windowWidth } = useWindowDimensions();
   const styles = createOnboardingStepsStyles({ theme });
 
-  const cardWidth = Math.min(windowWidth * 0.72, scale(300));
+  // Ширина ленты — экран минус поля шага (onboarding.styles scrollContent).
+  // Карточка такой ширины, чтобы на телефоне 390–400px целиком было видно
+  // два питомца, а третий выглядывал (значит, ленту можно листать). На
+  // широком экране все три помещаются — лента просто стоит по центру.
+  const gap = scale(spacing.md);
+  const rowWidth = windowWidth - spacing.xxl * 2;
+  const cardWidth = Math.round(Math.max(scale(140), Math.min((rowWidth - gap) / 2.2, scale(200))));
 
   return (
     <Animated.View entering={FadeInRight.duration(300)}>
-      <Text style={[styles.stepTitle, { fontSize: scaledFont('xxl') }]}>Выбери спутника</Text>
-      <Text style={[styles.stepSubtitle, { fontSize: scaledFont('md') }]}>
-        Все питомцы одинаково умеют радоваться и подсказывать. Выбор не влияет на игру.
-      </Text>
+      {/* Текст — в колонке «как на телефоне», на всю ширину — только лента. */}
+      <View style={styles.stepTextColumn}>
+        <Text style={[styles.stepTitle, { fontSize: scaledFont('xxl') }]}>Выбери спутника</Text>
+        <Text style={[styles.stepSubtitle, { fontSize: scaledFont('md') }]}>
+          Все питомцы одинаково умеют радоваться и подсказывать. Выбор не влияет на игру.
+        </Text>
+      </View>
 
       <ScrollableRow
-        snapToInterval={cardWidth + scale(spacing.md)}
+        snapToInterval={cardWidth + gap}
         decelerationRate="fast"
         contentContainerStyle={[
           styles.carouselTrackContent,
-          { gap: scale(spacing.md), marginBottom: scale(spacing.xxl) },
+          { gap, marginBottom: scale(spacing.xxl) },
         ]}
       >
         {PET_TYPES.map((pet) => {
@@ -90,7 +101,7 @@ export function Step3PetType({
               ]}
             >
               <View style={[styles.petCardInner, { padding: scale(spacing.lg) }]}>
-                <View style={styles.petCardTopRow}>
+                <View style={[styles.petCardTopRow, { height: scale(22) }]}>
                   {isSelected && (
                     <View
                       style={[
@@ -107,19 +118,16 @@ export function Step3PetType({
                   )}
                 </View>
 
+                {/* Все питомцы одной высоты (подгонка по высоте, а не по
+                    ширине — иначе мишка выше кота) и ровно в свою рамку, так
+                    что подпись ниже не налезает на картинку. */}
                 <View
                   style={[
                     styles.petAvatarCircle,
-                    {
-                      width: scale(96),
-                      height: scale(96),
-                      borderRadius: circleRadius(scale(96)),
-                      backgroundColor: withAlpha(pet.accentColor, 0.1),
-                      marginBottom: scale(spacing.sm),
-                    },
+                    { height: scale(PET_CARD_HEIGHT), marginBottom: scale(spacing.md) },
                   ]}
                 >
-                  <PetSprite petType={pet.id} mood={100} size={scale(80)} />
+                  <PetSprite petType={pet.id} mood={100} height={scale(PET_CARD_HEIGHT)} />
                 </View>
 
                 <Text

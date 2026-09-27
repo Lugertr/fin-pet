@@ -1,1 +1,1 @@
-export { getSkinsForPetType, Step4PetCustomize } from './Step4PetCustomize';
+export { Step4PetCustomize } from './Step4PetCustomize';

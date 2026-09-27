@@ -44,10 +44,18 @@ export function createOnboardingStyles() {
       maxWidth: 520,
       alignSelf: 'center',
     },
+    // Шаг выбора питомца: лента карточек на всю ширину экрана (по центру),
+    // без колонки 520px — на широком экране три карточки встают в ряд.
+    contentColumnWide: {
+      maxWidth: '100%',
+    },
     header: {
       width: '100%',
       maxWidth: 520,
       alignSelf: 'center',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
       paddingHorizontal: spacing.xxl,
       paddingTop: spacing.md,
     },

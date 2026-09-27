@@ -9,6 +9,7 @@ import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { HighlightedText } from '@/components/lesson/HighlightedText';
 import { PetAvatarBubble } from '@/components/pet';
 import { ScreenFooter } from '@/components/ui';
+import { usePetStore } from '@/lib/stores/petStore';
 import { usePreferencesStore } from '@/lib/stores/preferencesStore';
 import { useResponsive, useTheme } from '@/theme';
 import { spacing } from '@/theme/tokens';
@@ -24,6 +25,7 @@ export function TheoryStep({
   const { theme } = useTheme();
   const { scale, scaledFont } = useResponsive();
   const petType = usePreferencesStore((s) => s.petType);
+  const skinVariant = usePetStore((s) => s.equippedSkinVariant);
   const styles = createLessonStepsStyles({ theme });
 
   const [index, setIndex] = useState(0);
@@ -35,7 +37,12 @@ export function TheoryStep({
       <View style={styles.comicScroll}>
         <ScrollView contentContainerStyle={styles.comicScrollContent}>
           <View style={[styles.theoryAvatarBox, { marginBottom: scale(spacing.lg) }]}>
-            <PetAvatarBubble petType={petType} emotion="question" size={88} />
+            <PetAvatarBubble
+              petType={petType}
+              emotion="question"
+              skinVariant={skinVariant}
+              size={88}
+            />
           </View>
 
           <Text

@@ -10,23 +10,28 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
-import { AppHeaderStats } from '@/components/shared';
+import { AppHeaderStats, useAppHeaderPadding } from '@/components/shared';
 import { ShopItemCard } from '@/components/shop';
 import { CategoryTabs } from '@/components/ui';
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { Alert } from '@/lib/utils/alert';
-import { SHOP_CATALOG, ShopItem, useShopStore } from '@/lib/hooks/useShop';
+import {
+  FOOD_ONLY_WHEN_HUNGRY_MESSAGE,
+  isPetHungryNow,
+  SHOP_CATALOG,
+  ShopItem,
+  useShopStore,
+} from '@/lib/hooks/useShop';
 import { useGiftsStore } from '@/lib/stores/giftsStore';
 import { usePetStore } from '@/lib/stores/petStore';
 import { usePreferencesStore } from '@/lib/stores/preferencesStore';
-import { useSavingsStore } from '@/lib/stores/savingsStore';
 import { useUserStore } from '@/lib/stores/userStore';
-import { formatCoins } from '@/lib/utils/formatters';
+import { formatPrice } from '@/lib/utils/formatters';
 import {
   CATEGORY_DISPLAY_NAMES,
-  ITEM_CATEGORIES,
+  SHOP_ITEM_CATEGORIES,
   itemMatchesCategoryFilter,
-  itemMatchesPetType,
+  isShopItem,
 } from '@/lib/utils/itemCategories';
 import { getEffectDescription } from '@/lib/utils/shopItems';
 import { useResponsive, useTheme } from '@/theme';
@@ -37,6 +42,7 @@ export default function ShopScreen() {
   const router = useRouter();
   const { theme } = useTheme();
   const { scale, scaledFont } = useResponsive(); // ✅ Используем scale и scaledFont
+  const headerPadding = useAppHeaderPadding();
   const { trigger, triggerHaptic } = useFeedback();
 
   const styles = createShopStyles({ theme });
@@ -44,7 +50,6 @@ export default function ShopScreen() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const user = useUserStore((s) => s.user);
   const currentMood = usePetStore((s) => s.currentMood);
-  const savings = useSavingsStore((s) => s.savings);
   // Только стабильный экшен — экрану магазина не нужно перерисовываться
   // при изменениях инвентаря/декора.
   const purchaseItem = useShopStore((s) => s.purchaseItem);
@@ -56,12 +61,9 @@ export default function ShopScreen() {
 
   // Скрытые предметы (§12.4/§14) не продаются в магазине — только через подарки.
   // Стартовые предметы комнаты (is_starter) не продаются — они и так у всех
-  // с онбординга, в магазине есть только их платные апгрейды. Скины — только
-  // для типа питомца, который реально есть у профиля (профиль ведёт одного
-  // питомца, скины другого типа ему не подходят).
-  const purchasableCatalog = SHOP_CATALOG.filter(
-    (item) => !item.is_hidden && !item.is_starter && itemMatchesPetType(item, petType)
-  );
+  // с онбординга, в магазине есть только их платные апгрейды. Скинов в
+  // магазине нет вовсе — новый облик питомец получает на новом уровне.
+  const purchasableCatalog = SHOP_CATALOG.filter((item) => isShopItem(item, petType));
   const filteredItems = purchasableCatalog.filter((item) =>
     itemMatchesCategoryFilter(item.category, selectedCategory)
   );
@@ -72,15 +74,23 @@ export default function ShopScreen() {
   };
 
   const handlePurchase = (item: ShopItem) => {
+    // Еда — только когда питомец голоден (объясняем до вопроса о покупке).
+    if (item.category === 'food' && !isPetHungryNow()) {
+      trigger('error');
+      Alert.alert('Питомец сыт', FOOD_ONLY_WHEN_HUNGRY_MESSAGE);
+      return;
+    }
     if (balance < item.price) {
       trigger('error');
       const missing = item.price - balance;
       Alert.alert(
         'Недостаточно монет',
-        `Для покупки «${item.name}» не хватает ${formatCoins(missing)}. Пройдите урок или заберите ежедневную награду, чтобы заработать монеты.`,
+        `Для покупки «${item.name}» не хватает ${formatPrice(missing)}. Отправляйся в приключение или заходи каждый день за ежедневной наградой, чтобы заработать монеты.`,
         [
           { text: 'Понятно', style: 'cancel' },
-          { text: 'К урокам', onPress: () => router.push('/(tabs)/lessons' as never) },
+          // Монеты зарабатываются в приключении — вкладка хаба (во время
+          // приключения на ней сам экран приключения).
+          { text: 'К приключению', onPress: () => router.push('/(tabs)' as never) },
         ]
       );
       return;
@@ -90,7 +100,7 @@ export default function ShopScreen() {
     const details = [
       `Категория: ${CATEGORY_DISPLAY_NAMES[item.category] ?? item.category}`,
       effect ? `Эффект: ${effect}` : null,
-      `Цена: ${formatCoins(item.price)}`,
+      `Цена: ${formatPrice(item.price)}`,
     ]
       .filter(Boolean)
       .join('\n');
@@ -116,18 +126,8 @@ export default function ShopScreen() {
   return (
     <View style={styles.container}>
       {/* Общая шапка приложения */}
-      <View
-        style={{
-          paddingTop: scale(56),
-          paddingBottom: scale(spacing.md),
-          paddingHorizontal: scale(spacing.xxl),
-        }}
-      >
-        <AppHeaderStats
-          energy={currentMood}
-          coins={balance}
-          savings={savings?.currentAmount ?? 0}
-        />
+      <View style={headerPadding}>
+        <AppHeaderStats help="shop" energy={currentMood} coins={balance} />
       </View>
 
       <View style={[styles.header, { paddingTop: 0, paddingBottom: scale(spacing.lg) }]}>
@@ -188,11 +188,11 @@ export default function ShopScreen() {
               </View>
               <View style={styles.giftsTextContainer}>
                 <Text style={[styles.giftsTitle, { fontSize: scaledFont('md') }]}>
-                  У вас {giftsCount} неоткрытых{' '}
+                  У тебя {giftsCount} неоткрытых{' '}
                   {giftsCount === 1 ? 'подарок' : giftsCount < 5 ? 'подарка' : 'подарков'}!
                 </Text>
                 <Text style={[styles.giftsSubtitle, { fontSize: scaledFont('sm') }]}>
-                  Нажмите, чтобы открыть
+                  Нажми, чтобы открыть
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={scale(20)} color={theme.onGradient} />
@@ -202,7 +202,7 @@ export default function ShopScreen() {
 
         {/* Категории */}
         <CategoryTabs
-          categories={ITEM_CATEGORIES}
+          categories={SHOP_ITEM_CATEGORIES}
           selected={selectedCategory}
           onSelect={handleSelectCategory}
         />

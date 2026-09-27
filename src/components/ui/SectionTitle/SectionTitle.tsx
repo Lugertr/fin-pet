@@ -1,7 +1,6 @@
 // src/components/ui/SectionTitle/SectionTitle.tsx
-// Заголовок секции экрана (жирный, textPrimary, крупный) — тот же блок был
-// продублирован в DailyRewardCard/PeriodCard/_profile.styles.ts, каждый раз
-// с чуть разным способом применить responsive-масштаб к size/marginBottom.
+// Заголовок секции экрана (жирный, textPrimary, крупный) с responsive-масштабом
+// размера и отступа.
 
 import { ReactNode } from 'react';
 import { Text } from 'react-native';

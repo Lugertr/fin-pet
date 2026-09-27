@@ -34,7 +34,7 @@ export function DemoModeCard({
               Режим для демонстрации
             </Text>
             <Text style={[styles.switchHint, { fontSize: scaledFont('xs') }]}>
-              Все уроки доступны сразу, периоды переключаются без ожидания
+              Все уроки доступны сразу, приключение можно завершить без ожидания
             </Text>
           </View>
           <Switch value={user?.is_demo ?? false} onValueChange={onToggleDemo} disabled={isBusy} />

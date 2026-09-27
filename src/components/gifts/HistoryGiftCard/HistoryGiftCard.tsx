@@ -5,7 +5,7 @@ import { Text, View } from 'react-native';
 
 import { Card } from '@/components/ui';
 import { GiftHistoryEntry } from '@/lib/stores/giftsStore';
-import { formatCoins } from '@/lib/utils/formatters';
+import { formatPrice } from '@/lib/utils/formatters';
 import { getGiftRarityConfig } from '@/types/gifts';
 import { useResponsive, useTheme } from '@/theme';
 import { withAlpha } from '@/theme/colorUtils';
@@ -44,7 +44,7 @@ export function HistoryGiftCard({ entry }: { entry: GiftHistoryEntry }) {
             { color: config.accentColor, fontSize: scaledFont('sm') },
           ]}
         >
-          {config.name} • +{formatCoins(entry.coins)}
+          {config.name} • +{formatPrice(entry.coins)}
         </Text>
       </View>
       <Text style={[styles.historyDate, { fontSize: scaledFont('xs') }]}>

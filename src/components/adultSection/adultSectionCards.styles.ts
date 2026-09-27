@@ -128,5 +128,18 @@ export function createAdultSectionCardsStyles({ theme }: AdultSectionCardsStyles
       fontWeight: fontWeights.bold,
       fontSize: fontSizes.md,
     },
+    // DangerZoneActions — подпись под опасной зоной: раздел и так уже за
+    // PIN-кодом (см. PinGate), эта строка просто объясняет ребёнку, почему
+    // тут вообще можно менять такие вещи — см. референс дизайна.
+    lockCaption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+    },
+    lockCaptionText: {
+      color: theme.textMuted,
+      fontSize: fontSizes.xs,
+      flex: 1,
+    },
   });
 }

@@ -54,11 +54,18 @@ export function createQuizGameStyles({ theme }: QuizGameStylesParams) {
       fontWeight: fontWeights.bold,
       fontSize: fontSizes.md,
     },
+    optionTextColumn: {
+      flex: 1,
+      gap: spacing.xxs,
+    },
     optionText: {
       color: theme.textPrimary,
       fontSize: fontSizes.lg,
-      flex: 1,
       lineHeight: 22,
+    },
+    optionSublabel: {
+      color: theme.textSecondary,
+      fontSize: fontSizes.xs,
     },
     optionIconContainer: {
       width: 28,
@@ -73,7 +80,7 @@ export function createQuizGameStyles({ theme }: QuizGameStylesParams) {
       fontWeight: fontWeights.bold,
     },
     feedbackContainer: {
-      marginTop: spacing.xxl,
+      marginBottom: spacing.xxl,
       borderRadius: radius.lg,
       padding: spacing.lg,
       borderWidth: 1,
@@ -86,13 +93,9 @@ export function createQuizGameStyles({ theme }: QuizGameStylesParams) {
   });
 }
 
-/**
- * Состояния вариантов ответа. 'selected' — карточка выбрана, но ещё не
- * проверена (используется QuizGridGame: тап только выбирает, оценка — по
- * кнопке «Проверить»; QuizGame это состояние не производит, т.к. там тап
- * сразу проверяет ответ).
- */
-export type OptionState = 'idle' | 'selected' | 'correct' | 'selectedWrong' | 'dimmed';
+/** Состояния вариантов ответа — тап сразу проверяет ответ (нет отдельной
+ * фазы «выбрано, но ещё не проверено»). */
+export type OptionState = 'idle' | 'correct' | 'selectedWrong' | 'dimmed';
 
 /**
  * Цвета для каждого состояния варианта
@@ -106,12 +109,6 @@ export function getOptionColors(
       return {
         bg: theme.surfaceLight,
         border: theme.borderLight,
-        opacity: 1,
-      };
-    case 'selected':
-      return {
-        bg: withAlpha(theme.accent, 0.12),
-        border: theme.accent,
         opacity: 1,
       };
     case 'correct':

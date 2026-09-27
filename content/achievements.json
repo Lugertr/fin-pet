@@ -17,10 +17,8 @@
     "condition_type": "branch_complete",
     "condition_value": 100,
     "target_branch_id": 2,
-    "reward_type": "gift",
-    "reward_amount": 0,
-    "gift_mode": "guaranteed_choice",
-    "gift_options_count": 2
+    "reward_type": "coins",
+    "reward_amount": 60
   },
   {
     "id": 3,
@@ -35,13 +33,12 @@
   {
     "id": 4,
     "name": "Коллекционер",
-    "description": "Собери 3 скрытых предмета из подарков",
+    "description": "Найди скрытый предмет в подарке за 7 дней подряд",
     "icon": "💎",
     "condition_type": "hidden_items_owned",
-    "condition_value": 3,
-    "reward_type": "gift",
-    "reward_amount": 0,
-    "gift_mode": "random"
+    "condition_value": 1,
+    "reward_type": "coins",
+    "reward_amount": 50
   },
   {
     "id": 5,
@@ -61,23 +58,19 @@
     "condition_type": "branch_complete",
     "condition_value": 100,
     "target_branch_id": 1,
-    "reward_type": "gift",
-    "reward_amount": 0,
-    "gift_mode": "guaranteed_choice",
-    "gift_options_count": 2
+    "reward_type": "coins",
+    "reward_amount": 60
   },
   {
     "id": 7,
-    "name": "Инвестор",
-    "description": "Пройди ветку «Инвестиции» полностью",
+    "name": "Бережливый",
+    "description": "Пройди ветку «Сбережения» полностью",
     "icon": "📈",
     "condition_type": "branch_complete",
     "condition_value": 100,
     "target_branch_id": 3,
-    "reward_type": "gift",
-    "reward_amount": 0,
-    "gift_mode": "guaranteed_choice",
-    "gift_options_count": 2
+    "reward_type": "coins",
+    "reward_amount": 60
   },
   {
     "id": 8,
@@ -102,13 +95,12 @@
   {
     "id": 10,
     "name": "Коллекционер II",
-    "description": "Собери 5 скрытых предметов из подарков",
+    "description": "Собери все 3 скрытых предмета из подарков",
     "icon": "💠",
     "condition_type": "hidden_items_owned",
-    "condition_value": 5,
-    "reward_type": "gift",
-    "reward_amount": 0,
-    "gift_mode": "random"
+    "condition_value": 3,
+    "reward_type": "coins",
+    "reward_amount": 100
   },
   {
     "id": 11,
@@ -117,10 +109,8 @@
     "icon": "👑",
     "condition_type": "shop_items_owned_count",
     "condition_value": 10,
-    "reward_type": "gift",
-    "reward_amount": 0,
-    "gift_mode": "guaranteed_choice",
-    "gift_options_count": 3
+    "reward_type": "coins",
+    "reward_amount": 60
   },
   {
     "id": 12,
@@ -129,8 +119,7 @@
     "icon": "🏆",
     "condition_type": "all_branches_complete",
     "condition_value": 7,
-    "reward_type": "gift",
-    "reward_amount": 0,
-    "gift_mode": "random"
+    "reward_type": "coins",
+    "reward_amount": 150
   }
 ]

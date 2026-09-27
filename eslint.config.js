@@ -70,6 +70,7 @@ module.exports = [
       'android/',
       'ios/',
       '*.config.js',
+      'jest.setup.js',
     ],
   },
 ];

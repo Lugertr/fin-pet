@@ -3,16 +3,7 @@
 
 import type { Theme } from '@/theme';
 import { withAlpha } from '@/theme/colorUtils';
-import {
-  circleRadius,
-  colorPalettes,
-  emojiSizes,
-  fontSizes,
-  fontWeights,
-  radius,
-  shadows,
-  spacing,
-} from '@/theme/tokens';
+import { circleRadius, fontSizes, fontWeights, radius, shadows, spacing } from '@/theme/tokens';
 import { Dimensions, StyleSheet } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -29,22 +20,16 @@ export function createTinderSwipeGameStyles({ theme }: TinderSwipeGameStylesPara
     container: {
       flex: 1,
     },
-    instructionBanner: {
-      backgroundColor: withAlpha(theme.accent, 0.15),
-      borderRadius: radius.lg,
-      padding: spacing.md,
+    feedbackContainer: {
       marginBottom: spacing.lg,
+      borderRadius: radius.lg,
+      padding: spacing.lg,
       borderWidth: 1,
-      borderColor: withAlpha(theme.accent, 0.3),
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
     },
-    instructionText: {
-      color: theme.accentLight,
-      fontSize: fontSizes.sm,
-      flex: 1,
-      lineHeight: 18,
+    feedbackText: {
+      textAlign: 'center',
+      fontSize: fontSizes.md,
+      fontWeight: fontWeights.medium,
     },
     cardArea: {
       height: CARD_HEIGHT + 40,
@@ -57,11 +42,64 @@ export function createTinderSwipeGameStyles({ theme }: TinderSwipeGameStylesPara
       height: CARD_HEIGHT,
       borderRadius: radius.xxl,
       overflow: 'hidden',
+      zIndex: 2,
       ...shadows.xl,
+    },
+    // Декоративные карточки-«тени» позади активной — только для ощущения
+    // стопки (см. референс дизайна), без содержимого и без интерактивности.
+    // Абсолютные и центрированные вручную (left:50%+отриц. margin) — card
+    // выше в потоке не абсолютный, чтобы центрирование cardArea (flex) само
+    // расположило рабочую карточку, а эти две подстраиваются под неё.
+    stackCardBase: {
+      position: 'absolute',
+      top: 20,
+      left: '50%',
+      marginLeft: -CARD_WIDTH / 2,
+      width: CARD_WIDTH,
+      height: CARD_HEIGHT,
+      borderRadius: radius.xxl,
+      overflow: 'hidden',
+      backgroundColor: theme.surface,
+      ...shadows.xl,
+    },
+    stackCardBack1: {
+      transform: [{ translateY: 10 }, { scale: 0.96 }, { rotate: '-2deg' }],
+      opacity: 0.7,
+      zIndex: 1,
+    },
+    stackCardBack2: {
+      transform: [{ translateY: 18 }, { scale: 0.92 }, { rotate: '3deg' }],
+      opacity: 0.45,
+      zIndex: 0,
     },
     cardInner: {
       flex: 1,
       padding: spacing.xxl,
+      backgroundColor: theme.surface,
+      justifyContent: 'center',
+    },
+    // Угловые плашки «безопасно»/«рискованно» — какая сторона какая, решает
+    // конкретный вопрос (leftIsSafe в TinderSwipeGame.tsx), не фиксировано.
+    cornerPill: {
+      position: 'absolute',
+      top: spacing.lg,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xxs,
+      borderRadius: radius.sm,
+      borderWidth: 1.5,
+      backgroundColor: theme.surface,
+    },
+    cornerPillLeft: {
+      left: spacing.lg,
+      transform: [{ rotate: '-8deg' }],
+    },
+    cornerPillRight: {
+      right: spacing.lg,
+      transform: [{ rotate: '8deg' }],
+    },
+    cornerPillText: {
+      fontSize: fontSizes.xs,
+      fontWeight: fontWeights.bold,
     },
     situationIconContainer: {
       width: 72,
@@ -74,9 +112,6 @@ export function createTinderSwipeGameStyles({ theme }: TinderSwipeGameStylesPara
       marginBottom: spacing.xl,
       borderWidth: 2,
       borderColor: withAlpha(theme.accent, 0.4),
-    },
-    situationEmoji: {
-      fontSize: emojiSizes.md,
     },
     situationLabel: {
       color: withAlpha(theme.onGradient, 0.6),
@@ -93,48 +128,6 @@ export function createTinderSwipeGameStyles({ theme }: TinderSwipeGameStylesPara
       fontWeight: fontWeights.semibold,
       textAlign: 'center',
       lineHeight: 28,
-      marginBottom: spacing.xxl,
-    },
-    divider: {
-      height: 1,
-      backgroundColor: withAlpha(theme.onGradient, 0.1),
-      marginVertical: spacing.lg,
-    },
-    optionsContainer: {
-      gap: spacing.md,
-    },
-    leftOptionBox: {
-      backgroundColor: withAlpha(theme.error, 0.15),
-      borderRadius: radius.md,
-      padding: spacing.md,
-      borderWidth: 1,
-      borderColor: withAlpha(theme.error, 0.3),
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-    },
-    rightOptionBox: {
-      backgroundColor: withAlpha(theme.success, 0.15),
-      borderRadius: radius.md,
-      padding: spacing.md,
-      borderWidth: 1,
-      borderColor: withAlpha(theme.success, 0.3),
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-    },
-    optionEmoji: {
-      fontSize: 16,
-    },
-    leftOptionText: {
-      color: colorPalettes.red[300],
-      fontSize: fontSizes.md,
-      flex: 1,
-    },
-    rightOptionText: {
-      color: colorPalettes.emerald[300],
-      fontSize: fontSizes.md,
-      flex: 1,
     },
     likeBadge: {
       position: 'absolute',
@@ -145,6 +138,7 @@ export function createTinderSwipeGameStyles({ theme }: TinderSwipeGameStylesPara
       borderRadius: radius.sm,
       borderWidth: 2,
       borderColor: theme.success,
+      backgroundColor: theme.surface,
       transform: [{ rotate: '15deg' }],
     },
     nopeBadge: {
@@ -156,16 +150,11 @@ export function createTinderSwipeGameStyles({ theme }: TinderSwipeGameStylesPara
       borderRadius: radius.sm,
       borderWidth: 2,
       borderColor: theme.error,
+      backgroundColor: theme.surface,
       transform: [{ rotate: '-15deg' }],
     },
-    likeText: {
-      color: theme.success,
-      fontSize: fontSizes.xl,
-      fontWeight: fontWeights.bold,
-    },
-    nopeText: {
-      color: theme.error,
-      fontSize: fontSizes.xl,
+    swipeFeedbackText: {
+      fontSize: fontSizes.md,
       fontWeight: fontWeights.bold,
     },
     buttonsContainer: {
@@ -190,11 +179,28 @@ export function createTinderSwipeGameStyles({ theme }: TinderSwipeGameStylesPara
       alignItems: 'center',
       justifyContent: 'center',
     },
+    footerRow: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: spacing.md,
+    },
+    progressCaption: {
+      color: theme.textMuted,
+      fontSize: fontSizes.sm,
+    },
+    hintLink: {
+      color: theme.accent,
+      fontSize: fontSizes.sm,
+      fontWeight: fontWeights.semibold,
+      textDecorationLine: 'underline',
+    },
     hintText: {
       color: theme.textMuted,
       fontSize: fontSizes.sm,
       textAlign: 'center',
       fontStyle: 'italic',
+      marginTop: spacing.sm,
     },
   });
 }

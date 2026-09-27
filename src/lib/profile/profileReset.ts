@@ -8,23 +8,22 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  getPeriodRepository,
-  getPetProgressRepository,
+  getAdventureRepository,
   getPetRepository,
   getProfileRepository,
   getSavingsRepository,
   getTransactionRepository,
 } from '@/data/local/repositories';
 import { STARTING_SAVINGS_BALANCE, STARTING_WALLET_BALANCE } from '@/domain/profile/Profile';
+import { useDailyStore } from '@/lib/hooks/useDaily';
 import { useLessonsStore } from '@/lib/hooks/useLessons';
 import { STARTER_FURNITURE_ITEM_IDS, useShopStore } from '@/lib/hooks/useShop';
 import { clearPin } from '@/lib/security/parentalPin';
 import { useAchievementsStore } from '@/lib/stores/achievementsStore';
+import { useAdventureStore } from '@/lib/stores/adventureStore';
 import { useAiChatStore } from '@/lib/stores/aiChatStore';
 import { useGiftsStore } from '@/lib/stores/giftsStore';
 import { useLifetimeStatsStore } from '@/lib/stores/lifetimeStatsStore';
-import { usePeriodStore } from '@/lib/stores/periodStore';
-import { usePetProgressStore } from '@/lib/stores/petProgressStore';
 import { usePetStore } from '@/lib/stores/petStore';
 import { usePreferencesStore } from '@/lib/stores/preferencesStore';
 import { useSavingsStore } from '@/lib/stores/savingsStore';
@@ -33,7 +32,7 @@ import { useUserStore } from '@/lib/stores/userStore';
 /**
  * §17.2 «Сброс профиля» / §18.2 «Сбросить демо» — одна и та же операция:
  * профиль (имя, питомец, тип) остаётся, экономика и прогресс возвращаются
- * к исходному состоянию онбординга (§4.4 — 50⭐ в кошелёк + 50⭐ в накопления).
+ * к исходному состоянию онбординга (§4.4 — 50 монет в кошелёк + 50 в накопления).
  */
 export async function resetProfileToInitialState(): Promise<void> {
   const { user } = useUserStore.getState();
@@ -44,16 +43,11 @@ export async function resetProfileToInitialState(): Promise<void> {
 
   await getTransactionRepository().clearForProfile(profileId);
   await getProfileRepository().updateBalance(profileId, STARTING_WALLET_BALANCE);
-  await getPeriodRepository().deleteAllForProfile(profileId);
+  await getAdventureRepository().deleteAllForProfile(profileId);
 
   const pet = await getPetRepository().getByProfileId(profileId);
   if (pet) {
     await getPetRepository().updateMood(pet.id, 100, now);
-  }
-
-  const progress = await getPetProgressRepository().getByProfileId(profileId);
-  if (progress) {
-    await getPetProgressRepository().update(progress.id, 0, 1);
   }
 
   const savings = await getSavingsRepository().getByProfileId(profileId);
@@ -64,6 +58,7 @@ export async function resetProfileToInitialState(): Promise<void> {
       currentAmount: STARTING_SAVINGS_BALANCE,
       targetItemId: null,
       periodsSinceWithdrawal: 0,
+      withdrawalCredit: 0,
     });
     await getSavingsRepository().addTransaction({
       savingsId: savings.id,
@@ -91,11 +86,12 @@ export async function resetProfileToInitialState(): Promise<void> {
   useAchievementsStore.getState().resetAll();
   useAiChatStore.getState().clearHistory();
   useLifetimeStatsStore.getState().reset();
+  resetDailyStreak();
 
-  // Синхронизация в памяти. periodStore/petProgressStore/savingsStore не
-  // перезагружаются отсюда напрямую — они обнуляются, а хаб сам подхватит
-  // null через уже существующие loadOrStart*/loadOrCreate-эффекты (тот же
-  // путь, что срабатывает при обычном запуске приложения).
+  // Синхронизация в памяти. adventureStore/savingsStore перечитываются из
+  // SQLite прямо здесь: хаб грузит их однократно (ref-guard) и, оставаясь
+  // смонтированным под разделом для взрослого, сам бы их не перезагрузил —
+  // банк показывал бы пустоту до перезапуска (например, после включения демо).
   useUserStore.getState().setUser({ ...user, liquid_balance: STARTING_WALLET_BALANCE });
   if (pet) {
     usePetStore.getState().setPet({
@@ -108,9 +104,24 @@ export async function resetProfileToInitialState(): Promise<void> {
   }
   usePetStore.getState().setMoodBuffs(0);
   usePetStore.getState().setMoodMaxBonus(0);
-  usePeriodStore.getState().reset();
-  usePetProgressStore.getState().reset();
+  useAdventureStore.getState().reset();
   useSavingsStore.getState().reset();
+  await useAdventureStore.getState().loadCurrent(profileId);
+  await useSavingsStore.getState().loadOrCreate(profileId);
+}
+
+/**
+ * Ежедневный стрик — тоже игровой прогресс. Сбрасываем и в памяти: после
+ * AsyncStorage.clear() persist-стор иначе записал бы старый стрик обратно, и
+ * следующий ребёнок на устройстве получил бы чужую серию и «награда уже получена».
+ */
+function resetDailyStreak(): void {
+  useDailyStore.setState({
+    currentStreak: 0,
+    lastClaimDate: null,
+    totalClaimed: 0,
+    hasClaimedToday: false,
+  });
 }
 
 /**
@@ -128,8 +139,7 @@ export async function deleteProfileCompletely(): Promise<void> {
 
   useUserStore.getState().reset();
   usePetStore.getState().reset();
-  usePeriodStore.getState().reset();
-  usePetProgressStore.getState().reset();
+  useAdventureStore.getState().reset();
   useSavingsStore.getState().reset();
   useLessonsStore.getState().resetProgress();
   useShopStore.getState().resetInventory();
@@ -138,6 +148,7 @@ export async function deleteProfileCompletely(): Promise<void> {
   useAiChatStore.getState().clearHistory();
   useLifetimeStatsStore.getState().reset();
   usePreferencesStore.getState().resetPreferences();
+  resetDailyStreak();
 }
 
 /** §18.3 — активация демо-режима доступна только из раздела для взрослого. */

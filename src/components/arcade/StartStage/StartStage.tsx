@@ -1,18 +1,19 @@
 // src/components/arcade/StartStage/StartStage.tsx
-// Этап 1 Аркады — стартовый экран с описанием раунда
+// Этап 1 Аркады — стартовый экран с описанием раунда выбранной мини-игры
 
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
+import { CoinAmount } from '@/components/shared';
 import { ScreenFooter } from '@/components/ui';
 import { ARCADE_ENERGY_COST } from '@/constants/gameplay';
-import { TrainerSession } from '@/domain/arcade/TrainerSelection';
-import { formatCoins } from '@/lib/utils/formatters';
+import { TrainerSession, trainerRoundLength } from '@/domain/arcade/TrainerSelection';
 import { useResponsive, useTheme } from '@/theme';
 import { spacing } from '@/theme/tokens';
 import { COINS_PER_CORRECT } from '../arcadeConstants';
+import { ARCADE_GAME_META } from '../arcadeGames';
 import { createStartStageStyles } from './StartStage.styles';
 
 export function StartStage({
@@ -27,6 +28,8 @@ export function StartStage({
   const { theme } = useTheme();
   const { scale, scaledFont } = useResponsive();
   const styles = createStartStageStyles({ theme });
+  const meta = ARCADE_GAME_META[session.minigameType];
+  const total = trainerRoundLength(session);
 
   return (
     <Animated.View entering={FadeIn.duration(300)} style={styles.startContainer}>
@@ -44,35 +47,30 @@ export function StartStage({
                 },
               ]}
             >
-              <Ionicons
-                name={session.minigameType === 'quiz' ? 'help-circle' : 'swap-horizontal'}
-                size={scale(56)}
-                color={theme.primary}
-              />
+              <Ionicons name={meta.icon} size={scale(56)} color={theme.primary} />
             </View>
 
-            <Text style={[styles.startTitle, { fontSize: scaledFont('title') }]}>{branchName}</Text>
+            <Text style={[styles.startTitle, { fontSize: scaledFont('title') }]}>{meta.title}</Text>
 
             <View style={styles.startBadge}>
               <Text style={[styles.startBadgeText, { fontSize: scaledFont('sm') }]}>
-                Случайная тема • Стоимость: {ARCADE_ENERGY_COST}⚡ за игру
+                {branchName} • {session.countsAsQuest ? 'Задание приключения' : 'Тренировка'} •{' '}
+                {ARCADE_ENERGY_COST}⚡
               </Text>
             </View>
 
             <Text style={[styles.startDescription, { fontSize: scaledFont('md') }]}>
-              {session.minigameType === 'quiz'
-                ? 'Отвечайте на вопросы и получайте монеты!'
-                : 'Свайпайте карточки и получайте монеты!'}
+              {meta.description}
             </Text>
           </View>
 
           <View style={styles.statsCard}>
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
-                <Text style={[styles.statLabel, { fontSize: scaledFont('sm') }]}>Вопросов</Text>
-                <Text style={[styles.statValue, { fontSize: scaledFont('xxl') }]}>
-                  {session.questions.length}
+                <Text style={[styles.statLabel, { fontSize: scaledFont('sm') }]}>
+                  {meta.countLabel}
                 </Text>
+                <Text style={[styles.statValue, { fontSize: scaledFont('xxl') }]}>{total}</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
@@ -86,15 +84,11 @@ export function StartStage({
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
                 <Text style={[styles.statLabel, { fontSize: scaledFont('sm') }]}>Максимум</Text>
-                <Text
-                  style={[
-                    styles.statValue,
-                    styles.statValueSuccess,
-                    { fontSize: scaledFont('xxl') },
-                  ]}
-                >
-                  {formatCoins(session.questions.length * COINS_PER_CORRECT)}
-                </Text>
+                <CoinAmount
+                  amount={total * COINS_PER_CORRECT}
+                  fontSize={scaledFont('xxl')}
+                  textStyle={[styles.statValue, styles.statValueSuccess]}
+                />
               </View>
             </View>
           </View>

@@ -1,52 +1,58 @@
 // src/components/savings/GoalPickerModal/GoalPickerModal.tsx
-// Модалка выбора цели накопления — список товаров из каталога магазина.
+// Выбор цели накопления в «Копилке» — те же карточки, что и «Выбери первую
+// цель» в онбординге (GoalOptionCard). Копить можно только на улучшения
+// ноутбука, копилки и кровати (решение пользователя 27.09.2026).
 
-import { Ionicons } from '@expo/vector-icons';
 import { FlatList, Modal, Text, TouchableOpacity, View } from 'react-native';
 
-import { SHOP_CATALOG, ShopItem } from '@/lib/hooks/useShop';
-import { formatCoins } from '@/lib/utils/formatters';
+import { ShopItem } from '@/lib/hooks/useShop';
+import { getSavingsGoalItems } from '@/lib/savings/goalOptions';
 import { useResponsive, useTheme } from '@/theme';
+import { GoalOptionCard } from '../GoalOptionCard';
 import { createGoalPickerModalStyles } from './GoalPickerModal.styles';
 
 export function GoalPickerModal({
   visible,
   onClose,
   onPick,
+  selectedId,
 }: {
   visible: boolean;
   onClose: () => void;
   onPick: (item: ShopItem) => void;
+  /** Текущая цель — отмечена галочкой. */
+  selectedId?: number | null;
 }) {
   const { theme } = useTheme();
-  const { scale, scaledFont } = useResponsive();
+  const { scaledFont } = useResponsive();
   const styles = createGoalPickerModalStyles({ theme });
+  const goals = getSavingsGoalItems();
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
         <TouchableOpacity
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+          style={styles.backdrop}
           onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Закрыть выбор цели"
         />
         <View style={styles.modalContent}>
-          <Text style={[styles.modalTitle, { fontSize: scaledFont('xl') }]}>Выберите цель</Text>
+          <Text style={[styles.modalTitle, { fontSize: scaledFont('xl') }]}>Выбери цель</Text>
+          <Text style={[styles.modalSubtitle, { fontSize: scaledFont('md') }]}>
+            Копить можно на улучшения ноутбука, копилки и кровати — у них есть бонусы. Когда
+            накопишь, вещь появится в комнате.
+          </Text>
           <FlatList
-            data={SHOP_CATALOG}
+            data={goals}
             keyExtractor={(item) => String(item.id)}
+            contentContainerStyle={styles.list}
             renderItem={({ item }) => (
-              <TouchableOpacity onPress={() => onPick(item)} style={styles.goalItemRow}>
-                <Text style={styles.goalItemIcon}>{item.icon}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.goalItemName, { fontSize: scaledFont('md') }]}>
-                    {item.name}
-                  </Text>
-                  <Text style={[styles.goalItemPrice, { fontSize: scaledFont('sm') }]}>
-                    {formatCoins(item.price)}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={scale(18)} color={theme.textMuted} />
-              </TouchableOpacity>
+              <GoalOptionCard
+                item={item}
+                selected={item.id === selectedId}
+                onPress={() => onPick(item)}
+              />
             )}
           />
         </View>

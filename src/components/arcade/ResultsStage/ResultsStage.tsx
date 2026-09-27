@@ -7,7 +7,7 @@ import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { ScreenFooter } from '@/components/ui';
-import { formatCoins } from '@/lib/utils/formatters';
+import { formatPrice } from '@/lib/utils/formatters';
 import { useResponsive, useTheme } from '@/theme';
 import { withAlpha } from '@/theme/colorUtils';
 import { colorPalettes, emojiSizes, spacing } from '@/theme/tokens';
@@ -58,7 +58,7 @@ export function ResultsStage({
                 ? 'Отличная игра!'
                 : accuracy >= 50
                   ? 'Хороший результат!'
-                  : 'Продолжайте практиковаться!'}
+                  : 'Продолжай тренироваться!'}
             </Text>
 
             <Text style={[styles.resultsSubtitle, { fontSize: scaledFont('md') }]}>
@@ -90,13 +90,12 @@ export function ResultsStage({
 
             <View style={styles.coinsEarnedBox}>
               <View style={styles.coinsEarnedLeft}>
-                <Ionicons name="wallet" size={scale(24)} color={theme.coins} />
                 <Text style={[styles.coinsEarnedLabel, { fontSize: scaledFont('lg') }]}>
                   Заработано
                 </Text>
               </View>
               <Text style={[styles.coinsEarnedValue, { fontSize: scaledFont('xxl') }]}>
-                +{formatCoins(coinsEarned)}
+                +{formatPrice(coinsEarned)}
               </Text>
             </View>
           </View>

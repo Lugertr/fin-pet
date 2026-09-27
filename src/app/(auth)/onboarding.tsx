@@ -1,5 +1,9 @@
-// Онбординг: интро, объяснение решений, выбор и настройка питомца, выбор
-// направления, стартовый капитал (6 шагов, с адаптивностью)
+// Онбординг (10 шагов): интро, объяснение решений, выбор и настройка
+// питомца, «Дом и приключения», тур по комнате (3 шага: деньги и энергия,
+// куда нажимать, цели и бонусы — по макетам 27.09.2026; «Пропустить» ведёт
+// к выбору цели), «Выбери первую цель» и в конце — стартовый капитал. Выбор направления обучения
+// убран отсюда — теперь он часть планирования «Приключения»
+// (см. (modal)/adventure-planning.tsx), а не разового выбора на старте.
 //
 // Шаги живут в src/components/onboarding/ — этот файл отвечает только за
 // пошаговое состояние, общий футер навигации (точки-пагинация + кнопки) и
@@ -15,15 +19,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { v4 as uuidv4 } from 'uuid';
 
 import {
-  getSkinsForPetType,
+  OnboardingRoomTour,
   PetType,
+  RoomTourStage,
   Step1Intro,
   Step2Decisions,
   Step3PetType,
   Step4PetCustomize,
-  Step5BranchChoice,
   Step6Reward,
+  StepFirstGoal,
+  StepHomeAndAdventure,
 } from '@/components/onboarding';
+import { HelpButton } from '@/components/shared';
 import { IconButton } from '@/components/ui';
 import { describeDatabaseError, getDatabase } from '@/data/local/database';
 import {
@@ -40,6 +47,8 @@ import { PetRecord } from '@/domain/repositories/PetRepository';
 import { BASE_SAVINGS_BONUS_RATE, SavingsRecord } from '@/domain/savings/Savings';
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { STARTER_FURNITURE_ITEM_IDS, useShopStore } from '@/lib/hooks/useShop';
+import { getSkinsForPetType } from '@/lib/pet/petSkin';
+import { getFirstGoalOptions } from '@/lib/savings/goalOptions';
 import { usePetStore } from '@/lib/stores/petStore';
 import { usePreferencesStore } from '@/lib/stores/preferencesStore';
 import { useUserStore } from '@/lib/stores/userStore';
@@ -49,9 +58,17 @@ import { useResponsive, useTheme } from '@/theme';
 import { circleRadius, colorPalettes, spacing } from '@/theme/tokens';
 import { createOnboardingStepsStyles } from '@/components/onboarding/onboardingSteps.styles';
 
-type Step = 1 | 2 | 3 | 4 | 5 | 6;
-const TOTAL_STEPS = 6;
-const STEPS: Step[] = [1, 2, 3, 4, 5, 6];
+type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
+const TOTAL_STEPS = 10;
+const STEPS: Step[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+/** Шаг «Выбери первую цель» — сюда же ведёт «Пропустить» в туре. */
+const FIRST_GOAL_STEP: Step = 9;
+/** Шаги тура по комнате — свой полноэкранный вид вместо обычного шага. */
+const TOUR_STAGES: Partial<Record<Step, RoomTourStage>> = {
+  6: 'money',
+  7: 'navigation',
+  8: 'goals',
+};
 
 export default function OnboardingScreen() {
   const router = useRouter();
@@ -63,7 +80,6 @@ export default function OnboardingScreen() {
   const setUser = useUserStore((s) => s.setUser);
   const setOnboarded = useUserStore((s) => s.setOnboarded);
   const setPet = usePetStore((s) => s.setPet);
-  const setPriorityBranches = usePreferencesStore((s) => s.setPriorityBranches);
   const setPetType = usePreferencesStore((s) => s.setPetType);
   const setPetName = usePreferencesStore((s) => s.setPetName);
   const completeOnboarding = usePreferencesStore((s) => s.completeOnboarding);
@@ -76,17 +92,13 @@ export default function OnboardingScreen() {
   const [petType, setPetTypeLocal] = useState<PetType>('robot');
   const [colorVariant, setColorVariant] = useState(0);
   const [petNameLocal, setPetNameLocal] = useState('');
-  const [selectedBranch, setSelectedBranch] = useState<number | null>(null);
+  // Первая цель накопления — по умолчанию ближайшее улучшение ноутбука (первая карточка).
+  const [goalId, setGoalId] = useState<number | null>(() => getFirstGoalOptions()[0]?.id ?? null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const backgroundGradient: [string, string] = isDark
     ? [theme.background, theme.surfaceLight]
     : [theme.background, colorPalettes.indigo[50]];
-
-  const handleSelectBranch = (branchId: number) => {
-    triggerHaptic('selection');
-    setSelectedBranch(branchId);
-  };
 
   const handleNextStep = () => {
     triggerHaptic('light');
@@ -103,9 +115,9 @@ export default function OnboardingScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!petNameLocal.trim() || selectedBranch === null) {
+    if (!petNameLocal.trim()) {
       trigger('error');
-      Alert.alert('Ошибка', 'Заполните все поля и выберите направление');
+      Alert.alert('Ошибка', 'Заполните все поля');
       return;
     }
 
@@ -148,9 +160,11 @@ export default function OnboardingScreen() {
         });
 
         savingsRecord = await getSavingsRepository().create(userId, BASE_SAVINGS_BONUS_RATE);
+        // Первая цель из онбординга — стартовые монеты банка сразу копятся на неё.
         await getSavingsRepository().update({
           ...savingsRecord,
           currentAmount: STARTING_SAVINGS_BALANCE,
+          targetItemId: goalId,
         });
         await getSavingsRepository().addTransaction({
           savingsId: savingsRecord.id,
@@ -177,8 +191,8 @@ export default function OnboardingScreen() {
       });
       setOnboarded(true);
 
-      // Выбранный на шаге 4 скин достаётся бесплатно (variant 0 «Классический»
-      // встроен и не требует владения — только 1/2 проходят через инвентарь).
+      // Выбранный на шаге 4 облик (любой из трёх, в том числе классический)
+      // кладётся в инвентарь; два остальных придут на уровнях 2 и 3.
       const chosenSkin = getSkinsForPetType(petType).find((s) => s.variant === colorVariant);
       if (chosenSkin?.itemId !== null && chosenSkin?.itemId !== undefined) {
         useShopStore.getState().addItem(chosenSkin.itemId, 1);
@@ -192,7 +206,6 @@ export default function OnboardingScreen() {
         useShopStore.getState().equipFurniture(itemId);
       });
 
-      setPriorityBranches([selectedBranch]);
       setPetType(petType);
       setPetName(petNameLocal.trim());
       completeOnboarding();
@@ -207,11 +220,29 @@ export default function OnboardingScreen() {
     }
   };
 
-  const canProceed =
-    step === 4 ? petNameLocal.trim().length >= 2 : step === 5 ? selectedBranch !== null : true;
+  const canProceed = step === 4 ? petNameLocal.trim().length >= 2 : true;
 
   const isLastStep = step === TOTAL_STEPS;
+  const tourStage = TOUR_STAGES[step];
   const nextButtonLabel = isLastStep ? (isSubmitting ? 'Создаём...' : 'Скорее в хаб! →') : 'Дальше';
+
+  if (tourStage) {
+    return (
+      <OnboardingRoomTour
+        stage={tourStage}
+        stepNumber={step}
+        totalSteps={TOTAL_STEPS}
+        petType={petType}
+        petName={petNameLocal.trim() || 'Питомец'}
+        skinVariant={colorVariant}
+        onNext={handleNextStep}
+        onSkip={() => {
+          triggerHaptic('light');
+          setStep(FIRST_GOAL_STEP);
+        }}
+      />
+    );
+  }
 
   return (
     <LinearGradient
@@ -227,8 +258,15 @@ export default function OnboardingScreen() {
           а не условно — иначе сама зона меняла бы высоту при появлении кнопки. */}
       <View style={styles.header}>
         <View style={step > 1 ? styles.backButtonVisible : styles.backButtonHidden}>
-          <IconButton icon="chevron-back" onPress={handlePrevStep} variant="outlined" />
+          <IconButton
+            icon="chevron-back"
+            onPress={handlePrevStep}
+            variant="outlined"
+            accessibilityLabel="Назад"
+          />
         </View>
+        {/* Подсказка — на всех шагах (у каждого экрана детского приложения есть «?»). */}
+        <HelpButton screen="onboarding" />
       </View>
 
       <View style={styles.scrollArea}>
@@ -237,7 +275,7 @@ export default function OnboardingScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.contentColumn}>
+          <View style={[styles.contentColumn, step === 3 && styles.contentColumnWide]}>
             {step === 1 && <Step1Intro />}
             {step === 2 && <Step2Decisions />}
             {step === 3 && <Step3PetType petType={petType} onChangePetType={setPetTypeLocal} />}
@@ -250,13 +288,9 @@ export default function OnboardingScreen() {
                 onChangePetName={setPetNameLocal}
               />
             )}
-            {step === 5 && (
-              <Step5BranchChoice
-                selectedBranch={selectedBranch}
-                onSelectBranch={handleSelectBranch}
-              />
-            )}
-            {step === 6 && <Step6Reward />}
+            {step === 5 && <StepHomeAndAdventure petType={petType} skinVariant={colorVariant} />}
+            {step === FIRST_GOAL_STEP && <StepFirstGoal goalId={goalId} onChangeGoal={setGoalId} />}
+            {step === 10 && <Step6Reward />}
           </View>
         </ScrollView>
       </View>

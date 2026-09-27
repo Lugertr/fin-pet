@@ -18,7 +18,6 @@ import { getLocalContentRepository } from '@/data/content';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { useGiftsStore } from './giftsStore';
 import { useUserStore } from './userStore';
 
 export const ACHIEVEMENTS: AchievementDefinition[] =
@@ -53,7 +52,14 @@ function recomputeAll(stats: AchievementStats, current: Record<number, UserAchie
     const prev = next[def.id] ?? createEmptyUserAchievement(def.id);
     if (prev.isCompleted) continue; // §2 «прогресс не теряется» — не пересчитываем уже выполненное
     const progress = computeAchievementProgress(def, stats);
-    next[def.id] = { ...prev, progress, isCompleted: progress >= 100 };
+    const isCompleted = progress >= 100;
+    next[def.id] = {
+      ...prev,
+      progress,
+      isCompleted,
+      // Дата открытия — для подписи «открыто на этой неделе» (экран достижений).
+      completedAt: isCompleted ? new Date().toISOString() : null,
+    };
   }
   return next;
 }
@@ -131,20 +137,9 @@ export const useAchievementsStore = create<AchievementsState>()(
         if (!status.isCompleted) return { success: false, message: 'Условие ещё не выполнено' };
         if (status.isClaimed) return { success: false, message: 'Награда уже забрана' };
 
-        if (def.reward_type === 'coins') {
-          useUserStore
-            .getState()
-            .recordTransaction(def.reward_amount, 'achievement_reward', `Достижение: ${def.name}`);
-        } else {
-          // §14.1 «Достижение — по правилу конкретного достижения»
-          if (def.gift_mode === 'guaranteed_choice') {
-            useGiftsStore
-              .getState()
-              .addGuaranteedChoiceGift('achievement', def.gift_options_count ?? 2, null, def.name);
-          } else {
-            useGiftsStore.getState().addRandomGift('achievement', null, def.name);
-          }
-        }
+        useUserStore
+          .getState()
+          .recordTransaction(def.reward_amount, 'achievement_reward', `Достижение: ${def.name}`);
 
         set({
           userAchievements: {

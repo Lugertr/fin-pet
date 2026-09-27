@@ -4,12 +4,12 @@
 import { PetType } from '@/constants/petAssets';
 import { PetSpecies } from './Pet';
 import { RobotPet } from './species/RobotPet';
-import { DragonPet } from './species/DragonPet';
+import { BearPet } from './species/BearPet';
 import { CatPet } from './species/CatPet';
 
 const REGISTRY: Record<PetType, PetSpecies> = {
   robot: new RobotPet(),
-  dragon: new DragonPet(),
+  bear: new BearPet(),
   cat: new CatPet(),
 };
 

@@ -5,9 +5,10 @@ import { getLocalContentRepository } from '@/data/content';
 import { ItemContent } from '@/domain/content/ItemContent';
 import { getSlotsForCategory } from '@/domain/room/RoomSlot';
 import { useAchievementsStore } from '@/lib/stores/achievementsStore';
-import { usePeriodStore } from '@/lib/stores/periodStore';
 import { usePetStore } from '@/lib/stores/petStore';
 import { useUserStore } from '@/lib/stores/userStore';
+import { formatPrice } from '@/lib/utils/formatters';
+import { isPetHungry } from '@/lib/utils/moodCalculator';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
@@ -16,6 +17,29 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 export type ShopItem = ItemContent;
 
 export const SHOP_CATALOG: ShopItem[] = getLocalContentRepository().getItemsSync();
+
+/**
+ * Еда — вынужденная мера (решение пользователя 27.09.2026, §6.4): купить и
+ * съесть её можно, только когда питомец голоден (энергия < 30). Вместе с ценой
+ * не ниже 10 монет за 1⚡ (content/items.json) это закрывает фарм «еда →
+ * энергия → Аркада» (Аркада даёт максимум 10 монет за 1⚡).
+ */
+export const FOOD_ONLY_WHEN_HUNGRY_MESSAGE =
+  'Питомец пока не голоден. Еда нужна, когда энергия падает ниже 30⚡ — а пока она восстанавливается сама.';
+
+/**
+ * Скины — не товар (решение пользователя 27.09.2026): новый облик питомец
+ * получает только на новом уровне (LOOK_REWARD_LEVELS). Не покупаются, не
+ * продаются, не выпадают в подарках и событиях.
+ */
+export const SKIN_NOT_FOR_SALE_MESSAGE =
+  'Облик питомца не продаётся — новый облик приходит сам на новом уровне.';
+
+/** Голоден ли питомец прямо сейчас — от актуальной, а не устаревшей энергии. */
+export function isPetHungryNow(): boolean {
+  usePetStore.getState().refreshMood();
+  return isPetHungry(usePetStore.getState().currentMood);
+}
 
 /** 6 фиксированных мест в комнате питомца (см. PetRoom.tsx) — на каждом
  * всегда что-то стоит, начиная со стартового предмета этой же категории.
@@ -104,7 +128,13 @@ export const useShopStore = create<ShopState>()(
           return { success: false, message: 'Этот предмет можно получить только в подарок' };
         }
         if (item.is_starter) {
-          return { success: false, message: 'Этот предмет уже есть у вас по умолчанию' };
+          return { success: false, message: 'Этот предмет уже есть у тебя с самого начала' };
+        }
+        if (item.category === 'skin') {
+          return { success: false, message: SKIN_NOT_FOR_SALE_MESSAGE };
+        }
+        if (item.category === 'food' && !isPetHungryNow()) {
+          return { success: false, message: FOOD_ONLY_WHEN_HUNGRY_MESSAGE };
         }
 
         const { user } = useUserStore.getState();
@@ -117,13 +147,15 @@ export const useShopStore = create<ShopState>()(
           return { success: false, message: 'Недостаточно монет' };
         }
 
-        // Списываем монеты и пишем транзакцию в леджер
-        useUserStore
+        // Списываем монеты и пишем транзакцию в леджер. Магазин — контур хаба:
+        // в бюджет и факт приключения покупки не пишутся (у приключения свой
+        // бюджет, его тратят события, см. adventureStore).
+        const charged = useUserStore
           .getState()
           .recordTransaction(-totalCost, 'purchase', `Покупка: ${item.name} x${quantity}`);
-
-        // §7.3/§12.2: обязательное/желаемое — по expense_type товара, не по категории
-        usePeriodStore.getState().recordFact(item.expense_type, totalCost);
+        if (!charged) {
+          return { success: false, message: 'Недостаточно монет' };
+        }
 
         get().addItem(itemId, quantity);
 
@@ -140,6 +172,9 @@ export const useShopStore = create<ShopState>()(
         }
         if (item.is_starter) {
           return { success: false, message: 'Базовый предмет нельзя продать' };
+        }
+        if (item.category === 'skin') {
+          return { success: false, message: SKIN_NOT_FOR_SALE_MESSAGE };
         }
 
         const { ownedItems, placedDecor, equippedFurniture } = get();
@@ -196,7 +231,10 @@ export const useShopStore = create<ShopState>()(
           .getState()
           .recordTransaction(refund, 'item_sale', `Продажа: ${item.name} x${quantity}`);
 
-        return { success: true, message: `Продано: ${item.name} x${quantity} за ${refund}⭐` };
+        return {
+          success: true,
+          message: `Продано: ${item.name} x${quantity} за ${formatPrice(refund)}`,
+        };
       },
 
       addItem: (itemId, quantity = 1) => {
@@ -208,9 +246,17 @@ export const useShopStore = create<ShopState>()(
 
         set({ ownedItems: { ...ownedItems, [itemId]: currentQuantity + quantity } });
 
-        // АВТО-РАЗМЕЩЕНИЕ декора при первом получении
+        // АВТО-РАЗМЕЩЕНИЕ/АВТОНАДЕВАНИЕ: любой полученный декор/мебельный
+        // предмет сразу занимает своё место — не только покупка, но и
+        // подарок/награда (пользовательское правило поверх §13). Скины сюда
+        // не входят: их экипировка (equipSkin, lib/pet/petSkin.ts) пишет в
+        // SQLite-профиль и импортирует этот стор — вызов отсюда был бы циклом
+        // импортов, поэтому вызывающая сторона (онбординг/уровень/подарок)
+        // экипирует скин сама, уже после addItem.
         if (item.category === 'decor' && findPlacedSlot(get().placedDecor, itemId) === null) {
           get().placeDecor(itemId);
+        } else if (FURNITURE_CATEGORIES.includes(item.category as FurnitureCategory)) {
+          get().equipFurniture(itemId);
         }
 
         // §15.2 «Коллекционер» — считаем только скрытые предметы (получены из подарков)
@@ -233,6 +279,9 @@ export const useShopStore = create<ShopState>()(
         const owned = ownedItems[itemId] || 0;
         if (owned < 1) {
           return { success: false, message: 'Этого предмета нет в инвентаре' };
+        }
+        if (!isPetHungryNow()) {
+          return { success: false, message: FOOD_ONLY_WHEN_HUNGRY_MESSAGE };
         }
 
         const newOwnedItems = { ...ownedItems };

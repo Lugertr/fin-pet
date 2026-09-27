@@ -5,7 +5,6 @@
 
 export const BASE_SAVINGS_BONUS_RATE = 1; // §11.4 «фиксированное небольшое значение»
 export const GOAL_COMPLETION_BONUS_PERCENT = 10; // §11.5 «+10% цены предмета»
-export const HOLDING_STREAK_PERIODS = 3; // §11.5 «3 периода без снятия»
 
 export type SavingsOperationType = 'deposit' | 'withdraw' | 'bonus' | 'reward';
 
@@ -16,6 +15,9 @@ export interface SavingsRecord {
   bonusRate: number;
   targetItemId: number | null;
   periodsSinceWithdrawal: number;
+  /** Сколько монет снято из банка и ещё не возвращено — на их возврат бонус не
+   * начисляется (см. computeDepositBonus). */
+  withdrawalCredit: number;
 }
 
 export interface SavingsTransactionRecord {
@@ -28,7 +30,22 @@ export interface SavingsTransactionRecord {
   createdAt: string;
 }
 
-/** §11.4: bonus = floor(current_amount * bonus_rate / 100), считается на новую сумму при взаимодействии. */
-export function computeInteractionBonus(amountAfterDeposit: number, bonusRate: number): number {
-  return Math.floor((amountAfterDeposit * bonusRate) / 100);
+/**
+ * §11.4: бонус только за НОВЫЕ деньги. Пополнение сначала «гасит» ранее снятое
+ * (withdrawalCredit) — возврат своих же монет бонуса не даёт; на остаток —
+ * bonus = floor(new × bonus_rate / 100). Раньше бонус считался от всей суммы
+ * накоплений при каждом пополнении: пополнения по 1 монете (или «снял —
+ * положил обратно») давали бесконечный доход.
+ */
+export function computeDepositBonus(
+  depositAmount: number,
+  withdrawalCredit: number,
+  bonusRate: number
+): { bonus: number; creditLeft: number } {
+  const returned = Math.min(depositAmount, withdrawalCredit);
+  const newMoney = depositAmount - returned;
+  return {
+    bonus: Math.floor((newMoney * bonusRate) / 100),
+    creditLeft: withdrawalCredit - returned,
+  };
 }

@@ -10,30 +10,44 @@
 // не потребует менять ничего, кроме этого файла.
 
 import { AchievementDefinition } from '@/domain/achievement/Achievement';
+import { AdventureEventTemplate } from '@/domain/adventure/AdventureEvent';
 import { AiStubContent } from '@/domain/ai/AiAssistant';
 import {
+  ArcadeSwipeCardsContent,
   BranchContent,
   FiveLettersWordContent,
-  GiftPathNodeContent,
   LessonContent,
 } from '@/domain/content/LessonContent';
 import { ItemContent } from '@/domain/content/ItemContent';
+import {
+  DocumentContent,
+  GlossaryTermContent,
+  ScreenHelpContent,
+} from '@/domain/content/ReferenceContent';
 import { ContentRepository } from '@/domain/repositories/ContentRepository';
 import achievementsJson from '../../../content/achievements.json';
+import adventureEventsJson from '../../../content/adventure_events.json';
+import arcadeSwipeCardsJson from '../../../content/arcade_swipe_cards.json';
 import aiStubResponsesJson from '../../../content/ai_stub_responses.json';
 import branchesJson from '../../../content/branches.json';
+import documentsJson from '../../../content/documents.json';
 import fiveLettersWordsJson from '../../../content/five_letters_words.json';
-import giftPathNodesJson from '../../../content/giftPathNodes.json';
+import glossaryJson from '../../../content/glossary.json';
 import itemsJson from '../../../content/items.json';
 import lessonsJson from '../../../content/lessons.json';
+import screenHelpJson from '../../../content/screen_help.json';
 
 const BRANCHES_CONTENT = branchesJson as BranchContent[];
 const LESSONS_CONTENT = lessonsJson as LessonContent[];
 const ITEMS_CONTENT = itemsJson as ItemContent[];
 const ACHIEVEMENTS_CONTENT = achievementsJson as AchievementDefinition[];
 const AI_STUB_CONTENT = aiStubResponsesJson as AiStubContent;
-const GIFT_PATH_NODES_CONTENT = giftPathNodesJson as GiftPathNodeContent[];
 const FIVE_LETTERS_WORDS_CONTENT = fiveLettersWordsJson as FiveLettersWordContent[];
+const ADVENTURE_EVENTS_CONTENT = adventureEventsJson as AdventureEventTemplate[];
+const GLOSSARY_CONTENT = glossaryJson as GlossaryTermContent[];
+const SCREEN_HELP_CONTENT = screenHelpJson as ScreenHelpContent[];
+const ARCADE_SWIPE_CARDS_CONTENT = arcadeSwipeCardsJson as ArcadeSwipeCardsContent[];
+const DOCUMENTS_CONTENT = documentsJson as DocumentContent[];
 
 export class LocalJsonContentRepository implements ContentRepository {
   async getBranches(): Promise<BranchContent[]> {
@@ -56,12 +70,28 @@ export class LocalJsonContentRepository implements ContentRepository {
     return this.getAiStubContentSync();
   }
 
-  async getGiftPathNodes(): Promise<GiftPathNodeContent[]> {
-    return this.getGiftPathNodesSync();
-  }
-
   async getFiveLettersWords(): Promise<FiveLettersWordContent[]> {
     return this.getFiveLettersWordsSync();
+  }
+
+  async getAdventureEvents(): Promise<AdventureEventTemplate[]> {
+    return this.getAdventureEventsSync();
+  }
+
+  async getGlossary(): Promise<GlossaryTermContent[]> {
+    return this.getGlossarySync();
+  }
+
+  async getScreenHelp(): Promise<ScreenHelpContent[]> {
+    return this.getScreenHelpSync();
+  }
+
+  async getArcadeSwipeCards(): Promise<ArcadeSwipeCardsContent[]> {
+    return this.getArcadeSwipeCardsSync();
+  }
+
+  async getDocuments(): Promise<DocumentContent[]> {
+    return this.getDocumentsSync();
   }
 
   // Синхронные геттеры — контент локальный и уже забандлен, никакого ввода-вывода
@@ -89,11 +119,27 @@ export class LocalJsonContentRepository implements ContentRepository {
     return AI_STUB_CONTENT;
   }
 
-  getGiftPathNodesSync(): GiftPathNodeContent[] {
-    return GIFT_PATH_NODES_CONTENT;
-  }
-
   getFiveLettersWordsSync(): FiveLettersWordContent[] {
     return FIVE_LETTERS_WORDS_CONTENT;
+  }
+
+  getAdventureEventsSync(): AdventureEventTemplate[] {
+    return ADVENTURE_EVENTS_CONTENT;
+  }
+
+  getGlossarySync(): GlossaryTermContent[] {
+    return GLOSSARY_CONTENT;
+  }
+
+  getScreenHelpSync(): ScreenHelpContent[] {
+    return SCREEN_HELP_CONTENT;
+  }
+
+  getArcadeSwipeCardsSync(): ArcadeSwipeCardsContent[] {
+    return ARCADE_SWIPE_CARDS_CONTENT;
+  }
+
+  getDocumentsSync(): DocumentContent[] {
+    return DOCUMENTS_CONTENT;
   }
 }

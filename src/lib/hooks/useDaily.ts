@@ -19,15 +19,20 @@ interface DailyState {
 }
 
 // Бонусы за каждый день стрика
-const DAILY_REWARDS = [
+export const DAILY_REWARDS = [
   50, // День 1
   75, // День 2
   100, // День 3
   125, // День 4
   150, // День 5
   200, // День 6
-  500, // День 7 (супер-кейс)
+  200, // День 7 — плюс скромный подарок (решение 27.09.2026: без «супер-кейса»)
 ];
+
+/** Сколько монет даст день стрика N (1..): цикл по DAILY_REWARDS после 7-го дня. */
+export function dailyRewardForDay(day: number): number {
+  return DAILY_REWARDS[(Math.max(1, day) - 1) % DAILY_REWARDS.length];
+}
 
 export const useDailyStore = create<DailyState>()(
   persist(
@@ -63,8 +68,7 @@ export const useDailyStore = create<DailyState>()(
         newStreak += 1;
 
         // Получаем бонус (циклически, если стрик больше 7 дней)
-        const rewardIndex = (newStreak - 1) % DAILY_REWARDS.length;
-        const bonus = DAILY_REWARDS[rewardIndex];
+        const bonus = dailyRewardForDay(newStreak);
 
         set({
           currentStreak: newStreak,

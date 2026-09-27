@@ -86,7 +86,7 @@ export type ThemeName = 'light' | 'dark';
 export const lightTheme: Theme = {
   name: 'light',
 
-  primary: colorPalettes.emerald[500],
+  primary: colorPalettes.indigo[500],
   accent: colorPalettes.indigo[500],
   accentLight: colorPalettes.indigo[300],
 
@@ -120,27 +120,34 @@ export const lightTheme: Theme = {
   onWarning: '#000000',
 
   gradients: {
-    primary: [colorPalettes.emerald[500], colorPalettes.cyan[500]],
+    primary: [colorPalettes.indigo[500], colorPalettes.indigo[600]],
     accent: [colorPalettes.indigo[500], colorPalettes.indigo[600]],
     reward: [colorPalettes.amber[400], colorPalettes.orange[500]],
-    header: [colorPalettes.emerald[600], colorPalettes.cyan[600]],
+    header: [colorPalettes.indigo[600], colorPalettes.indigo[700]],
   },
 };
 
 /**
  * Тёмная тема (основная)
  */
+// Тёмная тема — тёмно-синяя (навигационная гамма), а не нейтрально-серая:
+// 3 беспоук-оттенка синего вместо slate[900/800/700], в остальном та же
+// структура значений (кто с кем совпадает), что была на slate — см. ниже.
+const navyBackground = '#0A1628'; // было slate[900]
+const navySurface = '#122344'; // было slate[800] (= surface/surfaceElevated/borderLight)
+const navySurfaceLight = '#1C2F52'; // было slate[700] (= surfaceLight/border/divider)
+
 export const darkTheme: Theme = {
   name: 'dark',
 
-  primary: colorPalettes.emerald[500],
+  primary: colorPalettes.indigo[500],
   accent: colorPalettes.indigo[400],
   accentLight: colorPalettes.indigo[300],
 
-  background: colorPalettes.slate[900],
-  surface: colorPalettes.slate[800],
-  surfaceLight: colorPalettes.slate[700],
-  surfaceElevated: colorPalettes.slate[800],
+  background: navyBackground,
+  surface: navySurface,
+  surfaceLight: navySurfaceLight,
+  surfaceElevated: navySurface,
 
   textPrimary: '#FFFFFF',
   textSecondary: colorPalettes.slate[400],
@@ -157,9 +164,9 @@ export const darkTheme: Theme = {
   rarityEpic: colorPalettes.violet[400],
   rarityLegendary: colorPalettes.amber[400],
 
-  border: colorPalettes.slate[700],
-  borderLight: colorPalettes.slate[800],
-  divider: colorPalettes.slate[700],
+  border: navySurfaceLight,
+  borderLight: navySurface,
+  divider: navySurfaceLight,
 
   overlay: 'rgba(0, 0, 0, 0.7)',
 
@@ -167,10 +174,10 @@ export const darkTheme: Theme = {
   onWarning: '#000000',
 
   gradients: {
-    primary: [colorPalettes.emerald[600], colorPalettes.cyan[600]],
+    primary: [colorPalettes.indigo[600], colorPalettes.indigo[700]],
     accent: [colorPalettes.indigo[600], colorPalettes.indigo[700]],
     reward: [colorPalettes.amber[500], colorPalettes.orange[600]],
-    header: [colorPalettes.slate[800], colorPalettes.slate[900]],
+    header: [colorPalettes.indigo[900], navyBackground],
   },
 };
 

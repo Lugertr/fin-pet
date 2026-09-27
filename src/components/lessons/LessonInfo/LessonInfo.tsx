@@ -33,7 +33,9 @@ export function LessonInfo({
           fontSize: scaledFont('sm'),
           textAlign: align,
         }}
-        numberOfLines={3}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.7}
       >
         {lesson.title}
       </Text>

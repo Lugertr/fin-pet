@@ -14,17 +14,16 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 
-import { PetAvatarBubble } from '@/components/pet';
+import { HelpButton } from '@/components/shared';
 import { IconButton } from '@/components/ui';
 import {
   ArithmeticChallenge,
   generateArithmeticChallenge,
 } from '@/domain/parentalGate/ParentalGate';
+import type { IconName } from '@/types/icons';
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { setPin as savePin, verifyPin } from '@/lib/security/parentalPin';
-import { usePreferencesStore } from '@/lib/stores/preferencesStore';
 import { useResponsive, useTheme } from '@/theme';
-import { ADULT_SECTION_HEADER_GRADIENT } from '../adultSectionVisuals';
 import { ParentalGate } from '../ParentalGate';
 import { PinPad } from '../PinPad';
 import { createPinGateStyles } from './PinGate.styles';
@@ -39,26 +38,37 @@ type Mode =
 
 const COPY: Record<Mode, { title: string; subtitle: string }> = {
   'setup-enter': {
-    title: 'Придумайте PIN-код',
-    subtitle: 'Введите 4 цифры, чтобы защитить раздел для взрослых',
+    title: 'Придумай PIN-код',
+    subtitle: 'Введи 4 цифры, чтобы защитить раздел для взрослых',
   },
   'setup-confirm': {
-    title: 'Повторите PIN-код',
-    subtitle: 'Введите те же 4 цифры ещё раз',
+    title: 'Повтори PIN-код',
+    subtitle: 'Введи те же 4 цифры ещё раз',
   },
   entry: {
-    title: 'Вход для родителей',
-    subtitle: 'Введите 4-значный PIN-код для доступа',
+    title: 'Раздел для взрослых',
+    subtitle: 'Введи PIN-код из четырёх цифр, который ты задал при первом входе.',
   },
   'recovery-arithmetic': { title: '', subtitle: '' }, // рендерится отдельно, через ParentalGate
   'recovery-set-enter': {
     title: 'Новый PIN-код',
-    subtitle: 'Придумайте новый 4-значный код',
+    subtitle: 'Придумай новый 4-значный код',
   },
   'recovery-set-confirm': {
-    title: 'Повторите новый PIN-код',
-    subtitle: 'Введите те же 4 цифры ещё раз',
+    title: 'Повтори новый PIN-код',
+    subtitle: 'Введи те же 4 цифры ещё раз',
   },
+};
+
+/** Открытый замок при входе (разблокировать), закрытый — когда PIN только
+ * создаётся/меняется (setup/recovery-set). */
+const BADGE_ICON_BY_MODE: Record<Mode, IconName> = {
+  'setup-enter': 'lock-closed',
+  'setup-confirm': 'lock-closed',
+  entry: 'lock-open',
+  'recovery-arithmetic': 'lock-closed',
+  'recovery-set-enter': 'lock-closed',
+  'recovery-set-confirm': 'lock-closed',
 };
 
 export function PinGate({
@@ -73,7 +83,6 @@ export function PinGate({
   const { theme } = useTheme();
   const { scale, scaledFont } = useResponsive();
   const { triggerHaptic } = useFeedback();
-  const petType = usePreferencesStore((s) => s.petType);
   const styles = createPinGateStyles({ theme });
 
   const [mode, setMode] = useState<Mode>(initialMode === 'setup' ? 'setup-enter' : 'entry');
@@ -219,28 +228,23 @@ export function PinGate({
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={ADULT_SECTION_HEADER_GRADIENT}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.header}
-      >
+      <View style={styles.header}>
         <View style={styles.headerTopRow}>
-          <IconButton icon="arrow-back" onPress={onBack} variant="onGradient" />
-          <Text style={[styles.headerTitle, { fontSize: scaledFont('xl') }]}>Для взрослых</Text>
-          <View style={{ width: scale(36) }} />
+          <IconButton icon="arrow-back" onPress={onBack} variant="surface" />
+          <Text style={[styles.headerTitle, { fontSize: scaledFont('xl') }]}>Родителям</Text>
+          <HelpButton screen="parents" />
         </View>
-      </LinearGradient>
+      </View>
 
       <View style={styles.content}>
-        <View style={styles.avatarWrap}>
-          <PetAvatarBubble petType={petType} emotion="question" size={88} />
-        </View>
-
-        <View style={styles.badge}>
-          <Ionicons name="lock-closed" size={scale(12)} color={theme.textSecondary} />
-          <Text style={styles.badgeText}>РОДИТЕЛЬСКИЙ КОНТРОЛЬ</Text>
-        </View>
+        <LinearGradient
+          colors={theme.gradients.accent}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.iconBadge}
+        >
+          <Ionicons name={BADGE_ICON_BY_MODE[mode]} size={scale(36)} color={theme.onGradient} />
+        </LinearGradient>
 
         <Text style={[styles.title, { fontSize: scaledFont('xl') }]}>{title}</Text>
         <Text style={[styles.subtitle, { fontSize: scaledFont('md') }]}>{subtitle}</Text>

@@ -1,8 +1,8 @@
 // domain/content/LessonContent.ts
 // Форма данных, как она лежит в content/*.json (§25 ТЗ — контент отделён от UI).
 
-/** Иконка+короткая подпись под вариантом ответа в сетке квиза. Опционально —
- * при отсутствии UI показывает дефолтную иконку-букву, без подписи. */
+/** Иконка+короткая подпись под вариантом ответа в квизе. Опционально — при
+ * отсутствии UI показывает дефолтную иконку-букву, без подписи. */
 export interface QuestionOptionDetail {
   icon?: string;
   sublabel?: string;
@@ -16,6 +16,12 @@ export interface QuestionContent {
   question_type: 'minigame' | 'test';
   /** Тот же порядок/длина, что options. */
   optionDetails?: QuestionOptionDetail[];
+  /** Только для minigame_type: 'tinder_swipe' — текст баннера обратной связи
+   * после свайпа («Рискованно: …» / «Безопасно: …», см. TinderSwipeGame). */
+  explanation?: string;
+  /** Только для minigame_type: 'tinder_swipe' — текст под ссылкой «Подсказка»
+   * (см. TinderSwipeGame); ссылка не показывается, если поле не задано. */
+  hint?: string;
 }
 
 export interface TheoryCardContent {
@@ -36,6 +42,19 @@ export interface FiveLettersWordContent {
   /** Ровно 5 кириллических букв, заглавные. */
   word: string;
   hint: string;
+  /** Темы (ветки), к которым относится слово, — для «5 букв» в Аркаде
+   * приключения. Уроки берут слово из всего банка без учёта этого поля. */
+  branch_ids?: number[];
+}
+
+/**
+ * Карточки свайпов для Аркады приключения по теме (content/arcade_swipe_cards.json).
+ * Дополняют свайп-вопросы уроков: у большинства тем уроков со свайпами нет,
+ * а в Аркаде по теме приключения доступны все мини-игры.
+ */
+export interface ArcadeSwipeCardsContent {
+  branch_id: number;
+  cards: QuestionContent[];
 }
 
 export interface LessonContent {
@@ -53,12 +72,4 @@ export interface BranchContent {
   id: number;
   name: string;
   description: string;
-}
-
-/** Узел-подарок в дорожке уроков (§14 — переиспользует систему подарков). */
-export interface GiftPathNodeContent {
-  id: string;
-  branch_id: number;
-  /** Вставляется в дорожку сразу после урока с этим order_index в той же ветке. */
-  after_order_index: number;
 }

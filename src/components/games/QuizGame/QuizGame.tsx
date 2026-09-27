@@ -1,10 +1,15 @@
 // src/components/games/QuizGame/QuizGame.tsx
-// Мини-игра «Викторина» — выбор правильного ответа
+// Мини-игра «Викторина/Тест» — список карточек-вариантов, тап сразу проверяет
+// ответ. Единственный квиз-компонент в приложении (см. историю: раньше был
+// ещё QuizGridGame — сетка 2×2 с отдельной кнопкой «Проверить» для TestStep,
+// удалена как чистое дублирование одного и того же question/onAnswer
+// контракта; optionDetails перенесены сюда).
 
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 
+import { QuestionOptionDetail } from '@/domain/content/LessonContent';
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { useResponsive, useTheme } from '@/theme';
 import { withAlpha } from '@/theme/colorUtils';
@@ -14,6 +19,9 @@ interface QuizGameProps {
   question: string;
   options: string[];
   correctAnswer: string;
+  /** Тот же порядок/длина, что options — иконка+подпись под вариантом вместо
+   * дефолтной буквы (см. domain/content/LessonContent.ts). */
+  optionDetails?: QuestionOptionDetail[];
   onAnswer: (answer: string, isCorrect: boolean) => void;
   disabled?: boolean;
 }
@@ -22,6 +30,7 @@ export function QuizGame({
   question,
   options,
   correctAnswer,
+  optionDetails,
   onAnswer,
   disabled = false,
 }: QuizGameProps) {
@@ -62,57 +71,7 @@ export function QuizGame({
 
   return (
     <View style={styles.container}>
-      {/* Вопрос */}
-      <View style={styles.questionCard}>
-        <Text style={styles.questionText}>{question}</Text>
-      </View>
-
-      {/* Варианты ответов */}
-      <View style={styles.optionsContainer}>
-        {options.map((option, index) => {
-          const state = getOptionState(option);
-          const colors = getOptionColors(theme, state);
-
-          return (
-            <TouchableOpacity
-              key={index}
-              onPress={() => handleSelect(option)}
-              disabled={disabled || selectedAnswer !== null}
-              activeOpacity={0.7}
-              style={[
-                styles.optionButton,
-                {
-                  backgroundColor: colors.bg,
-                  borderColor: colors.border,
-                  opacity: colors.opacity,
-                },
-              ]}
-            >
-              {/* Буква варианта */}
-              <View style={styles.optionLetterCircle}>
-                <Text style={styles.optionLetterText}>{String.fromCharCode(65 + index)}</Text>
-              </View>
-
-              {/* Текст варианта */}
-              <Text style={styles.optionText}>{option}</Text>
-
-              {/* Иконка результата */}
-              {showResult && state === 'correct' && (
-                <View style={[styles.optionIconContainer, { backgroundColor: theme.success }]}>
-                  <Ionicons name="checkmark" size={scale(16)} color={theme.onGradient} />
-                </View>
-              )}
-              {showResult && state === 'selectedWrong' && (
-                <View style={[styles.optionIconContainer, { backgroundColor: theme.error }]}>
-                  <Ionicons name="close" size={scale(16)} color={theme.onGradient} />
-                </View>
-              )}
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {/* Результат */}
+      {/* Результат — над вопросом, а не под вариантами (см. референс дизайна) */}
       {showResult && (
         <View
           style={[
@@ -135,10 +94,66 @@ export function QuizGame({
               },
             ]}
           >
-            {isCorrectSelection ? '🎉 Правильно!' : '😔 Неправильно. Можно попробовать ещё раз'}
+            {isCorrectSelection ? '🎉 Верно!' : `😔 Неверно. Правильный ответ: ${correctAnswer}`}
           </Text>
         </View>
       )}
+
+      {/* Вопрос */}
+      <View style={styles.questionCard}>
+        <Text style={styles.questionText}>{question}</Text>
+      </View>
+
+      {/* Варианты ответов */}
+      <View style={styles.optionsContainer}>
+        {options.map((option, index) => {
+          const state = getOptionState(option);
+          const colors = getOptionColors(theme, state);
+          const detail = optionDetails?.[index];
+
+          return (
+            <TouchableOpacity
+              key={index}
+              onPress={() => handleSelect(option)}
+              disabled={disabled || selectedAnswer !== null}
+              activeOpacity={0.7}
+              style={[
+                styles.optionButton,
+                {
+                  backgroundColor: colors.bg,
+                  borderColor: colors.border,
+                  opacity: colors.opacity,
+                },
+              ]}
+            >
+              {/* Иконка/буква варианта */}
+              <View style={styles.optionLetterCircle}>
+                <Text style={styles.optionLetterText}>
+                  {detail?.icon ?? String.fromCharCode(65 + index)}
+                </Text>
+              </View>
+
+              {/* Текст варианта (+ доп. подпись, если задана в контенте) */}
+              <View style={styles.optionTextColumn}>
+                <Text style={styles.optionText}>{option}</Text>
+                {detail?.sublabel && <Text style={styles.optionSublabel}>{detail.sublabel}</Text>}
+              </View>
+
+              {/* Иконка результата */}
+              {showResult && state === 'correct' && (
+                <View style={[styles.optionIconContainer, { backgroundColor: theme.success }]}>
+                  <Ionicons name="checkmark" size={scale(16)} color={theme.onGradient} />
+                </View>
+              )}
+              {showResult && state === 'selectedWrong' && (
+                <View style={[styles.optionIconContainer, { backgroundColor: theme.error }]}>
+                  <Ionicons name="close" size={scale(16)} color={theme.onGradient} />
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     </View>
   );
 }

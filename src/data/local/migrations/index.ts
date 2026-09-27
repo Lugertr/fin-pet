@@ -106,4 +106,76 @@ export const MIGRATIONS: Migration[] = [
       CREATE INDEX IF NOT EXISTS idx_savings_transactions_savings_id ON savings_transactions(savings_id, created_at);
     `,
   },
+  {
+    version: 5,
+    sql: `
+      CREATE TABLE IF NOT EXISTS adventures (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        profile_id TEXT NOT NULL REFERENCES profiles(id),
+        adventure_number INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'planning',
+        branch_id INTEGER,
+        projected_income INTEGER NOT NULL DEFAULT 0,
+        plan_mandatory INTEGER NOT NULL DEFAULT 0,
+        plan_optional INTEGER NOT NULL DEFAULT 0,
+        plan_savings INTEGER NOT NULL DEFAULT 0,
+        fact_mandatory INTEGER NOT NULL DEFAULT 0,
+        fact_optional INTEGER NOT NULL DEFAULT 0,
+        fact_savings INTEGER NOT NULL DEFAULT 0,
+        started_at TEXT,
+        planned_end_at TEXT,
+        completed_at TEXT,
+        time_adjustment_ms INTEGER NOT NULL DEFAULT 0,
+        quests_completed INTEGER NOT NULL DEFAULT 0,
+        xp_awarded INTEGER,
+        created_at TEXT NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_adventures_profile_id ON adventures(profile_id, adventure_number);
+    `,
+  },
+  {
+    version: 6,
+    sql: `
+      ALTER TABLE adventures ADD COLUMN pending_event_template_id TEXT;
+      ALTER TABLE adventures ADD COLUMN pending_event_rolled_at TEXT;
+      ALTER TABLE adventures ADD COLUMN next_event_check_at TEXT;
+
+      CREATE TABLE IF NOT EXISTS adventure_event_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        adventure_id INTEGER NOT NULL REFERENCES adventures(id),
+        template_id TEXT NOT NULL,
+        option_id TEXT NOT NULL,
+        category TEXT,
+        coin_amount INTEGER NOT NULL DEFAULT 0,
+        time_delta_ms INTEGER NOT NULL DEFAULT 0,
+        resolved_at TEXT NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_adventure_event_log_adventure_id ON adventure_event_log(adventure_id);
+    `,
+  },
+  {
+    version: 7,
+    // Финальная зачистка «переосмысления в Приключение» (см. память проекта):
+    // periods (§7, GamePeriod) и pet_progress (§8, стадии роста) полностью
+    // заменены таблицей adventures и системой уровней (PlayerLevel.ts) —
+    // обе таблицы никогда не читаются и не пишутся кодом после Этапа 20.
+    sql: `
+      DROP TABLE IF EXISTS periods;
+      DROP TABLE IF EXISTS pet_progress;
+    `,
+  },
+  {
+    version: 8,
+    // Два денежных контура (решение пользователя 27.09.2026): у приключения
+    // свой бюджет (adventures.budget — доход приключения и расходы событий,
+    // остаток в конце уходит в хаб), а банк хаба помнит снятое и не
+    // возвращённое (savings.withdrawal_credit) — бонус только за новые деньги.
+    // Уже идущим приключениям бюджет 0: их доход уже был зачислен в кошелёк хаба.
+    sql: `
+      ALTER TABLE savings ADD COLUMN withdrawal_credit INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE adventures ADD COLUMN budget INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
 ];

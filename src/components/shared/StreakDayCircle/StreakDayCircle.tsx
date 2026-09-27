@@ -1,7 +1,6 @@
 // src/components/shared/StreakDayCircle/StreakDayCircle.tsx
-// Один день недельного стрика (кружок с числом/галочкой/подарком) — раньше
-// эта логика (и её цветовые обходы темы) была продублирована в
-// StreakCalendar (профиль) и DailyRewardCard (хаб) почти дословно.
+// Один день недельного стрика (кружок с числом/галочкой/подарком) — сейчас
+// используется в модалке ежедневной награды (components/hub/DailyRewardModal).
 
 import { Ionicons } from '@expo/vector-icons';
 import { Text, View } from 'react-native';

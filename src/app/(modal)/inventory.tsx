@@ -15,10 +15,10 @@ import {
   ItemDetailModal,
   OwnedItem,
 } from '@/components/inventory';
+import { CoinAmount, HelpButton } from '@/components/shared';
 import { CategoryTabs, IconButton } from '@/components/ui';
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { useShopStore } from '@/lib/hooks/useShop';
-import { formatCoins } from '@/lib/utils/formatters';
 import { itemMatchesCategoryFilter } from '@/lib/utils/itemCategories';
 import { useResponsive, useTheme } from '@/theme';
 import { colorPalettes, emojiSizes, spacing } from '@/theme/tokens';
@@ -75,7 +75,7 @@ export default function InventoryScreen() {
         <View style={styles.headerTopRow}>
           <IconButton icon="arrow-back" onPress={() => router.back()} variant="onGradient" />
           <Text style={[styles.headerTitle, { fontSize: scaledFont('xl') }]}>Инвентарь</Text>
-          <View style={{ width: scale(36) }} />
+          <HelpButton screen="inventory" variant="onGradient" />
         </View>
 
         {/* Статистика */}
@@ -85,9 +85,11 @@ export default function InventoryScreen() {
             <Text style={[styles.statLabel, { fontSize: scaledFont('xs') }]}>Предметов</Text>
           </View>
           <View style={[styles.statTile, { padding: scale(spacing.md) }]}>
-            <Text style={[styles.statValue, styles.statValueCoins, { fontSize: scaledFont('lg') }]}>
-              {formatCoins(totalValue)}
-            </Text>
+            <CoinAmount
+              amount={totalValue}
+              fontSize={scaledFont('lg')}
+              textStyle={[styles.statValue, styles.statValueCoins]}
+            />
             <Text style={[styles.statLabel, { fontSize: scaledFont('xs') }]}>Стоимость</Text>
           </View>
           <View style={[styles.statTile, { padding: scale(spacing.md) }]}>

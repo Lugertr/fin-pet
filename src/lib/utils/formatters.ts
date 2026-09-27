@@ -4,11 +4,30 @@
 import { MOOD_BONUS_THRESHOLD } from '@/constants/gameplay';
 import type { Theme } from '@/theme';
 
+/** Число с разделителями разрядов: 1250 -> "1 250". */
+export function formatNumber(amount: number): string {
+  return amount.toLocaleString('ru-RU');
+}
+
+/** Знак валюты в интерфейсе (решение пользователя 27.09.2026): «80 C». */
+export const COIN_SYMBOL = 'C';
+
 /**
- * Форматирование монет: 1250 -> "1,250 C"
+ * Сумма для показа на экране — везде, где видна цена/сумма (шапка, магазин,
+ * план/факт, награды, итоги, тексты алертов): 1250 -> "1 250 C".
+ * Неразрывный пробел — чтобы «C» не переносился на новую строку отдельно.
+ */
+export function formatPrice(amount: number): string {
+  return `${formatNumber(amount)} ${COIN_SYMBOL}`;
+}
+
+/**
+ * Монеты словом — только для подписей скринридера (accessibilityLabel):
+ * 1 -> "1 монета", 3 -> "3 монеты", 1250 -> "1 250 монет". Буква «C» вслух
+ * читается непонятно, поэтому на экране — formatPrice, а голосом — словом.
  */
 export function formatCoins(amount: number): string {
-  return `${amount.toLocaleString('ru-RU')} C`;
+  return `${formatNumber(amount)} ${pluralize(Math.abs(amount), 'монета', 'монеты', 'монет')}`;
 }
 
 /**

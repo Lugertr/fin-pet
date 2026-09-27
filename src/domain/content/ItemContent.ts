@@ -45,7 +45,7 @@ export interface ItemContent {
   /** Только для category === 'decor' — какой слот комнаты подходит (§13.1). */
   slot_category?: 'wall' | 'furniture_large' | 'floor' | 'furniture_small' | 'accessory';
   /** Только для category === 'skin' — какому типу питомца подходит скин. */
-  pet_type?: 'robot' | 'dragon' | 'cat';
+  pet_type?: 'robot' | 'bear' | 'cat';
   /** Индекс визуального варианта товара — общий для всех категорий с
    * несколькими вариантами арта (см. PetRoom.tsx, getBodyAsset).
    * Для category === 'skin': 0 — встроенный «Классический» (без товарной

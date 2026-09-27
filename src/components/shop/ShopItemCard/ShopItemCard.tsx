@@ -3,9 +3,9 @@
 
 import { Text, TouchableOpacity, View } from 'react-native';
 
+import { CoinAmount, ItemImage } from '@/components/shared';
 import { Badge, Card } from '@/components/ui';
 import { ShopItem } from '@/lib/hooks/useShop';
-import { formatCoins } from '@/lib/utils/formatters';
 import { getEffectDescription } from '@/lib/utils/shopItems';
 import { useResponsive, useTheme } from '@/theme';
 import { radius, spacing } from '@/theme/tokens';
@@ -29,7 +29,7 @@ export function ShopItemCard({
 
   return (
     <Card padding="md" style={styles.itemCardRow}>
-      {/* Иконка товара */}
+      {/* Настоящий облик товара (арт мебели/фона), для еды — эмодзи */}
       <View
         style={[
           styles.itemIconBox,
@@ -41,7 +41,7 @@ export function ShopItemCard({
           },
         ]}
       >
-        <Text style={{ fontSize: scaledFont('hero') }}>{item.icon}</Text>
+        <ItemImage item={item} size={scale(56)} />
       </View>
 
       {/* Информация */}
@@ -64,15 +64,15 @@ export function ShopItemCard({
 
       {/* Цена и кнопка */}
       <View style={styles.itemPriceContainer}>
-        <Text
-          style={[
+        <CoinAmount
+          amount={item.price}
+          fontSize={scaledFont('lg')}
+          style={{ marginBottom: scale(spacing.sm) }}
+          textStyle={[
             styles.itemPrice,
             canAfford ? styles.itemPriceAffordable : styles.itemPriceNotAffordable,
-            { fontSize: scaledFont('lg'), marginBottom: scale(spacing.sm) },
           ]}
-        >
-          {formatCoins(item.price)}
-        </Text>
+        />
         <TouchableOpacity
           onPress={onPurchase}
           disabled={!canAfford}

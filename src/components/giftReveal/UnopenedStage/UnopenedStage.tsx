@@ -32,7 +32,7 @@ export function UnopenedStage({
     <View style={{ flex: 1 }}>
       <View style={styles.unopenedScrollArea}>
         <ScrollView contentContainerStyle={styles.unopenedScrollContent}>
-          <Text style={[styles.title, { fontSize: scaledFont('title') }]}>Ваш подарок!</Text>
+          <Text style={[styles.title, { fontSize: scaledFont('title') }]}>Твой подарок!</Text>
           <Text style={[styles.subtitle, { fontSize: scaledFont('md') }]}>
             {gift.themeName ? `За «${gift.themeName}»` : 'Специальный подарок'}
           </Text>

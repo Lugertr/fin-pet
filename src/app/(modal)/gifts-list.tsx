@@ -7,11 +7,11 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
+import { CoinAmount, HelpButton } from '@/components/shared';
 import { HistoryGiftCard, PendingGiftCard } from '@/components/gifts';
 import { IconButton } from '@/components/ui';
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { useGifts } from '@/lib/stores/giftsStore';
-import { formatCoins } from '@/lib/utils/formatters';
 import { useResponsive, useTheme } from '@/theme';
 import { colorPalettes, emojiSizes, spacing } from '@/theme/tokens';
 import { createGiftsListStyles } from '../../styles/screens/modal/_gifts-list.styles';
@@ -51,7 +51,7 @@ export default function GiftsListScreen() {
         <View style={styles.headerTopRow}>
           <IconButton icon="arrow-back" onPress={() => router.back()} variant="onGradient" />
           <Text style={[styles.headerTitle, { fontSize: scaledFont('xl') }]}>Подарки</Text>
-          <View style={{ width: scale(36) }} />
+          <HelpButton screen="gifts" variant="onGradient" />
         </View>
 
         {/* Статистика */}
@@ -69,9 +69,11 @@ export default function GiftsListScreen() {
             <Text style={[styles.statLabel, { fontSize: scaledFont('xs') }]}>Открыто</Text>
           </View>
           <View style={[styles.statTile, { padding: scale(spacing.md) }]}>
-            <Text style={[styles.statValue, styles.statValueCoins, { fontSize: scaledFont('lg') }]}>
-              {formatCoins(totalCoinsFromGifts)}
-            </Text>
+            <CoinAmount
+              amount={totalCoinsFromGifts}
+              fontSize={scaledFont('lg')}
+              textStyle={[styles.statValue, styles.statValueCoins]}
+            />
             <Text style={[styles.statLabel, { fontSize: scaledFont('xs') }]}>Получено монет</Text>
           </View>
         </View>
@@ -147,7 +149,7 @@ export default function GiftsListScreen() {
                 Нет неоткрытых подарков
               </Text>
               <Text style={[styles.emptyText, { fontSize: scaledFont('md') }]}>
-                Проходите темы целиком, чтобы получать подарки!
+                Заходи к Финни 7 дней подряд — и получишь подарок!
               </Text>
             </View>
           ) : (

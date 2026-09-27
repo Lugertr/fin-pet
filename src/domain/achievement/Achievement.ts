@@ -6,6 +6,8 @@
 // gift_mode/gift_options_count — как именно вызвать giftsStore для reward_type
 // "gift" (§15.2 явно различает «гарантированный выбор» и «случайный»).
 
+import { format, isSameWeek } from 'date-fns';
+
 export type AchievementConditionType =
   | 'savings_deposit_count' // §15.2 «Первая копилка» — число пополнений накоплений
   | 'branch_complete' // §15.2 «Кибер-защитник» — конкретная ветка на 100%
@@ -17,7 +19,8 @@ export type AchievementConditionType =
   | 'shop_items_owned_count' // число предметов, купленных/полученных в магазин
   | 'all_branches_complete'; // все ветки компетенций пройдены на 100%
 
-export type AchievementRewardType = 'coins' | 'gift';
+/** Только монеты: подарки выдаются лишь за 7 дней подряд (решение 27.09.2026). */
+export type AchievementRewardType = 'coins';
 
 /** Статическое определение — живёт в content/achievements.json (§25 ТЗ), не в коде. */
 export interface AchievementDefinition {
@@ -30,12 +33,8 @@ export interface AchievementDefinition {
   /** Только для condition_type === 'branch_complete'. */
   target_branch_id?: number;
   reward_type: AchievementRewardType;
-  /** coins -> сумма монет; gift -> не используется (см. gift_mode/gift_options_count). */
+  /** Сумма монет награды. */
   reward_amount: number;
-  /** Только для reward_type === 'gift'. */
-  gift_mode?: 'guaranteed_choice' | 'random';
-  /** Только для gift_mode === 'guaranteed_choice'. */
-  gift_options_count?: number;
 }
 
 /** Пользовательский прогресс — по одному на достижение (§15.3 UserAchievement). */
@@ -44,6 +43,8 @@ export interface UserAchievementRecord {
   progress: number; // 0-100
   isCompleted: boolean;
   isClaimed: boolean;
+  /** Когда условие выполнено (ISO). Нет у записей, выполненных до появления поля. */
+  completedAt?: string | null;
 }
 
 /** Сырые счётчики, из которых считается прогресс — минимум, специфичный под условия §15.2. */
@@ -102,4 +103,18 @@ export function computeAchievementProgress(
 
 function clampPercent(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+/**
+ * Подпись открытого достижения: «открыто на этой неделе» / «открыто 12.09» /
+ * «открыто» (дата неизвестна — выполнено до появления поля completedAt).
+ */
+export function achievementUnlockedCaption(
+  completedAt: string | null | undefined,
+  now: Date
+): string {
+  if (!completedAt) return 'открыто';
+  const date = new Date(completedAt);
+  if (isSameWeek(date, now, { weekStartsOn: 1 })) return 'открыто на этой неделе';
+  return `открыто ${format(date, 'dd.MM')}`;
 }

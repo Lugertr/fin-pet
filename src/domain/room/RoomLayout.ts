@@ -5,26 +5,65 @@
 // КОНКРЕТНУЮ визуальную раскладку: где именно на экране комнаты стоит
 // каждый обязательный предмет (окно/копилка/ноутбук/кровать/ковёр/питомец).
 //
-// Все размеры/позиции — в процентах от реальных размеров комнаты (не
-// фиксированные px и не scale()) — так каждый предмет остаётся
-// пропорциональным независимо от того, насколько велика комната на
-// конкретном экране (см. PetRoom.tsx, который меряет комнату через onLayout).
+// Все позиции — в процентах от реальных размеров комнаты (не фиксированные
+// px и не scale()) — так каждый предмет остаётся пропорциональным независимо
+// от того, насколько велика комната на конкретном экране (см. PetRoom.tsx,
+// который меряет комнату через onLayout).
+//
+// У каждого места задан ТОЛЬКО width (% от ширины комнаты) — высота места не
+// хранится здесь, а считается в момент рендера из реального соотношения
+// сторон конкретного SVG (см. lib/utils/imageAspectRatio.ts), иначе при
+// несовпадении заданной высоты с реальной картинка обрезалась/растягивалась
+// бы (contentFit не спасает, если сама рамка места уже неправильных пропорций).
 //
 // Какая раскладка сейчас активна — определяется товаром category:'room' в
 // equippedFurniture (см. useShop.ts), а не выбором в настройках: раскладка —
 // это скин комнаты, покупается и надевается в Магазине/Инвентаре, как и
 // остальная мебель (см. ROOM_VARIANT_TO_LAYOUT_ID ниже).
 
+/** Размер всех фонов комнаты (room-background*.svg) — стандарт 1024×1792.
+ * Координаты предметов задаются в пикселях этого холста (см. fromBackgroundPx). */
+export const ROOM_BACKGROUND_SIZE = { width: 1024, height: 1792 } as const;
+
+/** Соотношение сторон фона комнаты (ширина / высота). */
+export const ROOM_ASPECT_RATIO = ROOM_BACKGROUND_SIZE.width / ROOM_BACKGROUND_SIZE.height;
+
 /** Прямоугольник одного места в комнате — ровно один вертикальный якорь
- * (top ИЛИ bottom) и один горизонтальный (left ИЛИ right), плюс размер.
- * width — % от ширины комнаты, height — % от высоты комнаты. */
+ * (top ИЛИ bottom) и один горизонтальный (left ИЛИ right), плюс ширина.
+ * width — % от ширины комнаты; height — % от высоты комнаты (если не задана,
+ * вычисляется из реальных пропорций ассета, см. roomBoxToStyle). */
 export interface RoomBox {
   top?: number;
   bottom?: number;
   left?: number;
   right?: number;
   width: number;
+  height?: number;
+}
+
+/**
+ * Место предмета по пикселям фона 1024×1792 (левый верхний угол + размер) —
+ * в проценты комнаты. Так раскладку можно брать прямо из макета.
+ */
+export function fromBackgroundPx(px: {
+  left: number;
+  top: number;
+  width: number;
   height: number;
+}): RoomBox {
+  const { width: W, height: H } = ROOM_BACKGROUND_SIZE;
+  return {
+    left: (px.left / W) * 100,
+    top: (px.top / H) * 100,
+    width: (px.width / W) * 100,
+    height: (px.height / H) * 100,
+  };
+}
+
+/** Правый край места в % от правого края комнаты (для подписей справа). */
+export function boxRight(box: RoomBox): number {
+  if (box.right !== undefined) return box.right;
+  return 100 - (box.left ?? 0) - box.width;
 }
 
 export interface RoomLayout {
@@ -41,39 +80,32 @@ export interface RoomLayout {
   pet: { bottom: number; sizePercent: number };
 }
 
+// Координаты предметов — по макету пользователя (27.09.2026), в пикселях фона
+// 1024×1792 (левый верхний угол + размер). Все фоны комнаты одного размера,
+// поэтому раскладка одна для всех (классическая и космическая комнаты).
 export const ROOM_LAYOUTS: Record<string, RoomLayout> = {
   classic: {
     id: 'classic',
     name: 'Классическая',
-    window: { top: 6, left: 8, width: 50, height: 40 },
-    piggybank: { top: 8, right: 8, width: 16, height: 13 },
-    laptop: { bottom: 10, left: 6, width: 18, height: 14 },
-    bed: { bottom: 10, right: 6, width: 18, height: 14 },
-    carpet: { bottom: 4, left: 27, width: 46, height: 16 },
-    pet: { bottom: 16, sizePercent: 32 },
-  },
-  alt: {
-    id: 'alt',
-    name: 'Уютная',
-    window: { top: 5, left: 30, width: 40, height: 32 },
-    piggybank: { bottom: 10, left: 6, width: 16, height: 13 },
-    laptop: { top: 8, right: 8, width: 18, height: 14 },
-    bed: { bottom: 10, right: 6, width: 18, height: 14 },
-    carpet: { bottom: 4, left: 22, width: 56, height: 18 },
-    pet: { bottom: 18, sizePercent: 30 },
+    window: fromBackgroundPx({ left: 255.11, top: 190.47, width: 681.6, height: 618.79 }),
+    laptop: fromBackgroundPx({ left: 28.55, top: 775.14, width: 300.06, height: 185.24 }),
+    // Кровать рисуется раньше питомца (см. PetRoom.tsx) — он стоит перед ней.
+    bed: fromBackgroundPx({ left: 464.6, top: 876.16, width: 533.29, height: 374.63 }),
+    piggybank: fromBackgroundPx({ left: 827.88, top: 1240.37, width: 183.64, height: 140.58 }),
+    carpet: fromBackgroundPx({ left: 54, top: 1267, width: 917.1, height: 423.56 }),
+    pet: { bottom: 20, sizePercent: 30 },
   },
 };
 
 export const DEFAULT_ROOM_LAYOUT_ID = 'classic';
 
 /** category:'room' в content/items.json (см. ItemContent.ts) — skin_variant
- * товара определяет, какая раскладка используется. 0 — «Классическая»
- * (стартовая, id 39), 1 — «Космическая комната» (покупная, id 40). Новый
- * скин комнаты переиспользует уже готовую раскладку «alt»/«Уютная» — меняется
- * только фон (см. ROOM_BACKGROUNDS в PetRoom.tsx), не расстановка. */
+ * товара определяет раскладку. Все фоны одного размера (1024×1792), поэтому
+ * и «Классическая» (id 39), и «Космическая» (id 40) комнаты используют одну
+ * раскладку — меняется только фон (ROOM_BACKGROUNDS, constants/itemAssets). */
 const ROOM_VARIANT_TO_LAYOUT_ID: Record<number, string> = {
   0: 'classic',
-  1: 'alt',
+  1: 'classic',
 };
 
 /** Раскладка по экипированному скину комнаты (см. equippedFurniture['room']
@@ -85,29 +117,45 @@ export function getRoomLayout(equippedRoomVariant: number): RoomLayout {
 }
 
 /** RN's DimensionValue ожидает именно шаблонный литерал `${number}%`, не
- * произвольную string — иначе TS ругается на присвоение в width/height/
- * top/bottom/left/right у View/Image/Animated.View стилей. */
+ * произвольную string — иначе TS ругается на присвоение в top/bottom/left/
+ * right у View/Image/Animated.View стилей. */
 type Percent = `${number}%`;
 const percent = (value: number): Percent => `${value}%`;
 
-/** RoomBox -> RN-стиль (position:absolute + %-якоря). Общий помощник, чтобы
- * не дублировать преобразование в каждом месте, где рендерится RoomBox. */
-export function roomBoxToStyle(box: RoomBox): {
+/**
+ * RoomBox -> RN-стиль: позиция — % (top/bottom/left/right) относительно
+ * комнаты, а ширина/высота — в пикселях: ширина из width%, высота из height%
+ * (от высоты комнаты), а если её нет — из реального aspectRatio ассета.
+ * Картинка внутри — contentFit="contain", поэтому не растягивается.
+ */
+export function roomBoxToStyle(
+  box: RoomBox,
+  roomWidthPx: number,
+  aspectRatio: number
+): {
   position: 'absolute';
   top?: Percent;
   bottom?: Percent;
   left?: Percent;
   right?: Percent;
-  width: Percent;
-  height: Percent;
+  width: number;
+  height: number;
 } {
+  const width = (roomWidthPx * box.width) / 100;
+  const roomHeightPx = roomWidthPx / ROOM_ASPECT_RATIO;
+  const height =
+    box.height !== undefined
+      ? (roomHeightPx * box.height) / 100
+      : aspectRatio > 0
+        ? width / aspectRatio
+        : width;
   return {
     position: 'absolute',
     ...(box.top !== undefined ? { top: percent(box.top) } : {}),
     ...(box.bottom !== undefined ? { bottom: percent(box.bottom) } : {}),
     ...(box.left !== undefined ? { left: percent(box.left) } : {}),
     ...(box.right !== undefined ? { right: percent(box.right) } : {}),
-    width: percent(box.width),
-    height: percent(box.height),
+    width,
+    height,
   };
 }

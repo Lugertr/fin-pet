@@ -1,1 +1,0 @@
-export { AllAchievementsModal } from './AllAchievementsModal';

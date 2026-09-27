@@ -2,7 +2,7 @@
 // Стили экрана PIN-гейта родительского раздела (setup/entry/recovery).
 
 import type { Theme } from '@/theme';
-import { fontSizes, fontWeights, radius, spacing } from '@/theme/tokens';
+import { fontSizes, fontWeights, radius, shadows, spacing } from '@/theme/tokens';
 import { StyleSheet } from 'react-native';
 
 interface PinGateStylesParams {
@@ -27,7 +27,7 @@ export function createPinGateStyles({ theme }: PinGateStylesParams) {
       marginBottom: spacing.md,
     },
     headerTitle: {
-      color: theme.onGradient,
+      color: theme.textPrimary,
       fontWeight: fontWeights.bold,
       fontSize: fontSizes.xl,
     },
@@ -37,24 +37,16 @@ export function createPinGateStyles({ theme }: PinGateStylesParams) {
       justifyContent: 'center',
       padding: spacing.xxl,
     },
-    avatarWrap: {
-      marginBottom: spacing.lg,
-    },
-    badge: {
-      flexDirection: 'row',
+    // Иконка-бейдж вместо аватара питомца — открытый/закрытый замок на
+    // фирменном градиенте (см. референс дизайна экрана PIN-кода).
+    iconBadge: {
+      width: 96,
+      height: 96,
+      borderRadius: radius.xl,
       alignItems: 'center',
-      gap: spacing.xs,
-      backgroundColor: theme.surfaceLight,
-      borderRadius: radius.full,
-      paddingVertical: spacing.xs,
-      paddingHorizontal: spacing.md,
+      justifyContent: 'center',
       marginBottom: spacing.lg,
-    },
-    badgeText: {
-      color: theme.textSecondary,
-      fontWeight: fontWeights.bold,
-      fontSize: fontSizes.xs,
-      letterSpacing: 0.5,
+      ...shadows.lg,
     },
     title: {
       color: theme.textPrimary,

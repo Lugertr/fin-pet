@@ -6,7 +6,7 @@ import { LessonStep } from './LessonStep';
 // §9.3 — награда (1-й раз) по типу шага
 export const LESSON_STEP_REWARDS = {
   theory: 10,
-  minigame: 25, // середина диапазона 20–30⭐
+  minigame: 25, // середина диапазона 20–30 монет
   test: 50,
 } as const;
 
@@ -71,7 +71,6 @@ export function buildLessonSteps(
     LESSON_STEP_REWARDS.test;
 
   steps.push({ type: 'reward', coins: totalCoins, reason: 'Урок пройден' });
-  steps.push({ type: 'resource_planning' });
 
   return steps;
 }

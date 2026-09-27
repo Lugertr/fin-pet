@@ -54,7 +54,7 @@ export const useAiChatStore = create<AiChatState>()(
         }
 
         const trimmed = question.trim();
-        if (!trimmed) return { success: false, message: 'Введите вопрос' };
+        if (!trimmed) return { success: false, message: 'Напиши вопрос' };
 
         const cost = get().getEnergyCost();
         // Энергия могла восстановиться со времени последнего refreshMood() — сверяемся со свежим значением
@@ -63,7 +63,7 @@ export const useAiChatStore = create<AiChatState>()(
         if (!canAffordEnergy(currentMood, cost)) {
           return {
             success: false,
-            message: `Не хватает энергии (нужно ${cost}⚡). Покормите питомца или подождите восстановления.`,
+            message: `Не хватает энергии (нужно ${cost}⚡). Покорми питомца или подожди, пока энергия восстановится.`,
           };
         }
 
@@ -92,7 +92,7 @@ export const useAiChatStore = create<AiChatState>()(
         } catch (error) {
           console.error('[AiChat] Не удалось получить ответ:', error);
           set({ isAsking: false });
-          return { success: false, message: 'Не удалось получить ответ. Попробуйте ещё раз.' };
+          return { success: false, message: 'Не удалось получить ответ. Попробуй ещё раз.' };
         }
       },
 

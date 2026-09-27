@@ -11,6 +11,7 @@ interface SavingsRow {
   bonus_rate: number;
   target_item_id: number | null;
   periods_since_withdrawal: number;
+  withdrawal_credit: number;
 }
 
 interface SavingsTransactionRow {
@@ -31,6 +32,7 @@ function rowToRecord(row: SavingsRow): SavingsRecord {
     bonusRate: row.bonus_rate,
     targetItemId: row.target_item_id,
     periodsSinceWithdrawal: row.periods_since_withdrawal,
+    withdrawalCredit: row.withdrawal_credit ?? 0,
   };
 }
 
@@ -71,19 +73,21 @@ export class SqliteSavingsRepository implements SavingsRepository {
       bonusRate,
       targetItemId: null,
       periodsSinceWithdrawal: 0,
+      withdrawalCredit: 0,
     };
   }
 
   async update(record: SavingsRecord): Promise<void> {
     const db = await this.getDb();
     await db.runAsync(
-      `UPDATE savings SET current_amount = ?, bonus_rate = ?, target_item_id = ?, periods_since_withdrawal = ?
-       WHERE id = ?`,
+      `UPDATE savings SET current_amount = ?, bonus_rate = ?, target_item_id = ?, periods_since_withdrawal = ?,
+       withdrawal_credit = ? WHERE id = ?`,
       [
         record.currentAmount,
         record.bonusRate,
         record.targetItemId,
         record.periodsSinceWithdrawal,
+        record.withdrawalCredit,
         record.id,
       ]
     );

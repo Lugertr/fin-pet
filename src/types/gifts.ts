@@ -59,10 +59,12 @@ const GIFT_RARITY_STATIC: Record<
   GiftRarity,
   { name: string; probability: number; coinRange: [number, number] }
 > = {
-  common: { name: 'Обычный', probability: 0.6, coinRange: [30, 70] }, // 60%
-  rare: { name: 'Редкий', probability: 0.25, coinRange: [50, 100] }, // 25%
-  epic: { name: 'Эпический', probability: 0.12, coinRange: [100, 200] }, // 12%
-  legendary: { name: 'Легендарный', probability: 0.03, coinRange: [200, 500] }, // 3%
+  // Подарок за 7 дней подряд — скромный (решение пользователя 27.09.2026):
+  // немного монет; редкость решает, какой коллекционный предмет может выпасть.
+  common: { name: 'Обычный', probability: 0.6, coinRange: [10, 30] }, // 60%
+  rare: { name: 'Редкий', probability: 0.25, coinRange: [20, 40] }, // 25%
+  epic: { name: 'Эпический', probability: 0.12, coinRange: [30, 60] }, // 12%
+  legendary: { name: 'Легендарный', probability: 0.03, coinRange: [50, 100] }, // 3%
 };
 
 /** Градиент/акцент редкости — на основе theme.rarityX, реагирует на смену темы. */

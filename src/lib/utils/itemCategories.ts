@@ -14,6 +14,10 @@ export const ITEM_CATEGORIES: { id: string; name: string; icon: IconName }[] = [
   { id: 'skin', name: 'Скины', icon: 'color-palette' },
 ];
 
+/** Вкладки магазина — без «Скинов»: облик питомца не продаётся, он приходит
+ * с новым уровнем (решение пользователя 27.09.2026). В инвентаре вкладка есть. */
+export const SHOP_ITEM_CATEGORIES = ITEM_CATEGORIES.filter((category) => category.id !== 'skin');
+
 /** Вкладка «Декор» объединяет обычный decor и обязательные предметы комнаты
  * (ноутбук/копилка/кровать/ковёр/окно, см. PetRoom.tsx) — они физически стоят
  * в той же комнате, показывать их отдельными вкладками избыточно (§13 ТЗ).
@@ -28,7 +32,7 @@ export function itemMatchesCategoryFilter(itemCategory: string, selectedCategory
 }
 
 /** Скины (category:'skin') привязаны к конкретному виду питомца — скин
- * дракона не должен предлагаться на покупку и не должен выпадать в подарок
+ * медведя не должен предлагаться на покупку и не должен выпадать в подарок
  * владельцу кота, и т.п. Остальные категории pet_type не имеют — им этот
  * фильтр не мешает. Общий для магазина (покупка) и подарков (розыгрыш). */
 export function itemMatchesPetType(
@@ -53,3 +57,34 @@ export const CATEGORY_DISPLAY_NAMES: Record<string, string> = {
   room: 'Комната',
   skin: 'Скин',
 };
+
+/**
+ * Продаётся ли вещь в магазине этого питомца — одно правило для витрины
+ * магазина и выбора цели в банке: не скрытый трофей (только из подарков), не
+ * стартовая вещь (есть у всех), не облик питомца (только за уровень) и
+ * подходит виду питомца.
+ */
+export function isShopItem(
+  item: Pick<ItemContent, 'category' | 'pet_type' | 'is_hidden' | 'is_starter'>,
+  petType: PetType
+): boolean {
+  return (
+    !item.is_hidden &&
+    !item.is_starter &&
+    item.category !== 'skin' &&
+    itemMatchesPetType(item, petType)
+  );
+}
+
+/** Категории, на улучшения которых можно копить в банке (цель накопления). */
+export const SAVINGS_GOAL_CATEGORIES: string[] = ['laptop', 'piggybank', 'bed'];
+
+/**
+ * Можно ли выбрать вещь целью накопления: только улучшения ноутбука, копилки
+ * и кровати — вещей с игровыми бонусами (решение пользователя 27.09.2026).
+ */
+export function isSavingsGoalItem(
+  item: Pick<ItemContent, 'category' | 'is_hidden' | 'is_starter'>
+): boolean {
+  return SAVINGS_GOAL_CATEGORIES.includes(item.category) && !item.is_starter && !item.is_hidden;
+}

@@ -4,14 +4,20 @@
 // сервера раздачи обновляемого контента (§3.4 ТЗ), не трогая потребителей.
 
 import { AchievementDefinition } from '@/domain/achievement/Achievement';
+import { AdventureEventTemplate } from '@/domain/adventure/AdventureEvent';
 import { AiStubContent } from '@/domain/ai/AiAssistant';
 import {
+  ArcadeSwipeCardsContent,
   BranchContent,
   FiveLettersWordContent,
-  GiftPathNodeContent,
   LessonContent,
 } from '@/domain/content/LessonContent';
 import { ItemContent } from '@/domain/content/ItemContent';
+import {
+  DocumentContent,
+  GlossaryTermContent,
+  ScreenHelpContent,
+} from '@/domain/content/ReferenceContent';
 
 export interface ContentRepository {
   getBranches(): Promise<BranchContent[]>;
@@ -19,6 +25,10 @@ export interface ContentRepository {
   getItems(): Promise<ItemContent[]>;
   getAchievements(): Promise<AchievementDefinition[]>;
   getAiStubContent(): Promise<AiStubContent>;
-  getGiftPathNodes(): Promise<GiftPathNodeContent[]>;
   getFiveLettersWords(): Promise<FiveLettersWordContent[]>;
+  getAdventureEvents(): Promise<AdventureEventTemplate[]>;
+  getGlossary(): Promise<GlossaryTermContent[]>;
+  getScreenHelp(): Promise<ScreenHelpContent[]>;
+  getArcadeSwipeCards(): Promise<ArcadeSwipeCardsContent[]>;
+  getDocuments(): Promise<DocumentContent[]>;
 }

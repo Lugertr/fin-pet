@@ -92,7 +92,7 @@ class NotificationService {
         identifier: NOTIFICATION_IDS.DAILY_REMINDER,
         content: {
           title: '🎁 Ежедневная награда ждёт!',
-          body: 'Зайдите в Финни и заберите монеты. Не прерывайте стрик!',
+          body: 'Зайди в Финни и забери монеты. Не прерывай стрик!',
           data: { type: 'daily_reminder' },
           sound: 'default',
         },
@@ -120,8 +120,8 @@ class NotificationService {
       await Notifications.scheduleNotificationAsync({
         identifier: NOTIFICATION_IDS.STREAK_WARNING,
         content: {
-          title: '🔥 Не потеряйте стрик!',
-          body: 'Зайдите сегодня, чтобы сохранить серию и получить награду.',
+          title: '🔥 Не потеряй стрик!',
+          body: 'Зайди сегодня, чтобы сохранить серию и получить награду.',
           data: { type: 'streak_warning' },
           sound: 'default',
         },
@@ -151,7 +151,7 @@ class NotificationService {
         identifier: NOTIFICATION_IDS.MOOD_RESTORED,
         content: {
           title: '😊 Питомец снова в форме!',
-          body: 'Настроение восстановилось. Можно продолжать обучение!',
+          body: 'Энергия восстановилась. Можно продолжать приключение!',
           data: { type: 'mood_restored' },
           sound: 'default',
         },

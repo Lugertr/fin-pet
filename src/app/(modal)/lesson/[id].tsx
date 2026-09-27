@@ -15,6 +15,7 @@ import { buildLessonSteps } from '@/domain/lesson/buildLessonSteps';
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { FIVE_LETTERS_WORDS, LESSONS, useLessonsStore } from '@/lib/hooks/useLessons';
 import { Alert } from '@/lib/utils/alert';
+import { formatPrice } from '@/lib/utils/formatters';
 import { useTheme } from '@/theme';
 import { createLessonStyles } from '../../../styles/screens/lesson/_[id].styles';
 
@@ -119,7 +120,7 @@ export default function LessonScreen() {
               Прогресс текущего урока не сохранится, и ты не получишь монеты.
             </Text>
             <View style={styles.pauseWarningBanner}>
-              <Text style={styles.pauseWarningText}>0 монет</Text>
+              <Text style={styles.pauseWarningText}>{formatPrice(0)}</Text>
               <Text style={styles.pauseWarningText}>⚡ Прогресс будет сброшен</Text>
             </View>
             <TouchableOpacity

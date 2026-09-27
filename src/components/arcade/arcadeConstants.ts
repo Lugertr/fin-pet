@@ -2,4 +2,4 @@
 // §10.2 — общая награда за верный ответ, нужна и маршруту (начисление монет),
 // и StartStage/ResultsStage (отображение)
 
-export const COINS_PER_CORRECT = 10;
+export { ARCADE_COINS_PER_CORRECT as COINS_PER_CORRECT } from '@/constants/gameplay';

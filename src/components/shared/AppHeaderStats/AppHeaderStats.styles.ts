@@ -15,33 +15,54 @@ export function createAppHeaderStatsStyles({ theme }: AppHeaderStatsStylesParams
       alignItems: 'center',
       justifyContent: 'space-between',
     },
+    // Лого (или кнопка «назад»/«завершить») + «?» — сжимается первым, если
+    // сумма в кошельке длинная и места на узком экране не хватает.
+    leftGroup: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+      flexShrink: 1,
+      marginRight: spacing.sm,
+    },
     logoText: {
       color: theme.textPrimary,
       fontWeight: fontWeights.bold,
-      fontSize: fontSizes.lg,
+      fontSize: fontSizes.xl,
+      flexShrink: 1,
     },
     rightGroup: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: spacing.sm,
+      gap: 6,
     },
-    statBadgesRow: {
-      flexDirection: 'row',
-      gap: spacing.xs,
-    },
-    statBadge: {
+    pill: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
-      backgroundColor: theme.surfaceLight,
+      gap: 6,
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
       borderRadius: radius.full,
-      paddingHorizontal: spacing.sm,
       paddingVertical: spacing.xxs,
     },
-    statBadgeText: {
+    walletColumn: {
+      alignItems: 'stretch',
+      gap: 3,
+    },
+    pillText: {
       color: theme.textPrimary,
       fontWeight: fontWeights.bold,
-      fontSize: fontSizes.xs,
+      fontSize: fontSizes.lg,
+      textAlign: 'center',
+    },
+    planStrip: {
+      flexDirection: 'row',
+      gap: 2,
+    },
+    planStripSegment: {
+      flex: 1,
+      height: 4,
+      borderRadius: radius.full,
     },
     profileButton: {
       backgroundColor: theme.accent,

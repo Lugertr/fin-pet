@@ -18,3 +18,5 @@ export type { CategoryTabItem } from './CategoryTabs';
 export { ScreenFooter } from './ScreenFooter';
 
 export { ScrollableRow } from './ScrollableRow';
+
+export { AnimatedFill } from './AnimatedFill';

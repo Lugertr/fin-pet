@@ -1,39 +1,52 @@
 // app/(tabs)/index.tsx
-// Главный Хаб — только комната питомца + 2 кнопки (Пройти урок / Аркада), см.
-// HubHeader.tsx. Период/дневная награда переехали в профиль (см. profile.tsx)
-// — этот файл отвечает за загрузку общих данных (сторы, эффекты) и рендер
-// комнаты; фоновая загрузка периода/прогресса/накоплений и гейт на
-// планирование бюджета остаются здесь, даже когда сами карточки не видны на
-// этом экране — это данные для других экранов и системный переход, а не UI.
+// Главный Хаб — только комната питомца + кнопка «Начать приключение», см.
+// HubHeader.tsx. Пока идёт приключение, хаба нет: на его месте (на этой же
+// вкладке) показывается экран приключения — AdventureActiveView.
+// Ежедневная награда — модалка DailyRewardModal при первом за день заходе
+// (не в день создания профиля, см. domain/daily/DailyReward.ts). Этот файл отвечает
+// за загрузку общих данных (сторы, эффекты) и рендер комнаты; фоновая
+// загрузка прогресса/накоплений/текущего приключения остаётся здесь, даже
+// когда сами карточки не видны на этом экране — это данные для других экранов
+// и для выбора, что показывать на этой вкладке (хаб или приключение). В
+// отличие от старого игрового периода, приключение НЕ создаётся здесь
+// автоматически — только читается (см. adventureStore.loadCurrent), создание —
+// явным действием на (modal)/adventure-planning. А вот завершается
+// приключение, у которого вышло время, автоматически — здесь (при загрузке,
+// при возврате на вкладку и когда время истекает, пока она открыта), и его
+// итоги (как и итоги ручного завершения) показываются здесь же модалкой
+// AdventureSummaryModal.
 //
 // Экран больше не скроллится (раньше был ScrollView с секциями ниже комнаты,
 // их не осталось) — обычный View с flex:1, чтобы комната действительно
 // занимала весь доступный вертикальный экран (см. HubHeader.tsx/PetRoom.tsx).
 
-import { useRouter } from 'expo-router';
+import { useIsFocused, useRouter } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
-import { HubHeader } from '@/components/hub';
+import { AdventureSummaryModal } from '@/components/adventure';
+import { DailyRewardModal, HubHeader } from '@/components/hub';
+import { useAdventureCountdown } from '@/lib/adventure/useAdventureCountdown';
+import { useDailyRewardOffer } from '@/lib/daily/useDailyRewardOffer';
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { useNotifications } from '@/lib/hooks/useNotifications';
 import { useShopStore } from '@/lib/hooks/useShop';
 import { feedback } from '@/lib/services/feedback';
 import { notifications } from '@/lib/services/notifications';
-import { usePeriodStore } from '@/lib/stores/periodStore';
-import { usePetProgressStore } from '@/lib/stores/petProgressStore';
+import { useAdventureStore } from '@/lib/stores/adventureStore';
 import { usePetStore } from '@/lib/stores/petStore';
 import { usePreferencesStore } from '@/lib/stores/preferencesStore';
 import { useSavingsStore } from '@/lib/stores/savingsStore';
 import { useUserStore } from '@/lib/stores/userStore';
+import { Alert } from '@/lib/utils/alert';
 import { useTheme } from '@/theme';
 import { createHubStyles } from '../../styles/screens/tabs/_index.styles';
 
 export default function HubScreen() {
-  const router = useRouter();
   const { theme } = useTheme();
-  const { triggerHaptic } = useFeedback();
+  const router = useRouter();
+  const { trigger, triggerHaptic } = useFeedback();
   const { scheduleMoodRestored } = useNotifications();
 
   const styles = createHubStyles({ theme });
@@ -61,10 +74,19 @@ export default function HubScreen() {
   );
   const savedPetType = usePreferencesStore((s) => s.petType);
   const savedPetName = usePreferencesStore((s) => s.petName);
-  const currentPeriod = usePeriodStore((s) => s.currentPeriod);
-  const loadOrStartPeriod = usePeriodStore((s) => s.loadOrStartPeriod);
-  const petProgress = usePetProgressStore((s) => s.progress);
-  const loadOrCreatePetProgress = usePetProgressStore((s) => s.loadOrCreate);
+  const loadCurrentAdventure = useAdventureStore((s) => s.loadCurrent);
+  const completeIfExpired = useAdventureStore((s) => s.completeIfExpired);
+  const completionSummary = useAdventureStore((s) => s.lastCompletionSummary);
+  const dismissCompletionSummary = useAdventureStore((s) => s.dismissCompletionSummary);
+  const countdown = useAdventureCountdown();
+  const adventureExpired = countdown.active && countdown.expired;
+  // Вкладка хаба остаётся смонтированной, пока ребёнок на других экранах, —
+  // без фокуса модалка итогов всплыла бы поверх урока/магазина, а
+  // приключение закрывалось бы посреди задания.
+  const isFocused = useIsFocused();
+  // Ежедневная награда — только на открытом хабе и после итогов приключения
+  // (два окна подряд, а не друг поверх друга).
+  const dailyOffer = useDailyRewardOffer(isFocused && !completionSummary);
   const savings = useSavingsStore((s) => s.savings);
   const loadOrCreateSavings = useSavingsStore((s) => s.loadOrCreate);
 
@@ -99,21 +121,21 @@ export default function HubScreen() {
     usePetStore.getState().setMoodMaxBonus(maxBonus);
   }, [maxBonus]);
 
-  const hasRequestedPeriod = useRef(false);
+  // Только читаем текущее приключение (если есть) — в отличие от старого
+  // периода, ничего не создаём автоматически на хабе. Если за время, пока
+  // приложение было закрыто, оно истекло — сразу завершаем (итоги ниже).
+  const hasRequestedAdventure = useRef(false);
   useEffect(() => {
-    if (user?.id && !currentPeriod && !hasRequestedPeriod.current) {
-      hasRequestedPeriod.current = true;
-      loadOrStartPeriod(user.id);
+    if (user?.id && !hasRequestedAdventure.current) {
+      hasRequestedAdventure.current = true;
+      loadCurrentAdventure(user.id).then(() => completeIfExpired());
     }
-  }, [user?.id, currentPeriod, loadOrStartPeriod]);
+  }, [user?.id, loadCurrentAdventure, completeIfExpired]);
 
-  const hasRequestedPetProgress = useRef(false);
+  // Время вышло, пока хаб открыт, или ребёнок вернулся на хаб уже после конца.
   useEffect(() => {
-    if (user?.id && !petProgress && !hasRequestedPetProgress.current) {
-      hasRequestedPetProgress.current = true;
-      loadOrCreatePetProgress(user.id);
-    }
-  }, [user?.id, petProgress, loadOrCreatePetProgress]);
+    if (isFocused && adventureExpired) void completeIfExpired();
+  }, [isFocused, adventureExpired, completeIfExpired]);
 
   const hasRequestedSavings = useRef(false);
   useEffect(() => {
@@ -122,14 +144,6 @@ export default function HubScreen() {
       loadOrCreateSavings(user.id);
     }
   }, [user?.id, savings, loadOrCreateSavings]);
-
-  // §7 ТЗ: новый период требует планирования бюджета до входа в хаб —
-  // системный переход, не привязан к какой-либо видимой на экране карточке.
-  useEffect(() => {
-    if (currentPeriod?.status === 'planning') {
-      router.replace('/(modal)/budget-planning' as never);
-    }
-  }, [currentPeriod?.status, router]);
 
   const handleRefreshMood = () => {
     const prevMood = currentMood;
@@ -146,23 +160,54 @@ export default function HubScreen() {
     }
   };
 
-  const petType: 'robot' | 'dragon' | 'cat' = savedPetType || 'robot';
+  const petType: 'robot' | 'bear' | 'cat' = savedPetType || 'robot';
   const petName = savedPetName || 'Помощник';
 
   return (
     <View style={styles.container}>
-      <HubHeader
-        petType={petType}
-        petName={petName}
-        skinVariant={equippedSkinVariant}
-        currentMood={currentMood}
-        coins={user?.liquid_balance ?? 0}
-        savings={savings?.currentAmount ?? 0}
-        onPetPress={() => {
-          triggerHaptic('light');
-          handleRefreshMood();
-        }}
-      />
+      {/* Хаб — всегда комната; во время приключения кнопка ведёт на его экран. */}
+      {
+        <HubHeader
+          petType={petType}
+          petName={petName}
+          skinVariant={equippedSkinVariant}
+          currentMood={currentMood}
+          coins={user?.liquid_balance ?? 0}
+          onPetPress={() => {
+            triggerHaptic('light');
+            handleRefreshMood();
+          }}
+        />
+      }
+
+      {isFocused && completionSummary && (
+        <AdventureSummaryModal
+          summary={completionSummary}
+          onClose={dismissCompletionSummary}
+          onStartNew={() => {
+            dismissCompletionSummary();
+            router.push('/(modal)/adventure-planning' as never);
+          }}
+        />
+      )}
+
+      {dailyOffer.visible && (
+        <DailyRewardModal
+          streakDay={dailyOffer.streakDay}
+          bonus={dailyOffer.bonus}
+          onClaim={() => {
+            const result = dailyOffer.claim();
+            if (!result.success) return;
+            trigger('dailyClaim');
+            if (result.giftGranted) {
+              Alert.alert(
+                '🎁 Подарок за неделю!',
+                'Ты заходишь к Финни 7 дней подряд. Открой его в магазине — там появится баннер подарков.'
+              );
+            }
+          }}
+        />
+      )}
     </View>
   );
 }

@@ -1,39 +1,40 @@
 // src/components/lessons/LessonPath/LessonPath.tsx
 // Дорожка уроков ветки: изогнутая SVG-линия + чередующиеся по бокам узлы
-// (уроки и узлы-подарки). «Удобный динамический компонент, который правильно
-// выводит уроки в зависимости от структуры» — items уже содержит и уроки, и
-// подарки в нужном порядке (см. domain/lesson/buildLessonPath.ts), этот
-// компонент просто их раскладывает.
+// уроков. items уже в нужном порядке (см. domain/lesson/buildLessonPath.ts),
+// этот компонент просто их раскладывает.
 //
 // Раскладка — фиксированная высота строки на узел + чередующееся смещение по
 // x от индекса строки (не через измерение layout — проще и надёжнее). SVG-
 // слой рисует один <Path> по тем же координатам центров узлов, что гарантирует
 // совпадение линии и кружков.
+//
+// Своего скролла у дорожки нет — она обычный блок полной высоты внутри
+// общего ScrollView экрана уроков (матрица компетенций сверху, липкая лента
+// тем, дорожка ниже), иначе вложенный вертикальный скролл сжимал бы её до
+// остатка экрана под матрицей и лентой.
 
 import { ReactNode } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { LessonPathNode } from '@/domain/lesson/LessonPathNode';
 import { Lesson, LessonProgress } from '@/lib/hooks/useLessons';
 import { useResponsive, useTheme } from '@/theme';
 import { spacing } from '@/theme/tokens';
-import { GiftPathNode } from '../GiftPathNode';
 import { LessonNode } from '../LessonNode';
 import { createLessonPathStyles } from './LessonPath.styles';
 
 const ROW_HEIGHT = 110;
 const CIRCLE_SIZE = 60;
-const SWING = 48;
+const SWING = 36;
 
 function itemKey(item: LessonPathNode): string {
-  return item.type === 'lesson' ? `lesson-${item.lesson.id}` : `gift-${item.node.id}`;
+  return `lesson-${item.lesson.id}`;
 }
 
 export function LessonPath({
   items,
   progress,
-  isLessonAvailable,
   branchColor,
   isPriority,
   onPressLesson,
@@ -42,7 +43,6 @@ export function LessonPath({
 }: {
   items: LessonPathNode[];
   progress: Record<number, LessonProgress>;
-  isLessonAvailable: (lessonId: number) => boolean;
   branchColor: string;
   isPriority: boolean;
   onPressLesson: (lesson: Lesson) => void;
@@ -93,16 +93,12 @@ export function LessonPath({
   }
 
   return (
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={styles.scrollContent}
-      showsVerticalScrollIndicator={false}
-    >
+    <View style={styles.container}>
       <View style={[styles.pathContainer, { height: totalHeight }]}>
         <Svg width={pathWidth} height={totalHeight} style={styles.svgLayer}>
           <Path
             d={pathD}
-            stroke={theme.surfaceLight}
+            stroke={theme.border}
             strokeWidth={scale(4)}
             strokeLinecap="round"
             fill="none"
@@ -117,27 +113,15 @@ export function LessonPath({
             top: cy - circleSize / 2,
           };
 
-          if (item.type === 'gift') {
-            return (
-              <View key={itemKey(item)} style={[styles.nodeSlot, slotStyle]}>
-                <GiftPathNode node={item.node} />
-              </View>
-            );
-          }
-
           const lesson = item.lesson;
           const lessonProgress = progress[lesson.id];
           const isCompleted = lessonProgress?.status === 'completed';
-          const isAvailable = isLessonAvailable(lesson.id);
-          const isCurrent = isAvailable && !isCompleted;
 
           return (
             <View key={itemKey(item)} style={[styles.nodeSlot, slotStyle]}>
               <LessonNode
                 lesson={lesson}
                 isCompleted={isCompleted}
-                isCurrent={isCurrent}
-                isAvailable={isAvailable}
                 branchColor={branchColor}
                 isPriority={isPriority}
                 infoAlign={i % 2 === 0 ? 'right' : 'left'}
@@ -150,6 +134,6 @@ export function LessonPath({
       </View>
 
       {footer}
-    </ScrollView>
+    </View>
   );
 }

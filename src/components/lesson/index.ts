@@ -3,7 +3,6 @@ export { TheoryStep } from './TheoryStep';
 export { MinigameStep } from './MinigameStep';
 export { TestStep } from './TestStep';
 export { RewardStep } from './RewardStep';
-export { ResourcePlanningStep } from './ResourcePlanningStep';
 export { CompleteStage } from './CompleteStage';
 export { HighlightedText } from './HighlightedText';
 export { LessonStepHeader } from './LessonStepHeader';

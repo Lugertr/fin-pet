@@ -7,11 +7,11 @@ import type { IconName } from '@/types/icons';
 export const BRANCH_ICONS: Record<number, IconName> = {
   1: 'wallet',
   2: 'shield-checkmark',
-  3: 'trending-up',
-  4: 'document-text',
-  5: 'card',
-  6: 'business',
-  7: 'earth',
+  3: 'trending-up', // Сбережения
+  4: 'cart', // Покупки
+  5: 'swap-horizontal', // Долги
+  6: 'construct', // Заработок
+  7: 'pricetags', // Цены
 };
 
 export const BRANCH_GRADIENTS: Record<number, [string, string]> = {

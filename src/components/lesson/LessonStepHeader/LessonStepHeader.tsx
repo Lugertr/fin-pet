@@ -3,10 +3,12 @@
 // бейдж настроения питомца. Настроение — просто индикатор (переиспользует
 // getMoodEmoji/getMoodColor из lib/utils/formatters, не заводит ещё одну,
 // четвёртую по счёту, систему mood-порогов), не штрафная механика — ошибка
-// ребёнка не наказывается (§8 ТЗ).
+// ребёнка не наказывается (§8 ТЗ). Справа — «?» с подсказкой, как устроен урок.
 
 import { Text, View } from 'react-native';
 
+import { HelpButton } from '@/components/shared';
+import type { ScreenHelpId } from '@/domain/content/ReferenceContent';
 import { IconButton } from '@/components/ui';
 import { getMoodColor, getMoodEmoji } from '@/lib/utils/formatters';
 import { useResponsive, useTheme } from '@/theme';
@@ -17,10 +19,13 @@ export function LessonStepHeader({
   progress,
   onClose,
   petMood,
+  help = 'lesson',
 }: {
   progress: number;
   onClose: () => void;
   petMood: number;
+  /** Подсказка «?»: про урок целиком, а на шаге мини-игры — как в неё играть. */
+  help?: ScreenHelpId;
 }) {
   const { theme } = useTheme();
   const { scale, scaledFont } = useResponsive();
@@ -42,6 +47,8 @@ export function LessonStepHeader({
           {Math.round(petMood)}
         </Text>
       </View>
+
+      <HelpButton screen={help} />
     </View>
   );
 }

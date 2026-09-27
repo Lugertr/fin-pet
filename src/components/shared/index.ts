@@ -1,3 +1,7 @@
 export { AlertHost } from './AlertHost';
-export { AppHeaderStats } from './AppHeaderStats';
+export { AppHeaderStats, useAppHeaderPadding } from './AppHeaderStats';
+export { CoinAmount, CoinIcon } from './CoinAmount';
 export { StreakDayCircle } from './StreakDayCircle';
+export { SubpageHeader } from './SubpageHeader';
+export { HelpButton } from './HelpButton';
+export { ItemImage } from './ItemImage';

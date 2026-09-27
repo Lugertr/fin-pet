@@ -6,10 +6,10 @@
 // Alert.alert(title, message?, buttons?) — просто другой импорт, меняются
 // только импорты в местах использования, не сами вызовы.
 
-import { AlertButton, useAlertStore } from '@/lib/stores/alertStore';
+import { AlertButton, AlertOptions, useAlertStore } from '@/lib/stores/alertStore';
 
 export const Alert = {
-  alert(title: string, message?: string, buttons?: AlertButton[]) {
-    useAlertStore.getState().show(title, message, buttons);
+  alert(title: string, message?: string, buttons?: AlertButton[], options?: AlertOptions) {
+    useAlertStore.getState().show(title, message, buttons, options);
   },
 };

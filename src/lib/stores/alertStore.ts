@@ -8,18 +8,30 @@
 
 import { create } from 'zustand';
 
+import type { IconName } from '@/types/icons';
+
 export interface AlertButton {
   text: string;
   style?: 'default' | 'cancel' | 'destructive';
   onPress?: () => void;
 }
 
-interface AlertState {
+/** Необязательные детали оформления для диалогов-подтверждений (2+ кнопки) —
+ * см. AlertHost.tsx. Без них диалог всё равно получает разумные значения по
+ * умолчанию (иконку/цвет по наличию destructive-кнопки), просто без
+ * собственной цветной плашки-лейбла. */
+export interface AlertOptions {
+  icon?: IconName;
+  badgeLabel?: string;
+  badgeVariant?: 'error' | 'warning' | 'info';
+}
+
+interface AlertState extends AlertOptions {
   visible: boolean;
   title: string;
   message?: string;
   buttons: AlertButton[];
-  show: (title: string, message?: string, buttons?: AlertButton[]) => void;
+  show: (title: string, message?: string, buttons?: AlertButton[], options?: AlertOptions) => void;
   hide: () => void;
 }
 
@@ -28,12 +40,18 @@ export const useAlertStore = create<AlertState>((set) => ({
   title: '',
   message: undefined,
   buttons: [],
-  show: (title, message, buttons) =>
+  icon: undefined,
+  badgeLabel: undefined,
+  badgeVariant: undefined,
+  show: (title, message, buttons, options) =>
     set({
       visible: true,
       title,
       message,
       buttons: buttons && buttons.length > 0 ? buttons : [{ text: 'ОК' }],
+      icon: options?.icon,
+      badgeLabel: options?.badgeLabel,
+      badgeVariant: options?.badgeVariant,
     }),
   hide: () => set({ visible: false }),
 }));

@@ -115,6 +115,12 @@ export const usePetStore = create<PetState>((set, get) => ({
    * старой (ещё не списанной) базовой точки и списание потеряется до перезапуска.
    */
   spendEnergy: (amount) => {
+    // Сначала пересчитываем от последнего чекпоинта: currentMood мог устареть
+    // (энергия копится по времени, а пересчёт — лишь по событиям), и списание
+    // от устаревшего значения сохранило бы его как новый чекпоинт — вся
+    // накопленная за это время энергия пропала бы (например, при ошибке в
+    // задании приключения после нескольких часов простоя).
+    get().refreshMood();
     const { currentMood, pet } = get();
     const newMood = Math.max(0, currentMood - amount);
     const now = new Date().toISOString();
@@ -136,6 +142,8 @@ export const usePetStore = create<PetState>((set, get) => ({
    * spendEnergy — иначе восстановление «потеряется» при следующем refreshMood().
    */
   restoreEnergy: (amount) => {
+    // То же, что в spendEnergy: еда прибавляется к актуальной энергии.
+    get().refreshMood();
     const { currentMood, pet, moodMaxBonus } = get();
     const cap = MOOD_MAX + moodMaxBonus;
     const newMood = Math.min(cap, currentMood + amount);

@@ -7,16 +7,31 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
-import { QuizGridGame } from '@/components/games';
+import { QuizGame } from '@/components/games';
 import { ScreenFooter } from '@/components/ui';
 import { TestStep as TestStepData } from '@/domain/lesson/LessonStep';
+import { ADVENTURE_WRONG_ANSWER_ENERGY_COST } from '@/lib/stores/adventureStore';
 import { useAchievementsStore } from '@/lib/stores/achievementsStore';
+import { usePetStore } from '@/lib/stores/petStore';
 import { useResponsive, useTheme } from '@/theme';
 import { withAlpha } from '@/theme/colorUtils';
 import { colorPalettes, emojiSizes, spacing } from '@/theme/tokens';
 import { createLessonStepsStyles } from '../lessonSteps.styles';
 
-export function TestStep({ step, onPass }: { step: TestStepData; onPass: () => void }) {
+export function TestStep({
+  step,
+  onPass,
+  isAdventureQuest = false,
+  onWrongAnswer,
+}: {
+  step: TestStepData;
+  onPass: () => void;
+  /** §2 CLAUDE.md «ошибка не наказывается» — исключение только внутри приключения, см. StepRunner.tsx. */
+  isAdventureQuest?: boolean;
+  /** Копится в StepRunner на весь урок — «идеальный урок» для RewardStep
+   * значит ровно 0 вызовов, включая ошибки в повторных попытках теста. */
+  onWrongAnswer?: () => void;
+}) {
   const { theme } = useTheme();
   const { scale, scaledFont } = useResponsive();
   const styles = createLessonStepsStyles({ theme });
@@ -27,14 +42,19 @@ export function TestStep({ step, onPass }: { step: TestStepData; onPass: () => v
 
   const question = step.questions[index];
 
-  // Без искусственной паузы здесь: QuizGridGame уже сама держит результат на
-  // экране (кнопка «Проверить» → свои внутренние 800мс) и вызывает onAnswer
-  // только когда обратная связь отыграна — повторная задержка тут раньше
-  // просто удваивала общее время (~1.6с на вопрос) без всякой пользы.
+  // Без искусственной паузы здесь: QuizGame уже сама держит результат на
+  // экране (свои внутренние 800мс) и вызывает onAnswer только когда обратная
+  // связь отыграна — повторная задержка тут только удваивала бы общее время
+  // без всякой пользы.
   const handleAnswer = (_answer: string, isCorrect: boolean) => {
     const nextCorrect = correctCount + (isCorrect ? 1 : 0);
     if (isCorrect) {
       useAchievementsStore.getState().recordCorrectAnswer(); // §15.2 «Эрудит»
+    } else {
+      onWrongAnswer?.();
+      if (isAdventureQuest) {
+        usePetStore.getState().spendEnergy(ADVENTURE_WRONG_ANSWER_ENERGY_COST);
+      }
     }
 
     setCorrectCount(nextCorrect);
@@ -140,7 +160,7 @@ export function TestStep({ step, onPass }: { step: TestStepData; onPass: () => v
         Тест • Вопрос {index + 1} из {step.questions.length}
       </Text>
 
-      <QuizGridGame
+      <QuizGame
         key={question.id}
         question={question.question_text}
         options={question.options}

@@ -10,6 +10,7 @@ import { GiftRevealResult } from '@/lib/stores/giftsStore';
 import { GiftRarityConfig } from '@/types/gifts';
 import { useResponsive, useTheme } from '@/theme';
 import { emojiSizes, spacing } from '@/theme/tokens';
+import { formatPrice } from '@/lib/utils/formatters';
 import { createGiftRevealStagesStyles } from '../giftRevealStages.styles';
 
 export function RevealedStage({
@@ -33,7 +34,7 @@ export function RevealedStage({
             Поздравляем! 🎉
           </Text>
           <Text style={[styles.revealedSubtitle, { fontSize: scaledFont('md') }]}>
-            Вы получили:
+            Твоя награда:
           </Text>
 
           <LinearGradient
@@ -81,9 +82,8 @@ export function RevealedStage({
 
           {result.coins > 0 && (
             <View style={styles.coinsBox}>
-              <Ionicons name="wallet" size={scale(18)} color={theme.coins} />
               <Text style={[styles.coinsText, { fontSize: scaledFont('lg') }]}>
-                +{result.coins} монет
+                +{formatPrice(result.coins)}
               </Text>
             </View>
           )}

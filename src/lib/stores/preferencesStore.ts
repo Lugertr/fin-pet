@@ -1,80 +1,48 @@
 // lib/stores/preferencesStore.ts
-// Store для пользовательских предпочтений (приоритетные ветки, настройки)
+// Store для пользовательских предпочтений (питомец, онбординг, настройки звука/вибрации/уведомлений).
+// «Приоритетная ветка» (выбор на онбординге) отсюда убрана — заменена веткой
+// текущего/последнего «Приключения», см. adventureStore.isActiveBranch.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 interface PreferencesState {
-  // Приоритетные ветки (выбираются в онбординге)
-  priorityBranches: number[];
-  // Тип питомца (робот, дракон, кот)
-  petType: 'robot' | 'dragon' | 'cat';
+  // Тип питомца (робот, медведь, кот)
+  petType: 'robot' | 'bear' | 'cat';
   // Имя питомца
   petName: string;
   // Пройден ли онбординг
   hasCompletedOnboarding: boolean;
-  // §10.3 — ветки, исключённые из случайного выбора Аркады
-  excludedTrainerBranches: number[];
+  // Экран «Настройки»: раньше жили только в useState модалки и сбрасывались
+  // при каждом открытии/перезапуске. Применяются к сервисам через
+  // lib/settings/useApplySettings (стор не импортирует сервисы).
+  soundsEnabled: boolean;
+  hapticsEnabled: boolean;
+  notificationsEnabled: boolean;
 
   // Actions
-  setPriorityBranches: (branches: number[]) => void;
-  addPriorityBranch: (branchId: number) => void;
-  removePriorityBranch: (branchId: number) => void;
-  isPriorityBranch: (branchId: number) => boolean;
-  toggleExcludedTrainerBranch: (branchId: number) => void;
-  isTrainerBranchExcluded: (branchId: number) => boolean;
-  setPetType: (type: 'robot' | 'dragon' | 'cat') => void;
+  setPetType: (type: 'robot' | 'bear' | 'cat') => void;
   setPetName: (name: string) => void;
+  setSoundsEnabled: (value: boolean) => void;
+  setHapticsEnabled: (value: boolean) => void;
+  setNotificationsEnabled: (value: boolean) => void;
   completeOnboarding: () => void;
   resetPreferences: () => void;
 }
 
 const DEFAULT_PET_TYPE = 'robot';
 const DEFAULT_PET_NAME = 'Помощник';
-const MAX_PRIORITY_BRANCHES = 3;
 
 export const usePreferencesStore = create<PreferencesState>()(
   persist(
-    (set, get) => ({
-      priorityBranches: [],
+    (set) => ({
       petType: DEFAULT_PET_TYPE,
       petName: DEFAULT_PET_NAME,
       hasCompletedOnboarding: false,
-      excludedTrainerBranches: [],
-
-      setPriorityBranches: (branches) => {
-        set({ priorityBranches: branches.slice(0, MAX_PRIORITY_BRANCHES) });
-      },
-
-      addPriorityBranch: (branchId) => {
-        const { priorityBranches } = get();
-        if (priorityBranches.includes(branchId)) return;
-        if (priorityBranches.length >= MAX_PRIORITY_BRANCHES) return;
-        set({ priorityBranches: [...priorityBranches, branchId] });
-      },
-
-      removePriorityBranch: (branchId) => {
-        const { priorityBranches } = get();
-        set({ priorityBranches: priorityBranches.filter((id) => id !== branchId) });
-      },
-
-      isPriorityBranch: (branchId) => {
-        return get().priorityBranches.includes(branchId);
-      },
-
-      toggleExcludedTrainerBranch: (branchId) => {
-        const { excludedTrainerBranches } = get();
-        set({
-          excludedTrainerBranches: excludedTrainerBranches.includes(branchId)
-            ? excludedTrainerBranches.filter((id) => id !== branchId)
-            : [...excludedTrainerBranches, branchId],
-        });
-      },
-
-      isTrainerBranchExcluded: (branchId) => {
-        return get().excludedTrainerBranches.includes(branchId);
-      },
+      soundsEnabled: true,
+      hapticsEnabled: true,
+      notificationsEnabled: true,
 
       setPetType: (type) => {
         set({ petType: type });
@@ -84,17 +52,22 @@ export const usePreferencesStore = create<PreferencesState>()(
         set({ petName: name });
       },
 
+      setSoundsEnabled: (value) => set({ soundsEnabled: value }),
+      setHapticsEnabled: (value) => set({ hapticsEnabled: value }),
+      setNotificationsEnabled: (value) => set({ notificationsEnabled: value }),
+
       completeOnboarding: () => {
         set({ hasCompletedOnboarding: true });
       },
 
       resetPreferences: () => {
         set({
-          priorityBranches: [],
           petType: DEFAULT_PET_TYPE,
           petName: DEFAULT_PET_NAME,
           hasCompletedOnboarding: false,
-          excludedTrainerBranches: [],
+          soundsEnabled: true,
+          hapticsEnabled: true,
+          notificationsEnabled: true,
         });
       },
     }),
@@ -104,7 +77,3 @@ export const usePreferencesStore = create<PreferencesState>()(
     }
   )
 );
-
-export function usePreferences() {
-  return usePreferencesStore();
-}

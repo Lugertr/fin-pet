@@ -24,7 +24,7 @@ export const PET_TAP_RIVE_TRIGGER = 'Tap';
 /** Ссылки на .riv-файлы по видам питомца — пусто, пока ассеты не готовы. */
 export const PET_TAP_RIVE_URLS: Record<PetType, string> = {
   robot: '',
-  dragon: '',
+  bear: '',
   cat: '',
 };
 /** Страховка: если .riv не соответствует контракту и onStateChanged не

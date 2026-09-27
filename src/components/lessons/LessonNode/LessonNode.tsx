@@ -4,6 +4,12 @@
 // презентационный, занимает фиксированный квадрат CIRCLE_SIZE×CIRCLE_SIZE —
 // подпись выходит за его границы абсолютным позиционированием, не влияя на
 // центрирование кружка в LessonPath.
+//
+// Тап никогда не отключается на уровне кнопки (нет disabled): на вкладке
+// «Уроки» непройденный урок выглядит заблокированным, но тап по нему должен
+// сработать и показать алерт «пройти можно в приключении» — если бы кнопка
+// была disabled, onPress вообще не вызвался бы. Решение «перейти или
+// показать алерт» принимает вызывающий код (см. lessons.tsx onPressLesson).
 
 import { Ionicons } from '@expo/vector-icons';
 import { View, TouchableOpacity } from 'react-native';
@@ -16,8 +22,6 @@ import { LessonInfo } from '../LessonInfo';
 export function LessonNode({
   lesson,
   isCompleted,
-  isCurrent,
-  isAvailable,
   branchColor,
   isPriority,
   infoAlign,
@@ -26,8 +30,6 @@ export function LessonNode({
 }: {
   lesson: Lesson;
   isCompleted: boolean;
-  isCurrent: boolean;
-  isAvailable: boolean;
   branchColor: string;
   isPriority: boolean;
   infoAlign: 'left' | 'right';
@@ -45,7 +47,6 @@ export function LessonNode({
     <View style={{ width: circleSize, height: circleSize }}>
       <TouchableOpacity
         onPress={onPress}
-        disabled={!isAvailable}
         activeOpacity={0.8}
         style={{
           width: circleSize,
@@ -53,25 +54,17 @@ export function LessonNode({
           borderRadius: circleSize / 2,
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: isCompleted
-            ? branchColor
-            : isCurrent
-              ? theme.onGradient
-              : theme.surfaceLight,
-          borderWidth: isCurrent ? scale(3) : 0,
-          borderColor: isCurrent ? branchColor : 'transparent',
-          opacity: isAvailable ? 1 : 0.5,
-          shadowColor: isCurrent ? branchColor : 'transparent',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: isCurrent ? 0.4 : 0,
-          shadowRadius: 8,
-          elevation: isCurrent ? 8 : 0,
+          // На вкладке «Уроки» пройти можно только уже пройденный урок (см.
+          // lessons.tsx onPressLesson), поэтому у узла ровно два вида: пройден
+          // (цвет ветки) или заблокирован (theme.border — раньше был
+          // surfaceLight, почти сливавшийся со светлым фоном экрана, §1 бага).
+          // Никакого доп. затемнения (opacity) поверх — оно бы снова снизило
+          // контраст, а иконка замка и так однозначно показывает состояние.
+          backgroundColor: isCompleted ? branchColor : theme.border,
         }}
       >
         {isCompleted ? (
           <Ionicons name="checkmark" size={scale(28)} color={theme.onGradient} />
-        ) : isCurrent ? (
-          <Ionicons name="play" size={scale(22)} color={branchColor} />
         ) : (
           <Ionicons name="lock-closed" size={scale(20)} color={theme.textMuted} />
         )}

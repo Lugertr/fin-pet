@@ -1,9 +1,14 @@
 // domain/lesson/LessonStep.ts
 // Урок как композиция шагов (§9.1 ТЗ + уточнение архитектуры от 2026-09-15):
-// теория → мини-игра → тест, между наградами и планированием ресурсов (§9.6).
-// Порядок фаз в §9.1 зафиксирован, поэтому шаги для конкретного урока собирает
-// buildLessonSteps() из контента, а не задаётся произвольно в JSON — но сам
-// набор типов шагов открыт для расширения (новый тип = новый case в раннере).
+// теория → мини-игра → тест → награда. Порядок фаз в §9.1 зафиксирован,
+// поэтому шаги для конкретного урока собирает buildLessonSteps() из контента,
+// а не задаётся произвольно в JSON — но сам набор типов шагов открыт для
+// расширения (новый тип = новый case в раннере).
+//
+// Шаг «Планирование ресурсов» (§9.6, кошелёк/накопления после награды) убран
+// по решению пользователя — награда за урок теперь либо ускоряет приключение
+// (задание внутри активного приключения), либо монеты + информация о
+// «сэкономленном» времени (см. RewardStep.tsx), без промежуточного слайдера.
 
 import {
   FiveLettersWordContent,
@@ -12,8 +17,7 @@ import {
   TheoryCardContent,
 } from '@/domain/content/LessonContent';
 
-export type LessonStepType =
-  'theory' | 'minigame' | 'test' | 'reward' | 'resource_planning' | 'modal';
+export type LessonStepType = 'theory' | 'minigame' | 'test' | 'reward' | 'modal';
 
 export interface TheoryStep {
   type: 'theory';
@@ -44,11 +48,6 @@ export interface RewardStep {
   reason: string;
 }
 
-/** §9.6: слайдер распределения кошелёк/накопления после награды. Данных не несёт. */
-export interface ResourcePlanningStep {
-  type: 'resource_planning';
-}
-
 /** Точка расширения для информационных/решающих попапов внутри урока. */
 export interface ModalStep {
   type: 'modal';
@@ -57,5 +56,4 @@ export interface ModalStep {
   ctaLabel: string;
 }
 
-export type LessonStep =
-  TheoryStep | MinigameStep | TestStep | RewardStep | ResourcePlanningStep | ModalStep;
+export type LessonStep = TheoryStep | MinigameStep | TestStep | RewardStep | ModalStep;

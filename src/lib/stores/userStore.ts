@@ -10,7 +10,6 @@ interface UserState {
   // Данные
   user: User | null;
   pet: Pet | null;
-  totalNetWorth: number;
   isOnboarded: boolean;
   isLoading: boolean;
 
@@ -19,13 +18,17 @@ interface UserState {
   setPet: (pet: Pet) => void;
   setOnboarded: (value: boolean) => void;
   updateBalance: (newBalance: number) => void;
-  /** Изменяет баланс на delta и пишет запись в леджер транзакций (SQLite). */
+  /**
+   * Изменяет баланс на delta и пишет запись в леджер транзакций (SQLite).
+   * Операцию, после которой баланс стал бы отрицательным, отклоняет (false) —
+   * жёсткое правило «отрицательный баланс невозможен» держится здесь, а не
+   * только в проверках каждого вызывающего.
+   */
   recordTransaction: (
     amount: number,
     transactionType: TransactionType,
     description?: string
-  ) => void;
-  setNetWorth: (value: number) => void;
+  ) => boolean;
   setLoading: (value: boolean) => void;
   reset: () => void;
 }
@@ -34,7 +37,6 @@ export const useUserStore = create<UserState>((set, get) => ({
   // Начальное состояние
   user: null,
   pet: null,
-  totalNetWorth: 0,
   isOnboarded: false,
   isLoading: true,
 
@@ -60,11 +62,17 @@ export const useUserStore = create<UserState>((set, get) => ({
 
   recordTransaction: (amount, transactionType, description) => {
     const { user, updateBalance } = get();
-    if (!user) return;
+    if (!user) return false;
 
     const newBalance = user.liquid_balance + amount;
+    if (newBalance < 0) {
+      console.warn('[UserStore] Отклонена операция, уводящая баланс в минус:', transactionType);
+      return false;
+    }
     updateBalance(newBalance);
-    if (amount > 0) {
+    // «Монет заработано» — только реальный доход: снятие своих же накоплений
+    // это перевод, а не заработок (иначе цикл пополнил/снял раздувал статистику).
+    if (amount > 0 && transactionType !== 'savings_withdraw') {
       useLifetimeStatsStore.getState().recordCoinsEarned(amount);
     }
 
@@ -76,9 +84,8 @@ export const useUserStore = create<UserState>((set, get) => ({
         description: description ?? null,
       })
       .catch((error) => console.warn('[UserStore] Не удалось записать транзакцию:', error));
+    return true;
   },
-
-  setNetWorth: (value) => set({ totalNetWorth: value }),
 
   setLoading: (value) => set({ isLoading: value }),
 
@@ -86,7 +93,6 @@ export const useUserStore = create<UserState>((set, get) => ({
     set({
       user: null,
       pet: null,
-      totalNetWorth: 0,
       isOnboarded: false,
       isLoading: true,
     }),

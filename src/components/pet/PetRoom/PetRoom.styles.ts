@@ -21,20 +21,23 @@ interface PetRoomStylesParams {
 
 export function createPetRoomStyles({ theme }: PetRoomStylesParams) {
   return StyleSheet.create({
-    // Измеряющая/центрирующая обёртка — занимает всё доступное место
-    // (как раньше), но сама по себе больше не рисует ни фона, ни рамки:
-    // это делает roomBox ниже, вписанный в неё с фиксированным aspect
-    // ratio (см. PetRoom.tsx, ROOM_ASPECT_RATIO).
+    // Измеряющая/прокручиваемая обёртка (ScrollView, см. PetRoom.tsx) — сама
+    // по себе не рисует ни фона, ни рамки, только даёт ширину для измерения
+    // и вертикальный скролл на случай, если сцена (всегда полной ширины)
+    // окажется выше видимой области на широком/невысоком экране.
     container: {
       flex: 1,
       width: '100%',
+    },
+    containerContent: {
+      flexGrow: 1,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    // Сама сцена комнаты — фиксированные width/height (4:3, задаются
-    // инлайн в PetRoom.tsx по факту измерения container), поэтому все
-    // %-координаты предметов (roomBoxToStyle) всегда относятся к одному и
-    // тому же прямоугольнику независимо от размера экрана.
+    // Сама сцена комнаты — фиксированные width/height (реальное соотношение
+    // сторон фона, см. PetRoom.tsx ROOM_ASPECT_RATIO, ширина всегда на весь
+    // экран), поэтому все координаты предметов (roomBoxToStyle) всегда
+    // относятся к одному и тому же прямоугольнику независимо от экрана.
     roomBox: {
       borderRadius: radius.xxl,
       overflow: 'hidden',
@@ -47,13 +50,6 @@ export function createPetRoomStyles({ theme }: PetRoomStylesParams) {
       left: 0,
       right: 0,
       bottom: 0,
-    },
-    // Хитбокс кликабельных мест (ноутбук/копилка) — заполняет ровно тот
-    // прямоугольник, что задан RoomBox этого места в раскладке, без зазора
-    // между видимой картинкой и тем, где реально регистрируется тап.
-    fillTouchable: {
-      width: '100%',
-      height: '100%',
     },
     petContainer: {
       position: 'absolute',
@@ -73,32 +69,51 @@ export function createPetRoomStyles({ theme }: PetRoomStylesParams) {
       fontWeight: fontWeights.bold,
       fontSize: fontSizes.md,
     },
-    moodIndicatorContainer: {
-      position: 'absolute',
-      left: spacing.lg,
-      right: spacing.lg,
-      bottom: spacing.md,
-    },
-    // Заполняет весь свой контейнер (100%/100% места из раскладки) — размер
-    // задаётся снаружи через RoomBox, не здесь.
+    // Без фона/рамки/тени — сам предмет на реальном фоне комнаты, без
+    // декоративной плашки вокруг. Размер задаётся снаружи через RoomBox
+    // (см. roomBoxToStyle) — картинка заполняет его целиком, 1:1 с реальными
+    // пропорциями SVG, поэтому не обрезается и не растягивается.
     furnitureChip: {
       width: '100%',
       height: '100%',
       alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: radius.lg,
-      borderWidth: 1,
     },
     furnitureIconImage: {
-      width: '55%',
-      height: '55%',
+      width: '100%',
+      height: '100%',
     },
-    furnitureLabel: {
-      color: theme.textPrimary,
+    // Пилюля-подсказка над ноутбуком/кроватью/копилкой (см. PetRoom.tsx
+    // RoomLabelPill) — что это за место и (если есть) какой реальный бонус
+    // даёт сейчас надетый предмет. Не привязана к roomBoxToStyle (не
+    // картинка с реальными пропорциями) — самостоятельный UI-элемент.
+    labelPill: {
+      position: 'absolute',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      borderColor: withAlpha(theme.accent, 0.4),
+      backgroundColor: withAlpha(theme.surface, 0.9),
+      borderRadius: radius.full,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xxs,
+    },
+    labelPillText: {
+      color: theme.accent,
       fontWeight: fontWeights.semibold,
-      textAlign: 'center',
-      marginTop: spacing.xxs,
-      maxWidth: '90%',
+    },
+    labelPillBadge: {
+      position: 'absolute',
+      top: -10,
+      right: -8,
+      backgroundColor: colorPalettes.slate[900],
+      borderRadius: radius.full,
+      paddingHorizontal: spacing.xs,
+      paddingVertical: 1,
+    },
+    labelPillBadgeText: {
+      color: theme.onGradient,
+      fontWeight: fontWeights.bold,
     },
   });
 }

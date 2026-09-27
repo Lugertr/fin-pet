@@ -2,22 +2,22 @@
 // Конфигурация ассетов питомца и комнаты
 // ВАЖНО: Все пути к файлам должны быть статическими строками!
 
-export type PetType = 'robot' | 'dragon' | 'cat';
-export type PetMoodState = 'happy' | 'neutral' | 'sad' | 'sleeping';
+export type PetType = 'robot' | 'bear' | 'cat';
+/** Переосмысление (2 состояния вместо 4): 'happy'+'neutral' слились в 'idle',
+ * 'sad'+'sleeping' — в 'sleeping' (та же граница mood<=20, что раньше отделяла
+ * 'sad' от 'neutral', теперь отделяет 'sleeping' от 'idle', см. getMoodState). */
+export type PetMoodState = 'idle' | 'sleeping';
 
 export const PET_RENDER_MODE: 'emoji' | 'assets' = 'assets';
 
 export const PET_EMOJIS: Record<PetType, Record<PetMoodState, string>> = {
-  robot: { happy: '🤖', neutral: '🤖', sad: '🤖', sleeping: '😴' },
-  dragon: { happy: '🐉', neutral: '🐉', sad: '🐉', sleeping: '😴' },
-  cat: { happy: '😺', neutral: '🐱', sad: '😿', sleeping: '😴' },
+  robot: { idle: '🤖', sleeping: '😴' },
+  bear: { idle: '🐻', sleeping: '😴' },
+  cat: { idle: '🐱', sleeping: '😴' },
 };
 
 export function getMoodState(mood: number): PetMoodState {
-  if (mood <= 0) return 'sleeping';
-  if (mood <= 20) return 'sad';
-  if (mood <= 50) return 'neutral';
-  return 'happy';
+  return mood <= 20 ? 'sleeping' : 'idle';
 }
 
 // ============================================
@@ -25,6 +25,6 @@ export function getMoodState(mood: number): PetMoodState {
 // ============================================
 export const PET_ASSETS_SINGLE: Record<PetType, number> = {
   robot: require('../../assets/images/pets/robot/v0/idle.svg'),
-  dragon: require('../../assets/images/pets/dragon/v0/idle.svg'),
+  bear: require('../../assets/images/pets/bear/v0/idle.svg'),
   cat: require('../../assets/images/pets/cat/v0/idle.svg'),
 };

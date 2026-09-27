@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   runOnJS,
   useAnimatedStyle,
@@ -14,6 +15,7 @@ import {
 } from 'react-native-reanimated';
 
 import { ChoosingStage, OpeningStage, RevealedStage, UnopenedStage } from '@/components/giftReveal';
+import { HelpButton } from '@/components/shared';
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { GiftRevealResult, useGifts } from '@/lib/stores/giftsStore';
 import { useResponsive, useTheme } from '@/theme';
@@ -31,6 +33,7 @@ export default function ThemeRewardScreen() {
   const { giftId } = useLocalSearchParams<{ giftId: string }>();
   const { theme } = useTheme();
   const { scale, scaledFont } = useResponsive();
+  const insets = useSafeAreaInsets();
   const { trigger, triggerHaptic } = useFeedback();
   const { pendingGifts, openGift, chooseFromGift } = useGifts();
 
@@ -178,6 +181,17 @@ export default function ThemeRewardScreen() {
         {stage === 'revealed' && revealedResult && (
           <RevealedStage result={revealedResult} config={config} onClaim={handleClaim} />
         )}
+
+        {/* Подсказка — поверх сцены в правом верхнем углу. */}
+        <View
+          style={{
+            position: 'absolute',
+            top: insets.top + scale(spacing.sm),
+            right: scale(spacing.lg),
+          }}
+        >
+          <HelpButton screen="gift_reveal" variant="onGradient" />
+        </View>
       </LinearGradient>
     </View>
   );

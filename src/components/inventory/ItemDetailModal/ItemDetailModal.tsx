@@ -2,17 +2,19 @@
 // Модалка с деталями предмета — реальные действия (§12.1, §12.4)
 
 import { Modal, Text, TouchableOpacity, View } from 'react-native';
+
+import { ItemImage } from '@/components/shared';
 import { useShallow } from 'zustand/react/shallow';
 
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { Alert } from '@/lib/utils/alert';
 import { FURNITURE_CATEGORIES, FurnitureCategory, useShopStore } from '@/lib/hooks/useShop';
-import { formatCoins } from '@/lib/utils/formatters';
+import { formatPrice } from '@/lib/utils/formatters';
 import { getEffectDescription } from '@/lib/utils/shopItems';
-import { equipSkin } from '@/lib/pet/petSkin';
+import { equipSkin, unequipSkinIfSold } from '@/lib/pet/petSkin';
 import { usePetStore } from '@/lib/stores/petStore';
 import { useResponsive, useTheme } from '@/theme';
-import { emojiSizes, radius, spacing } from '@/theme/tokens';
+import { radius, spacing } from '@/theme/tokens';
 import { OwnedItem } from '../InventoryItemCard';
 import { CATEGORY_DISPLAY_NAMES } from '@/lib/utils/itemCategories';
 import { createItemDetailModalStyles } from './ItemDetailModal.styles';
@@ -72,6 +74,7 @@ export function ItemDetailModal({
         onFeedback('purchase');
       } else {
         onFeedback('error');
+        Alert.alert('Пока нельзя', result.message);
       }
       onClose();
       return;
@@ -107,7 +110,7 @@ export function ItemDetailModal({
 
     Alert.alert(
       'Продать предмет?',
-      `${item.name}: вы получите ${formatCoins(sellPrice)} (50% цены).`,
+      `${item.name}: ты получишь ${formatPrice(sellPrice)} (50% цены).`,
       [
         { text: 'Отмена', style: 'cancel' },
         {
@@ -115,6 +118,7 @@ export function ItemDetailModal({
           onPress: () => {
             const result = sellItem(item.id, 1);
             if (result.success) {
+              void unequipSkinIfSold(item);
               triggerHaptic('success');
               onFeedback('purchase');
             } else {
@@ -169,7 +173,7 @@ export function ItemDetailModal({
                 },
               ]}
             >
-              <Text style={{ fontSize: scale(emojiSizes.lg) }}>{item.icon}</Text>
+              <ItemImage item={item} size={scale(68)} />
             </View>
             <Text style={[styles.modalItemName, { fontSize: scaledFont('xxl') }]}>{item.name}</Text>
             <Text style={[styles.modalItemDescription, { fontSize: scaledFont('md') }]}>
@@ -234,7 +238,7 @@ export function ItemDetailModal({
             </TouchableOpacity>
           </View>
 
-          {!item.is_hidden && !item.is_starter && (
+          {!item.is_hidden && !item.is_starter && item.category !== 'skin' && (
             <TouchableOpacity
               onPress={handleSell}
               activeOpacity={0.8}
@@ -248,7 +252,7 @@ export function ItemDetailModal({
               ]}
             >
               <Text style={[styles.modalActionText, { fontSize: scaledFont('md') }]}>
-                Продать за {formatCoins(sellPrice)}
+                Продать за {formatPrice(sellPrice)}
               </Text>
             </TouchableOpacity>
           )}

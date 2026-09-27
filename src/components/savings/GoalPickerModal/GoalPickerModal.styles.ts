@@ -1,5 +1,5 @@
 // src/components/savings/GoalPickerModal/GoalPickerModal.styles.ts
-// Стили модалки выбора цели накопления.
+// Стили модалки выбора цели накопления (карточки — GoalOptionCard).
 
 import type { Theme } from '@/theme';
 import { fontSizes, fontWeights, radius, spacing } from '@/theme/tokens';
@@ -16,38 +16,40 @@ export function createGoalPickerModalStyles({ theme }: GoalPickerModalStylesPara
       backgroundColor: theme.overlay,
       justifyContent: 'flex-end',
     },
+    backdrop: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+    },
     modalContent: {
+      width: '100%',
+      maxWidth: 560,
+      alignSelf: 'center',
       backgroundColor: theme.background,
       borderTopLeftRadius: radius.xxl,
       borderTopRightRadius: radius.xxl,
       padding: spacing.xl,
-      maxHeight: '75%',
+      maxHeight: '80%',
     },
     modalTitle: {
       color: theme.textPrimary,
       fontWeight: fontWeights.bold,
       fontSize: fontSizes.xl,
+    },
+    modalSubtitle: {
+      color: theme.textSecondary,
+      fontSize: fontSizes.md,
+      marginTop: spacing.xs,
       marginBottom: spacing.lg,
     },
-    goalItemRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
+    // Отступ сверху/справа — под галочку выбранной карточки (она торчит за край).
+    list: {
       gap: spacing.md,
-      paddingVertical: spacing.md,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.borderLight,
-    },
-    goalItemIcon: {
-      fontSize: 28,
-    },
-    goalItemName: {
-      color: theme.textPrimary,
-      fontWeight: fontWeights.semibold,
-      fontSize: fontSizes.md,
-    },
-    goalItemPrice: {
-      color: theme.textSecondary,
-      fontSize: fontSizes.sm,
+      paddingTop: spacing.sm,
+      paddingRight: spacing.sm,
+      paddingBottom: spacing.md,
     },
   });
 }

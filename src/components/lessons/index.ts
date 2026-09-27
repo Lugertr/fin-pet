@@ -1,10 +1,8 @@
 export { LessonNode } from './LessonNode';
 export { LessonInfo } from './LessonInfo';
 export { ThemeCompleteReward } from './ThemeCompleteReward';
-export { ArcadeTab } from './ArcadeTab';
 export { BranchTabRow } from './BranchTabRow';
 export { ModuleHeaderCard } from './ModuleHeaderCard';
 export { LessonPath } from './LessonPath';
-export { GiftPathNode } from './GiftPathNode';
 export { LessonsBackground } from './LessonsBackground';
 export { BRANCH_ICONS, BRANCH_GRADIENTS } from './branchVisuals';

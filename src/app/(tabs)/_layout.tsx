@@ -1,29 +1,20 @@
 // app/(tabs)/_layout.tsx
-// Tab Navigator для основных экранов (4 таба)
+// Tab Navigator для основных экранов (5 табов). Хаб — всегда комната; экран
+// приключения — отдельный ((modal)/adventure), туда ведёт кнопка на хабе.
 
-import type { IconName } from '@/types/icons';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 
+import { MAIN_TABS } from '@/constants/mainTabs';
+import { useEnergyTicker } from '@/lib/pet/useEnergyTicker';
 import { useTheme } from '@/theme';
 import { fontWeights } from '@/theme/tokens';
 
-type TabConfig = {
-  name: string;
-  title: string;
-  icon: IconName;
-};
-
-const TABS: TabConfig[] = [
-  { name: 'lessons', title: 'Уроки', icon: 'school' },
-  { name: 'ai-chat', title: 'ИИ-помощник', icon: 'chatbubbles' },
-  { name: 'index', title: 'Хаб', icon: 'home' },
-  { name: 'shop', title: 'Магазин', icon: 'cart' },
-  { name: 'profile', title: 'Настройки', icon: 'settings-outline' },
-];
-
 export default function TabsLayout() {
   const { theme } = useTheme();
+  // ⚡ в общей шапке растёт сама, пока открыта любая вкладка (§6.3).
+  useEnergyTicker();
+  const tabs = MAIN_TABS;
 
   return (
     <Tabs
@@ -49,7 +40,10 @@ export default function TabsLayout() {
         },
       }}
     >
-      {TABS.map((tab) => (
+      {/* ИИ-помощник пока скрыт из панели — на его месте «Копилка». Экран
+          остаётся (href: null — без вкладки), чтобы вернуть его одной строкой. */}
+      <Tabs.Screen name="ai-chat" options={{ href: null }} />
+      {tabs.map((tab) => (
         <Tabs.Screen
           key={tab.name}
           name={tab.name}

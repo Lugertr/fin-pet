@@ -1,11 +1,11 @@
 // src/components/onboarding/Step4PetCustomize/Step4PetCustomize.tsx
 // Шаг 4 онбординга — «Настрой спутника»: цвет корпуса (реальный скин) + имя.
 //
-// Свотчи берутся из настоящих скинов выбранного типа питомца (content/items.json,
-// category 'skin', pet_type === petType) — variant 0 «Классический» существующие
-// ассеты, всегда доступен без покупки; variant 1/2 — покупные скины (см.
-// SHOP_CATALOG). Выбранный здесь скин при сабмите достаётся бесплатно (см.
-// onboarding.tsx handleSubmit), остальные можно купить позже в магазине.
+// Свотчи берутся из настоящих скинов выбранного типа питомца (getSkinsForPetType,
+// content/items.json, category 'skin', pet_type === petType): variant 0 —
+// «Классический», 1/2 — цветные. Выбранный здесь облик при сабмите кладётся в
+// инвентарь (см. onboarding.tsx handleSubmit); два остальных питомец получит
+// на уровнях 2 и 3 (PlayerLevel.pickLookToGrant). Облики не продаются.
 
 import { Ionicons } from '@expo/vector-icons';
 import { Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -13,35 +13,14 @@ import Animated, { FadeInRight } from 'react-native-reanimated';
 
 import { PetSprite } from '@/components/pet';
 import { useFeedback } from '@/lib/hooks/useFeedback';
-import { SHOP_CATALOG } from '@/lib/hooks/useShop';
+import { getSkinsForPetType } from '@/lib/pet/petSkin';
 import { useResponsive, useTheme } from '@/theme';
-import { withAlpha } from '@/theme/colorUtils';
-import { circleRadius, colorPalettes, spacing } from '@/theme/tokens';
+import { circleRadius, spacing } from '@/theme/tokens';
 import { createOnboardingStepsStyles } from '../onboardingSteps.styles';
 import { PET_TYPES, PetType } from '../Step3PetType';
 
-/** variant 0 не товар (нет записи в content/items.json) — цвет берём на глаз
- * по текущим ассетам вида, чтобы свотч совпадал с реальной картинкой. */
-const CLASSIC_SWATCH_COLOR: Record<PetType, string> = {
-  robot: colorPalettes.indigo[500],
-  dragon: colorPalettes.emerald[500],
-  cat: colorPalettes.amber[500],
-};
-
-export function getSkinsForPetType(petType: PetType) {
-  const purchasable = SHOP_CATALOG.filter(
-    (item) => item.category === 'skin' && item.pet_type === petType
-  ).sort((a, b) => (a.skin_variant ?? 0) - (b.skin_variant ?? 0));
-
-  return [
-    { variant: 0, color: CLASSIC_SWATCH_COLOR[petType], itemId: null as number | null },
-    ...purchasable.map((item) => ({
-      variant: item.skin_variant as number,
-      color: item.swatch_color ?? CLASSIC_SWATCH_COLOR[petType],
-      itemId: item.id,
-    })),
-  ];
-}
+/** Высота питомца в превью — одинаковая для всех видов. */
+const PREVIEW_HEIGHT = 150;
 
 export function Step4PetCustomize({
   petType,
@@ -63,35 +42,44 @@ export function Step4PetCustomize({
 
   const selectedPet = PET_TYPES.find((p) => p.id === petType);
   const skins = getSkinsForPetType(petType);
-  const haloColor = skins.find((s) => s.variant === colorVariant)?.color ?? theme.accent;
 
   return (
     <Animated.View entering={FadeInRight.duration(300)}>
       <Text style={[styles.stepTitle, { fontSize: scaledFont('xxl') }]}>Настрой спутника</Text>
       <Text style={[styles.stepSubtitle, { fontSize: scaledFont('md') }]}>
-        Выбери цвет корпуса и придумай имя. Остальные цвета можно будет купить в магазине.
+        Выбери облик и придумай имя. Два других облика питомец получит на 2-м и 3-м уровне.
       </Text>
 
       <View style={[styles.customizePreviewBox, { marginBottom: scale(spacing.xl) }]}>
+        {/* Рамка ровно по высоте питомца (подгонка по высоте): раньше
+            высокий спрайт в квадратной рамке 120 вылезал вверх — на
+            подзаголовок — и вниз. Высота та же у всех видов. */}
         <View
           style={[
             styles.petAvatarCircle,
             {
-              width: scale(120),
-              height: scale(120),
-              borderRadius: circleRadius(scale(120)),
-              backgroundColor: withAlpha(haloColor, 0.12),
+              height: scale(PREVIEW_HEIGHT),
+              marginTop: scale(spacing.md),
               marginBottom: scale(spacing.md),
             },
           ]}
         >
-          <PetSprite petType={petType} mood={100} size={scale(96)} skinVariant={colorVariant} />
+          <PetSprite
+            petType={petType}
+            mood={100}
+            height={scale(PREVIEW_HEIGHT)}
+            skinVariant={colorVariant}
+          />
         </View>
 
         <Text
           style={[
             styles.inputLabel,
-            { fontSize: scaledFont('sm'), marginBottom: scale(spacing.sm) },
+            {
+              fontSize: scaledFont('sm'),
+              marginTop: scale(spacing.md),
+              marginBottom: scale(spacing.sm),
+            },
           ]}
         >
           Цвет корпуса

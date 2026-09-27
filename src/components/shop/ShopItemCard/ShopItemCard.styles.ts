@@ -45,7 +45,6 @@ export function createShopItemCardStyles({ theme }: ShopItemCardStylesParams) {
     itemPrice: {
       fontWeight: fontWeights.bold,
       fontSize: fontSizes.lg,
-      marginBottom: spacing.sm,
     },
     itemPriceAffordable: {
       color: theme.coins,

@@ -1,0 +1,182 @@
+[
+  {
+    "id": "snack",
+    "title": "Захотелось перекусить",
+    "description": "Пока питомец работал, проголодался. Как поступим?",
+    "icon": "🍪",
+    "pools": ["normal", "low_money"],
+    "options": [
+      {
+        "id": "buy",
+        "label": "Купить сытный перекус — быстрее вернёшься к делам",
+        "category": "mandatory",
+        "coinAmount": -15,
+        "timeDeltaMinutes": -15
+      },
+      {
+        "id": "treat",
+        "label": "Побаловать себя сладостью",
+        "category": "optional",
+        "coinAmount": -15,
+        "timeDeltaMinutes": 0
+      },
+      {
+        "id": "wait",
+        "label": "Перетерпеть и поработать",
+        "category": null,
+        "coinAmount": 0,
+        "timeDeltaMinutes": 5
+      }
+    ]
+  },
+  {
+    "id": "friend",
+    "title": "Друг зовёт поиграть",
+    "description": "Друг прислал приглашение в игру прямо посреди работы.",
+    "icon": "🎮",
+    "pools": ["normal"],
+    "options": [
+      {
+        "id": "helper",
+        "label": "Нанять помощника на часок",
+        "category": "mandatory",
+        "coinAmount": -20,
+        "timeDeltaMinutes": -20
+      },
+      {
+        "id": "treat",
+        "label": "Купить что-нибудь вкусное, пока ждёшь",
+        "category": "optional",
+        "coinAmount": -18,
+        "timeDeltaMinutes": 0
+      },
+      {
+        "id": "decline",
+        "label": "Отказаться, продолжить работу",
+        "category": null,
+        "coinAmount": 0,
+        "timeDeltaMinutes": 10
+      }
+    ]
+  },
+  {
+    "id": "book",
+    "title": "Нашёл интересную книгу",
+    "description": "На столе лежит книга по финансовой грамотности.",
+    "icon": "📘",
+    "pools": ["normal", "low_energy"],
+    "options": [
+      {
+        "id": "tutor",
+        "label": "Нанять репетитора, чтобы разобраться быстрее",
+        "category": "mandatory",
+        "coinAmount": -15,
+        "timeDeltaMinutes": -15
+      },
+      {
+        "id": "treat",
+        "label": "Купить красивую обложку для книги",
+        "category": "optional",
+        "coinAmount": -15,
+        "timeDeltaMinutes": 0
+      },
+      {
+        "id": "skip",
+        "label": "Пропустить",
+        "category": null,
+        "coinAmount": 0,
+        "timeDeltaMinutes": 0
+      }
+    ]
+  },
+  {
+    "id": "repair",
+    "title": "Компьютер начал барахлить",
+    "description": "Что-то щёлкает в ноутбуке. Нужно решить, что делать.",
+    "icon": "🛠️",
+    "pools": ["normal"],
+    "options": [
+      {
+        "id": "master",
+        "label": "Позвать мастера",
+        "category": "mandatory",
+        "coinAmount": -25,
+        "timeDeltaMinutes": -25
+      },
+      {
+        "id": "treat",
+        "label": "Заказать крутой чехол для ноутбука",
+        "category": "optional",
+        "coinAmount": -20,
+        "timeDeltaMinutes": 0
+      },
+      {
+        "id": "fix_myself",
+        "label": "Чинить самому",
+        "category": null,
+        "coinAmount": 0,
+        "timeDeltaMinutes": 20
+      }
+    ]
+  },
+  {
+    "id": "bonus",
+    "title": "Неожиданный подарок",
+    "description": "Знакомый прислал немного монет просто так!",
+    "icon": "🎁",
+    "pools": ["low_money", "normal"],
+    "options": [
+      {
+        "id": "keep",
+        "label": "Положить в кошелёк",
+        "category": null,
+        "coinAmount": 20,
+        "timeDeltaMinutes": 0
+      },
+      {
+        "id": "brag",
+        "label": "Похвастаться другу",
+        "category": null,
+        "coinAmount": 0,
+        "timeDeltaMinutes": 10
+      },
+      {
+        "id": "back_to_work",
+        "label": "Сразу вернуться к делам",
+        "category": null,
+        "coinAmount": 0,
+        "timeDeltaMinutes": -10
+      }
+    ]
+  },
+  {
+    "id": "toy",
+    "title": "Захотелось новую игрушку",
+    "description": "Питомец увидел в витрине магазина новую игрушку.",
+    "icon": "🧸",
+    "pools": ["normal", "low_energy"],
+    "options": [
+      {
+        "id": "supplies",
+        "label": "Купить нужные материалы для дела",
+        "category": "mandatory",
+        "coinAmount": -18,
+        "timeDeltaMinutes": -15
+      },
+      {
+        "id": "treat",
+        "label": "Купить игрушку по спецпредложению",
+        "category": "optional",
+        "coinAmount": -18,
+        "timeDeltaMinutes": 0
+      },
+      {
+        "id": "decline",
+        "label": "Отказаться",
+        "category": null,
+        "coinAmount": 0,
+        "timeDeltaMinutes": 0
+      }
+    ]
+  }
+]

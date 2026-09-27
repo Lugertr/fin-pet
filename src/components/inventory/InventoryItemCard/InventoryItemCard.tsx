@@ -4,6 +4,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Text, View } from 'react-native';
 
+import { ItemImage } from '@/components/shared';
+
 import { Badge, Card } from '@/components/ui';
 import { ShopItem } from '@/lib/hooks/useShop';
 import { getEffectDescription } from '@/lib/utils/shopItems';
@@ -42,7 +44,7 @@ export function InventoryItemCard({
           },
         ]}
       >
-        <Text style={{ fontSize: scale(28) }}>{item.icon}</Text>
+        <ItemImage item={item} size={scale(48)} />
         {item.quantity > 1 && (
           <View
             style={[

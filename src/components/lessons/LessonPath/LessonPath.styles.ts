@@ -10,10 +10,7 @@ interface LessonPathStylesParams {
 
 export function createLessonPathStyles({ theme }: LessonPathStylesParams) {
   return StyleSheet.create({
-    scroll: {
-      flex: 1,
-    },
-    scrollContent: {
+    container: {
       paddingHorizontal: spacing.lg,
       paddingBottom: spacing.xxxl,
       paddingTop: spacing.sm,

@@ -1,7 +1,7 @@
 {
   "features": {
     "budget_planning": true,
-    "game_periods": true,
+    "adventures": true,
     "purchases": true,
     "savings_goals": true,
     "energy_system": true,
@@ -15,7 +15,7 @@
     "daily_streaks": true,
     "adult_section": true,
     "demo_mode": true,
-    "pet_stages": true,
+    "player_levels": true,
     "online_auth": false,
     "content_sync_server": false,
     "admin_panel": false

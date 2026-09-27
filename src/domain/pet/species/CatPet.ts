@@ -7,29 +7,36 @@ import { PetEmotion, PetSpecies } from '../Pet';
  * (content/items.json, category 'skin', pet_type 'cat'). */
 const BODY_ASSETS: Record<number, Record<PetMoodState, number>> = {
   0: {
-    happy: require('../../../../assets/images/pets/cat/v0/happy.svg'),
-    neutral: require('../../../../assets/images/pets/cat/v0/idle.svg'),
-    sad: require('../../../../assets/images/pets/cat/v0/sad.svg'),
+    idle: require('../../../../assets/images/pets/cat/v0/idle.svg'),
     sleeping: require('../../../../assets/images/pets/cat/v0/sleeping.svg'),
   },
   1: {
-    happy: require('../../../../assets/images/pets/cat/v1/happy.svg'),
-    neutral: require('../../../../assets/images/pets/cat/v1/idle.svg'),
-    sad: require('../../../../assets/images/pets/cat/v1/sad.svg'),
+    idle: require('../../../../assets/images/pets/cat/v1/idle.svg'),
     sleeping: require('../../../../assets/images/pets/cat/v1/sleeping.svg'),
   },
   2: {
-    happy: require('../../../../assets/images/pets/cat/v2/happy.svg'),
-    neutral: require('../../../../assets/images/pets/cat/v2/idle.svg'),
-    sad: require('../../../../assets/images/pets/cat/v2/sad.svg'),
+    idle: require('../../../../assets/images/pets/cat/v2/idle.svg'),
     sleeping: require('../../../../assets/images/pets/cat/v2/sleeping.svg'),
   },
 };
 
+const EMOTION_ASSETS: Record<number, Partial<Record<PetEmotion, number>>> = {
+  0: {
+    question: require('../../../../assets/images/pets/cat/v0/question.svg'),
+    reward: require('../../../../assets/images/pets/cat/v0/reward.svg'),
+  },
+  1: {
+    question: require('../../../../assets/images/pets/cat/v1/question.svg'),
+    reward: require('../../../../assets/images/pets/cat/v1/reward.svg'),
+  },
+  2: {
+    question: require('../../../../assets/images/pets/cat/v2/question.svg'),
+    reward: require('../../../../assets/images/pets/cat/v2/reward.svg'),
+  },
+};
+
 const FALLBACK_EMOJI: Record<PetMoodState, string> = {
-  happy: '😺',
-  neutral: '🐱',
-  sad: '😿',
+  idle: '🐱',
   sleeping: '😴',
 };
 
@@ -41,8 +48,8 @@ export class CatPet extends PetSpecies {
     return (BODY_ASSETS[skinVariant] ?? BODY_ASSETS[0])[state];
   }
 
-  getEmotionAsset(_emotion: PetEmotion) {
-    return null;
+  getEmotionAsset(emotion: PetEmotion, skinVariant = 0) {
+    return (EMOTION_ASSETS[skinVariant] ?? EMOTION_ASSETS[0])[emotion] ?? null;
   }
 
   getFallbackEmoji(state: PetMoodState) {
