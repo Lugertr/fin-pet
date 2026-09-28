@@ -6,6 +6,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LessonProgressState, createLessonProgress } from '@/domain/lesson/lessonProgress';
 import { planForLesson } from '@/domain/lesson/LessonPlan';
+import { convertLegacyTotalXp } from '@/domain/player/PlayerLevel';
 import { LEGACY_LESSONS_STORE_KEY } from '@/lib/lessons/importLegacyLessonProgress';
 import { useUserStore } from '@/lib/stores/userStore';
 import { LESSONS, useLessonsStore, waitForLessonsLoaded } from './useLessons';
@@ -72,7 +73,10 @@ describe('useLessonsStore — прогресс в SQLite', () => {
     await flush();
     expect(mockRows.get(`${PROFILE}:${lessonId}`)?.completedAt).toBeNull();
 
-    useLessonsStore.getState().markLessonCompleted(lessonId);
+    useLessonsStore.getState().saveLessonState({
+      ...createLessonProgress(lessonId),
+      completedAt: new Date().toISOString(),
+    });
     await flush();
     expect(mockRows.get(`${PROFILE}:${lessonId}`)?.completedAt).not.toBeNull();
 
@@ -118,7 +122,8 @@ describe('useLessonsStore — прогресс в SQLite', () => {
     await useLessonsStore.getState().load(PROFILE);
 
     expect(useLessonsStore.getState().progress[lessonId]?.status).toBe('completed');
-    expect(useLessonsStore.getState().totalXp).toBe(500);
+    // Опыт прежней шкалы — в новую с тем же уровнем (convertLegacyTotalXp).
+    expect(useLessonsStore.getState().totalXp).toBe(convertLegacyTotalXp(500));
     expect(await AsyncStorage.getItem(LEGACY_LESSONS_STORE_KEY)).toBeNull();
   });
 

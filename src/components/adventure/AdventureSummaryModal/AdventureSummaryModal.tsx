@@ -13,7 +13,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Modal, ScrollView, TouchableOpacity, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
-import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PetAvatarBubble } from '@/components/pet';
@@ -21,12 +21,10 @@ import { HelpButton } from '@/components/shared';
 import { FURNITURE_ASSETS } from '@/constants/itemAssets';
 import { PLAN_CATEGORY_COLORS } from '@/constants/planCategories';
 import { isPlanBonusEligible } from '@/domain/adventure/Adventure';
-import { getLevelTitle } from '@/domain/player/PlayerLevel';
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import type { AdventureCompletionSummary } from '@/lib/stores/adventureStore';
 import { usePetStore } from '@/lib/stores/petStore';
 import { usePreferencesStore } from '@/lib/stores/preferencesStore';
-import { formatPrice } from '@/lib/utils/formatters';
 import { useResponsive, useTheme } from '@/theme';
 import { withAlpha } from '@/theme/colorUtils';
 import { colorPalettes } from '@/theme/tokens';
@@ -65,10 +63,8 @@ export function AdventureSummaryModal({
     `${summary.toBank} на цель`,
     ...(summary.bankBonus > 0 ? [`+${summary.bankBonus} бонус копилки`] : []),
   ].join(', ');
-  const rewardsLine = [
-    ...(summary.bonusAwarded > 0 ? [`бонус за план +${summary.bonusAwarded}`] : []),
-    `опыт +${summary.xpAwarded}`,
-  ].join(' · ');
+  // Опыта смена не даёт — его (и новый уровень) приносит урок, см. экран награды урока.
+  const rewardsLine = summary.bonusAwarded > 0 ? `бонус за план +${summary.bonusAwarded}` : null;
 
   const handleHome = () => {
     triggerHaptic('light');
@@ -137,7 +133,7 @@ export function AdventureSummaryModal({
             <Text style={[styles.note, { fontSize: scaledFont('md') }]}>
               {summary.autoCompleted ? '24 часа смены вышли. ' : ''}
               {summary.completionRatio < 1
-                ? `Урок пройден на ${Math.round(summary.completionRatio * 100)}% — столько же бюджета и опыта, бонус копилки не начислялся.`
+                ? `Урок пройден на ${Math.round(summary.completionRatio * 100)}% — столько же бюджета, бонус копилки не начислялся.`
                 : 'Вот что получилось.'}
             </Text>
           )}
@@ -148,28 +144,6 @@ export function AdventureSummaryModal({
               {Math.min(summary.lesson.nodesDone + 1, summary.lesson.nodesTotal)} из{' '}
               {summary.lesson.nodesTotal}.
             </Text>
-          )}
-
-          {summary.levelUp && (
-            <Animated.View entering={ZoomIn.duration(400)} style={styles.levelUpCard}>
-              <Text style={{ fontSize: scale(32) }}>🎉</Text>
-              <View style={styles.levelUpBody}>
-                <Text style={[styles.levelUpTitle, { fontSize: scaledFont('lg') }]}>
-                  Новый уровень {summary.levelUp.to}: «{getLevelTitle(summary.levelUp.to)}»
-                </Text>
-                {/* §8.4: объясняем, что именно получено — только реально выданное */}
-                {summary.levelUp.coins > 0 && (
-                  <Text style={[styles.levelUpText, { fontSize: scaledFont('md') }]}>
-                    Награда: +{formatPrice(summary.levelUp.coins)}
-                  </Text>
-                )}
-                {summary.levelUp.skinName && (
-                  <Text style={[styles.levelUpText, { fontSize: scaledFont('md') }]}>
-                    Новый облик питомца: {summary.levelUp.skinName}
-                  </Text>
-                )}
-              </View>
-            </Animated.View>
           )}
 
           {/* План и факт (§7.4) */}
@@ -191,7 +165,7 @@ export function AdventureSummaryModal({
             iconBackground={withAlpha(PLAN_CATEGORY_COLORS.save, 0.2)}
             title="Перенос в копилку:"
             amount={transferred}
-            lines={[transferSplit, rewardsLine]}
+            lines={rewardsLine ? [transferSplit, rewardsLine] : [transferSplit]}
           />
         </ScrollView>
 

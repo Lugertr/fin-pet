@@ -1,8 +1,8 @@
 // src/components/profile/ProgressLevelCard/ProgressLevelCard.tsx
 // Карточка уровня (макет S31): «Уровень 2 · Исследователь», XP до
 // следующего уровня, полоска прогресса. Внизу слева — облик питомца (новый
-// облик открывается на уровнях 2 и 3), справа — откуда берётся опыт: только
-// из завершённых приключений (уроки дают монеты, но не XP).
+// облик открывается на уровнях 2 и 3), справа — откуда берётся опыт: за
+// уроки (все уроки темы — ровно новый уровень).
 
 import { View } from 'react-native';
 import { Text } from '@/components/ui/Text';
@@ -51,7 +51,7 @@ export function ProgressLevelCard({
         <Text style={[styles.levelStageText, { fontSize: scaledFont('sm') }]}>
           облик {lookStage}/{lookStagesTotal}
         </Text>
-        <Text style={[styles.captionText, { fontSize: scaledFont('sm') }]}>XP за смены</Text>
+        <Text style={[styles.captionText, { fontSize: scaledFont('sm') }]}>XP за уроки</Text>
       </View>
     </View>
   );

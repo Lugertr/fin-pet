@@ -12,7 +12,11 @@ import { AchievementDefinition } from '@/domain/achievement/Achievement';
 import { ItemContent } from '@/domain/content/ItemContent';
 import { AnyLessonContent } from '@/domain/content/LessonContent';
 import { isNodeLesson } from '@/domain/lesson/LessonPlan';
-import { LESSON_STEP_REWARDS } from '@/domain/lesson/lessonRewards';
+import {
+  LESSON_PERFECT_BONUS,
+  LESSON_STEP_REWARDS,
+  SHIFT_LESSON_COIN_BONUS_PERCENT,
+} from '@/domain/lesson/lessonRewards';
 import { QUIZ_TRAINER_QUESTION_COUNT } from '@/domain/arcade/TrainerSelection';
 import { ARCADE_COINS_PER_CORRECT, ARCADE_ENERGY_COST } from '@/constants/gameplay';
 
@@ -21,13 +25,14 @@ const LESSONS = lessonsJson as unknown as AnyLessonContent[];
 
 /** Бюджет смены (ADVENTURE_BASE_INCOME) + бонус за план. */
 const SHIFT_BUDGET_WITH_PLAN_BONUS = 100 + 10;
-/** Надбавка за урок смены (+10%, см. LessonPlayer). */
-const QUEST_COIN_MULTIPLIER = 1.1;
+/** Надбавка за урок смены (+10%, см. lessonRewards.ts). */
+const QUEST_COIN_MULTIPLIER = 1 + SHIFT_LESSON_COIN_BONUS_PERCENT / 100;
 
 /**
  * Верхняя граница денег за одну идеальную смену (смена = один урок): весь
  * бюджет с бонусом за план, самые щедрые варианты всех событий самого
- * «денежного» урока и монеты за урок (стартовый ноутбук без бонуса).
+ * «денежного» урока и монеты за урок вместе с бонусом за звезду (стартовый
+ * ноутбук без бонуса).
  * Награды за уровень — отдельные вехи, в эту границу не входят.
  */
 function perfectShiftMaxIncome(): number {
@@ -46,10 +51,11 @@ function perfectShiftMaxIncome(): number {
         )
     )
   );
-  const lessonCoins = Math.round(
-    (LESSON_STEP_REWARDS.theory + LESSON_STEP_REWARDS.minigame + LESSON_STEP_REWARDS.test) *
-      QUEST_COIN_MULTIPLIER
-  );
+  const lessonCoins =
+    Math.round(
+      (LESSON_STEP_REWARDS.theory + LESSON_STEP_REWARDS.minigame + LESSON_STEP_REWARDS.test) *
+        QUEST_COIN_MULTIPLIER
+    ) + Math.round(LESSON_PERFECT_BONUS * QUEST_COIN_MULTIPLIER);
   return SHIFT_BUDGET_WITH_PLAN_BONUS + eventRewards + lessonCoins;
 }
 

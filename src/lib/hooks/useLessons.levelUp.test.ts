@@ -2,6 +2,7 @@
 // §8.4: при переходе объясняется, какая награда получена — результат
 // level-up отражает то, что реально выдано (монеты, скин только если он новый).
 
+import { XP_PER_LEVEL } from '@/domain/player/PlayerLevel';
 import { usePetStore } from '@/lib/stores/petStore';
 import { usePreferencesStore } from '@/lib/stores/preferencesStore';
 import { useUserStore } from '@/lib/stores/userStore';
@@ -24,7 +25,7 @@ beforeEach(() => {
 
 describe('useLessonsStore.addXp — награда за уровень', () => {
   it('уровень 2: монеты и новый скин своего вида', () => {
-    const result = useLessonsStore.getState().addXp(250);
+    const result = useLessonsStore.getState().addXp(XP_PER_LEVEL);
 
     expect(result?.to).toBe(2);
     expect(result?.coins).toBe(100);
@@ -36,7 +37,7 @@ describe('useLessonsStore.addXp — награда за уровень', () => {
     useShopStore.getState().addItem(13, 1); // выбран «Робот: Оранжевый»
     usePetStore.getState().setEquippedSkinVariant(1);
 
-    const result = useLessonsStore.getState().addXp(250);
+    const result = useLessonsStore.getState().addXp(XP_PER_LEVEL);
 
     expect(result?.skinName).toBe('Робот: Розовый скин');
     expect(useShopStore.getState().ownedItems[13]).toBe(1);
@@ -46,7 +47,7 @@ describe('useLessonsStore.addXp — награда за уровень', () => {
   it('вид с одним обликом (мишка) получает только монеты', () => {
     usePreferencesStore.getState().setPetType('bear');
 
-    const result = useLessonsStore.getState().addXp(250);
+    const result = useLessonsStore.getState().addXp(XP_PER_LEVEL);
 
     expect(result?.coins).toBe(100);
     expect(result?.skinName).toBeNull();

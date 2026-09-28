@@ -1,10 +1,12 @@
 // domain/player/PlayerLevel.test.ts
 // CLAUDE.md: «рост стадии по успешным периодам» — стадии заменены уровнем
 // игрока (см. память проекта: level поглощает стадии), тестируем рост уровня
-// по накопленному опыту.
+// по накопленному опыту: 300 на уровень, тема уроков — ровно уровень.
 
 import {
+  XP_PER_LEVEL,
   computeLevel,
+  convertLegacyTotalXp,
   pickLookToGrant,
   totalXpForLevel,
   xpForLevel,
@@ -25,9 +27,15 @@ describe('xpToNextLevel (демо: ровно до следующего уров
 });
 
 describe('xpForLevel / totalXpForLevel', () => {
-  it('требование к следующему уровню растёт с уровнем', () => {
-    expect(xpForLevel(2)).toBeGreaterThan(xpForLevel(1));
-    expect(xpForLevel(3)).toBeGreaterThan(xpForLevel(2));
+  it('на каждый уровень — одинаково, 300 опыта (как у одной темы уроков)', () => {
+    expect(XP_PER_LEVEL).toBe(300);
+    for (const level of [1, 2, 5, 9]) expect(xpForLevel(level)).toBe(XP_PER_LEVEL);
+  });
+
+  it('+300 опыта с любой точки — ровно +1 уровень', () => {
+    for (let xp = 0; xp <= totalXpForLevel(8); xp += 29) {
+      expect(computeLevel(xp + XP_PER_LEVEL).level).toBe(computeLevel(xp).level + 1);
+    }
   });
 
   it('суммарный порог уровня 1 равен нулю', () => {
@@ -69,6 +77,35 @@ describe('computeLevel (рост уровня по опыту)', () => {
     expect(info.level).toBe(2);
     expect(info.xpIntoLevel).toBe(10);
     expect(info.xpForNext).toBe(xpForLevel(2));
+  });
+});
+
+describe('convertLegacyTotalXp (прежняя шкала 250 × уровень → 300 на уровень)', () => {
+  /** Уровень по прежней шкале: порог уровня L — 125 × (L − 1) × L. */
+  function legacyLevel(xp: number): number {
+    let level = 1;
+    while (125 * level * (level + 1) <= xp) level += 1;
+    return level;
+  }
+
+  it('уровень при пересчёте не меняется — ни понижения, ни подарка уровня', () => {
+    for (let xp = 0; xp <= 20_000; xp += 7) {
+      expect(computeLevel(convertLegacyTotalXp(xp)).level).toBe(legacyLevel(xp));
+    }
+  });
+
+  it('пороги прежней шкалы — ровно пороги новой, доля пути сохраняется', () => {
+    expect(convertLegacyTotalXp(0)).toBe(0);
+    expect(convertLegacyTotalXp(249)).toBe(298);
+    expect(convertLegacyTotalXp(250)).toBe(300);
+    expect(convertLegacyTotalXp(750)).toBe(600);
+    // уровень 2 и половина пути до 3-го: было 250 из 500, стало 150 из 300
+    expect(convertLegacyTotalXp(500)).toBe(450);
+  });
+
+  it('мусор — ноль', () => {
+    expect(convertLegacyTotalXp(-5)).toBe(0);
+    expect(convertLegacyTotalXp(Number.NaN)).toBe(0);
   });
 });
 

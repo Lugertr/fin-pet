@@ -35,7 +35,7 @@ function memoryRepository(initial: LessonProgressState[] = [], xp = 0) {
 }
 
 describe('convertLegacyLessonsStore', () => {
-  it('пройденный урок — завершён (с датой), начатый — пустой, опыт переносится', () => {
+  it('пройденный урок — завершён (с датой), начатый — пустой, опыт — в новую шкалу', () => {
     const { states, totalXp } = convertLegacyLessonsStore(
       legacyJson(
         {
@@ -55,7 +55,9 @@ describe('convertLegacyLessonsStore', () => {
       { ...createLessonProgress(1), completedAt: '2026-09-20T10:00:00.000Z' },
       createLessonProgress(2),
     ]);
-    expect(totalXp).toBe(400);
+    // 400 по прежней шкале — уровень 2 и 150 из 500 до уровня 3; в новой —
+    // тот же уровень 2 и та же доля: 300 + 90.
+    expect(totalXp).toBe(390);
   });
 
   it('пройденный без даты — дата переноса', () => {
@@ -91,7 +93,7 @@ describe('importLegacyLessonProgress', () => {
     await importLegacyLessonProgress('profile', memory.repository);
 
     expect(memory.rows.get(1)?.completedAt).toBe(NOW);
-    expect(memory.getXp()).toBe(250);
+    expect(memory.getXp()).toBe(300); // ровно уровень 2 — и в новой шкале
     expect(await AsyncStorage.getItem(LEGACY_LESSONS_STORE_KEY)).toBeNull();
   });
 

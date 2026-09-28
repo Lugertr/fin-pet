@@ -7,12 +7,14 @@
 // Уроки старого формата идут тем же плеером через адаптер (planForLesson).
 //
 // Урок, пройденный раньше, открывается обзором: ситуацию и теорию можно
-// перечитать, тест и мини-игру — перепройти (лучшая попытка; без ошибок во
-// всём уроке — звезда), награды за повтор нет (§9.7). Тап по пройденному этапу
-// на треке смены открывает обзор одного этапа (focusNode) — так же.
-// Урок смены: события платит бюджет смены, ошибка стоит энергии, урок пройден
-// — смена завершается (итоги на хабе). Награда за первое прохождение пока
-// прежняя (lessonRewards.ts); вариант B — этап 5.
+// перечитать, тест и мини-игру — перепройти (лучшая попытка). Награда —
+// вариант B (lessonRewards.ts, начисляет useLessonsStore.finishLesson):
+// первое прохождение — опыт и монеты; впервые без ошибок во всём уроке —
+// звезда и бонус (в том числе при перепрохождении); остальные повторы — без
+// награды (§9.7). Тап по пройденному этапу на треке смены открывает обзор
+// одного этапа (focusNode) — так же.
+// Урок смены: +10% монет, события платит бюджет смены, ошибка стоит энергии,
+// урок пройден — смена завершается (итоги на хабе).
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -33,19 +35,23 @@ import {
   completedNodeCount,
   createLessonProgress,
   currentPosition,
-  isLessonPerfect,
+  hasStar,
   markReadingDone,
   pickEvent,
   recordActivityResult,
   totalNodeCount,
 } from '@/domain/lesson/lessonProgress';
-import { lessonCompletionCoins } from '@/domain/lesson/lessonRewards';
-import { FIVE_LETTERS_WORDS, Lesson, useLessonsStore } from '@/lib/hooks/useLessons';
-import { useShopStore } from '@/lib/hooks/useShop';
+import {
+  FIVE_LETTERS_WORDS,
+  Lesson,
+  LessonRewardResult,
+  useLessonsStore,
+} from '@/lib/hooks/useLessons';
 import { useAdventureStore } from '@/lib/stores/adventureStore';
 import { usePetStore } from '@/lib/stores/petStore';
 import { useUserStore } from '@/lib/stores/userStore';
 import { Alert } from '@/lib/utils/alert';
+import { formatPrice } from '@/lib/utils/formatters';
 import { CompleteStage } from '../CompleteStage';
 import { LessonEventStep } from '../LessonEventStep';
 import { LessonOverview } from '../LessonOverview';
@@ -80,8 +86,16 @@ type Segment =
       words: FiveLettersWordContent[];
     }
   | { kind: 'conclusion' }
-  | { kind: 'reward'; coins: number; isReplay: boolean; isPerfect: boolean }
-  | { kind: 'complete'; coins: number; isReplay: boolean };
+  /** isShift — урок смены на момент завершения: смена тут же закрывается,
+   * и живой признак (isShiftLesson) к показу награды уже false. */
+  | {
+      kind: 'reward';
+      reward: LessonRewardResult;
+      isReplay: boolean;
+      hasStar: boolean;
+      isShift: boolean;
+    }
+  | { kind: 'complete'; coins: number; isReplay: boolean; isShift: boolean };
 
 /** Сегмент действия: событие выпадает из пула один раз и запоминается в прогрессе. */
 function activitySegment(
@@ -149,7 +163,6 @@ export function LessonPlayer({
   const applyLessonEventChoice = useAdventureStore((s) => s.applyLessonEventChoice);
   const completeAdventure = useAdventureStore((s) => s.completeAdventure);
   const currentMood = usePetStore((s) => s.currentMood);
-  const laptopCoinBonusPercent = useShopStore((s) => s.getTotalCoinBonusPercent());
 
   const [start] = useState(() => {
     const stored =
@@ -208,17 +221,24 @@ export function LessonPlayer({
     return activity.content.pool.find((event) => event.id === id) ?? null;
   };
 
-  /** Сегмент пройден: дальше по уроку или — при повторе — назад к обзору. */
+  /**
+   * Сегмент пройден: дальше по уроку или — при повторе — назад к обзору.
+   * Перепрохождение завершённого урока может дать звезду и бонус (один раз);
+   * у незавершённого урока (этап с трека смены) завершение — только через
+   * заключение, с экраном награды.
+   */
   const afterSegment = (next: LessonProgressState) => {
     if (isRevisit) {
-      const result = finishLesson(plan, next);
-      progressRef.current = result.state;
-      setProgress(result.state);
-      if (result.firstPerfect) {
-        Alert.alert(
-          '★ Идеально!',
-          'Все тесты и игры урока пройдены без ошибок — у урока появилась звезда.'
-        );
+      if (next.completedAt) {
+        const result = finishLesson(plan, next);
+        progressRef.current = result.state;
+        setProgress(result.state);
+        if (result.firstPerfect) {
+          Alert.alert(
+            '★ Идеально!',
+            `Все тесты и игры урока пройдены без ошибок — у урока появилась звезда и бонус +${formatPrice(result.reward.perfectCoins)} на твой счёт.`
+          );
+        }
       }
       show({ kind: 'overview' });
       return;
@@ -260,18 +280,18 @@ export function LessonPlayer({
       show({ kind: 'overview' });
       return;
     }
-    const result = finishLesson(plan, progressRef.current);
+    // Награда (монеты, опыт, звезда и бонус) начисляется здесь же, в сторе.
+    const result = finishLesson(plan, progressRef.current, { shiftLesson: isAdventureQuest });
     progressRef.current = result.state;
     setProgress(result.state);
     // Урок смены пройден — смена завершается (полная доля), итоги — на хабе.
     if (result.firstCompletion && isAdventureQuest) void completeAdventure();
-    const multiplier = 1 + (isAdventureQuest ? 0.1 : 0) + laptopCoinBonusPercent / 100;
-    const coins = result.firstCompletion ? Math.round(lessonCompletionCoins(plan) * multiplier) : 0;
     show({
       kind: 'reward',
-      coins,
+      reward: result.reward,
       isReplay: !result.firstCompletion,
-      isPerfect: isLessonPerfect(plan, result.state),
+      hasStar: hasStar(result.state),
+      isShift: isAdventureQuest,
     });
   };
 
@@ -357,12 +377,17 @@ export function LessonPlayer({
       case 'reward':
         return (
           <RewardStep
-            step={{ type: 'reward', coins: segment.coins, reason: 'Урок пройден' }}
-            isAdventureQuest={isAdventureQuest}
+            reward={segment.reward}
+            isAdventureQuest={segment.isShift}
             isReplay={segment.isReplay}
-            isPerfect={segment.isPerfect}
+            hasStar={segment.hasStar}
             onCollect={() =>
-              show({ kind: 'complete', coins: segment.coins, isReplay: segment.isReplay })
+              show({
+                kind: 'complete',
+                coins: segment.reward.coins,
+                isReplay: segment.isReplay,
+                isShift: segment.isShift,
+              })
             }
           />
         );
@@ -371,7 +396,7 @@ export function LessonPlayer({
           <CompleteStage
             onExit={onExit}
             bonusCoins={segment.coins}
-            isAdventureQuest={isAdventureQuest}
+            isAdventureQuest={segment.isShift}
             isReplay={segment.isReplay}
           />
         );

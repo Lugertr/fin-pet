@@ -212,4 +212,24 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE adventures ADD COLUMN lesson_id INTEGER;
     `,
   },
+  {
+    version: 11,
+    // Опыт дают уроки, на каждый уровень — ровно 300 (решение пользователя
+    // 28.09.2026; раньше порог рос: 250 × уровень). Накопленный опыт
+    // пересчитывается в новую шкалу с тем же уровнем и той же долей пути до
+    // следующего (как PlayerLevel.convertLegacyTotalXp) — уровень не
+    // понижается (§8.4). lv — уровни прежней шкалы, берётся наибольший
+    // достигнутый. Опыта смены больше нет — adventures.xp_awarded дальше 0.
+    sql: `
+      UPDATE profiles SET total_xp = (
+        WITH RECURSIVE lv(n) AS (
+          SELECT 1 UNION ALL SELECT n + 1 FROM lv WHERE n < 2000
+        )
+        SELECT 300 * (MAX(n) - 1)
+          + ((profiles.total_xp - 125 * (MAX(n) - 1) * MAX(n)) * 300) / (250 * MAX(n))
+        FROM lv WHERE 125 * (n - 1) * n <= profiles.total_xp
+      )
+      WHERE total_xp > 0;
+    `,
+  },
 ];

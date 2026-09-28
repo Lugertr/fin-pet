@@ -3,21 +3,40 @@
 // роста питомца (§8 ТЗ, считается по успешным периодам бюджета, не по XP).
 // Названия уровней — свой словарь, чтобы два разных «level up» не путались.
 //
-// XP начисляется только за завершение «Приключения» (ADVENTURE_XP в
-// adventureStore.ts:completeAdventure) через useLessonsStore.addXp(), чтобы
-// level-up считался и награждался ровно в одном месте
-// (useLessons.ts:grantLevelUpRewards). Уроки дают монеты, но не XP.
+// Опыт дают уроки (решение пользователя 28.09.2026): у каждой ветки 300 опыта,
+// они делятся между её уроками (domain/lesson/lessonRewards.ts:lessonXp), и
+// на каждый уровень нужно ровно 300 — закрытая ветка всегда даёт +1 уровень.
+// Опыт начисляется через useLessonsStore.addXp(), чтобы level-up считался и
+// награждался ровно в одном месте (useLessons.ts:grantLevelUpRewards).
 // Награда за уровень — таблица LEVEL_REWARDS, редактируется прямо здесь,
 // без изменений остального кода (именно то, что просил пользователь).
 
-/** XP, необходимый для перехода с уровня `level` на `level + 1`. */
-export function xpForLevel(level: number): number {
-  return 250 * level;
+/** Опыт на один уровень — и весь опыт одной ветки уроков. */
+export const XP_PER_LEVEL = 300;
+
+/** XP, необходимый для перехода с уровня `level` на `level + 1` (одинаков для всех уровней). */
+export function xpForLevel(_level: number): number {
+  return XP_PER_LEVEL;
 }
 
 /** Суммарный XP, необходимый, чтобы ДОСТИЧЬ уровня `level` (уровень 1 = 0 XP). */
 export function totalXpForLevel(level: number): number {
-  return (250 * (level - 1) * level) / 2;
+  return XP_PER_LEVEL * (level - 1);
+}
+
+/**
+ * Опыт профиля, накопленный по прежней шкале (порог растёт: 250 × уровень),
+ * — в опыт новой шкалы: уровень тот же, доля пути до следующего — та же
+ * (округление вниз). Уровень при смене шкалы не понижается (§8.4). Та же
+ * формула — в миграции v11 (data/local/migrations) для уже сохранённого опыта.
+ */
+export function convertLegacyTotalXp(legacyXp: number): number {
+  if (!Number.isFinite(legacyXp) || legacyXp <= 0) return 0;
+  const legacyTotalForLevel = (level: number) => 125 * (level - 1) * level;
+  let level = 1;
+  while (legacyTotalForLevel(level + 1) <= legacyXp) level += 1;
+  const intoLevel = Math.floor(legacyXp) - legacyTotalForLevel(level);
+  return totalXpForLevel(level) + Math.floor((intoLevel * XP_PER_LEVEL) / (250 * level));
 }
 
 export interface LevelInfo {

@@ -6,6 +6,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LessonProgressState, createLessonProgress } from '@/domain/lesson/lessonProgress';
+import { convertLegacyTotalXp } from '@/domain/player/PlayerLevel';
 import { LessonProgressRepository } from '@/domain/repositories/LessonProgressRepository';
 
 export const LEGACY_LESSONS_STORE_KEY = 'finsputnik-lessons-store';
@@ -19,7 +20,9 @@ interface LegacyLessonProgress {
 /**
  * Сохранённый zustand persist → состояния уроков и опыт. Начатый урок
  * переносится пустым (продолжится с начала), пройденный — завершённым, без
- * звезды (её можно получить, перепройдя идеально). Битые данные — пусто.
+ * звезды (её можно получить, перепройдя идеально). Опыт там — по прежней
+ * шкале уровней, он пересчитывается в новую с тем же уровнем
+ * (convertLegacyTotalXp). Битые данные — пусто.
  */
 export function convertLegacyLessonsStore(
   raw: string | null,
@@ -44,7 +47,7 @@ export function convertLegacyLessonsStore(
   });
 
   const xp = snapshot.totalXp;
-  const totalXp = typeof xp === 'number' && Number.isFinite(xp) ? Math.max(0, Math.floor(xp)) : 0;
+  const totalXp = typeof xp === 'number' ? convertLegacyTotalXp(xp) : 0;
   return { states, totalXp };
 }
 

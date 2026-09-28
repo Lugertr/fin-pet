@@ -5,3 +5,4 @@ export { StreakDayCircle } from './StreakDayCircle';
 export { SubpageHeader } from './SubpageHeader';
 export { HelpButton } from './HelpButton';
 export { ItemImage } from './ItemImage';
+export { LevelUpCard } from './LevelUpCard';

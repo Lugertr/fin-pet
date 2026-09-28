@@ -1,16 +1,15 @@
 // lib/stores/adventureStore.test.ts
 // CLAUDE.md: «план vs факт за период» (здесь — за смену «Работа», заменившую
-// период и приключение, см. память проекта) + рост уровня как замена роста
-// стадии по успешным периодам. Смена = один урок (решение 28.09.2026): доля
-// награды — доля пройденного урока, урок пройден — полная.
+// период и приключение, см. память проекта). Смена = один урок (решение
+// 28.09.2026): доля выплаты — доля пройденного урока, урок пройден — полная.
+// Опыта смена не даёт — его дают уроки (useLessons.rewards.test.ts).
 
 import { AdventureRecord } from '@/domain/adventure/Adventure';
 import { planForLesson } from '@/domain/lesson/LessonPlan';
 import { LessonProgressState, createLessonProgress } from '@/domain/lesson/lessonProgress';
-import { computeLevel } from '@/domain/player/PlayerLevel';
 import { LESSONS, useLessonsStore } from '@/lib/hooks/useLessons';
 import { SHOP_CATALOG, useShopStore } from '@/lib/hooks/useShop';
-import { ADVENTURE_DURATION_MS, ADVENTURE_XP, useAdventureStore } from './adventureStore';
+import { ADVENTURE_DURATION_MS, useAdventureStore } from './adventureStore';
 import { usePetStore } from './petStore';
 import { useSavingsStore } from './savingsStore';
 import { useUserStore } from './userStore';
@@ -226,15 +225,15 @@ describe('adventureStore.completeAdventure', () => {
     expect(result?.bonusAwarded).toBe(0);
   });
 
-  it('зачисляет опыт в систему уровней игрока', async () => {
+  it('опыта смена не даёт — его дают уроки', async () => {
     seedWallet(0);
     seedShiftLesson(SHIFT_PLAN.nodes.length);
     seedActiveAdventure();
 
     const result = await useAdventureStore.getState().completeAdventure();
 
-    expect(result?.xpAwarded).toBe(ADVENTURE_XP);
-    expect(useLessonsStore.getState().totalXp).toBe(ADVENTURE_XP);
+    expect(result?.adventure.xpAwarded).toBe(0);
+    expect(useLessonsStore.getState().totalXp).toBe(0);
   });
 
   it('урок не пройден — доля по пройденным этапам, урок продолжится (итоги знают где)', async () => {
@@ -247,7 +246,6 @@ describe('adventureStore.completeAdventure', () => {
 
     expect(result?.completionRatio).toBeCloseTo(1 / total);
     expect(result?.bonusAwarded).toBe(Math.floor(10 / total));
-    expect(result?.xpAwarded).toBe(Math.floor(ADVENTURE_XP / total));
     expect(result?.lesson).toMatchObject({ nodesDone: 1, nodesTotal: total, finished: false });
     // Прогресс урока не трогается — следующая смена продолжит с того же места.
     expect(useLessonsStore.getState().lessonStates[SHIFT_LESSON.id].readNodes).toEqual([0]);
@@ -302,7 +300,8 @@ describe('adventureStore.completeIfExpired (24 часа вышли)', () => {
 
     const completed = results.filter((r) => r !== null);
     expect(completed).toHaveLength(1);
-    expect(useLessonsStore.getState().totalXp).toBe(completed[0]!.xpAwarded);
+    // Банк в тесте не загружен — вся выплата в кошелёк, и ровно один раз.
+    expect(useUserStore.getState().user?.liquid_balance).toBe(completed[0]!.toWallet);
   });
 
   it('ручное завершение тоже кладёт итоги для показа на хабе', async () => {
@@ -327,26 +326,6 @@ describe('adventureStore — демо-режим (§18.2)', () => {
 
     expect(result?.completionRatio).toBe(1);
     expect(result?.bonusAwarded).toBe(10);
-    expect(result?.xpAwarded).toBeGreaterThan(0);
-  });
-
-  it('каждая демо-смена даёт новый уровень', async () => {
-    seedWallet(0, true);
-    for (const expectedLevel of [2, 3, 4]) {
-      seedActiveAdventure();
-      const result = await useAdventureStore.getState().completeAdventure();
-      expect(result?.levelUp?.to).toBe(expectedLevel);
-      expect(computeLevel(useLessonsStore.getState().totalXp).level).toBe(expectedLevel);
-    }
-  });
-
-  it('без демо уровень 2 — только после второй смены', async () => {
-    seedWallet(0);
-    seedShiftLesson(SHIFT_PLAN.nodes.length);
-    seedActiveAdventure();
-    const first = await useAdventureStore.getState().completeAdventure();
-    expect(first?.levelUp).toBeNull();
-    expect(first?.xpAwarded).toBe(ADVENTURE_XP);
   });
 });
 

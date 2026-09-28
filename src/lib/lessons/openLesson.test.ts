@@ -2,6 +2,7 @@
 // Единое правило открытия урока напрямую (вкладка «Уроки», ИИ-помощник):
 // пройденный — повтор (§9), в демо — любой (§18.2), иначе — только в приключении.
 
+import { createLessonProgress } from '@/domain/lesson/lessonProgress';
 import { LESSONS, useLessonsStore } from '@/lib/hooks/useLessons';
 import { useUserStore } from '@/lib/stores/userStore';
 import { canOpenLessonDirectly } from './openLesson';
@@ -30,7 +31,10 @@ describe('canOpenLessonDirectly', () => {
 
   it('пройденный урок открывается для повтора', () => {
     seedUser(false);
-    useLessonsStore.getState().markLessonCompleted(lessonId);
+    useLessonsStore.getState().saveLessonState({
+      ...createLessonProgress(lessonId),
+      completedAt: new Date().toISOString(),
+    });
     expect(canOpenLessonDirectly(lessonId)).toBe(true);
   });
 

@@ -222,19 +222,27 @@ export function createLessonStepsStyles({ theme }: LessonStepsStylesParams) {
       fontWeight: fontWeights.bold,
       fontSize: fontSizes.hero,
     },
-    // Ускорение приключения — основная награда за задание внутри активного
-    // приключения (заменяет монеты, см. RewardStep.tsx); тот же акцент, что
-    // и у монет, просто другой текст/иконка.
-    rewardTimeText: {
+    rewardTitle: {
       color: theme.accent,
       fontWeight: fontWeights.bold,
       fontSize: fontSizes.title,
       marginTop: spacing.lg,
       textAlign: 'center',
     },
-    // Отдельная, визуально более яркая карточка «Идеально!» — только когда
-    // урок пройден без единой ошибки (см. StepRunner.tsx wrongAnswersRef).
+    rewardReasonText: {
+      color: theme.textSecondary,
+      fontSize: fontSizes.md,
+      textAlign: 'center',
+    },
+    rewardXpText: {
+      color: theme.primary,
+      fontWeight: fontWeights.bold,
+      fontSize: fontSizes.lg,
+      marginTop: spacing.md,
+    },
+    // Звезда и бонус — урок впервые пройден без ошибок (вариант B).
     rewardPerfectCard: {
+      alignSelf: 'stretch',
       backgroundColor: withAlpha(theme.success, 0.12),
       borderRadius: radius.lg,
       borderWidth: 1,
@@ -248,27 +256,25 @@ export function createLessonStepsStyles({ theme }: LessonStepsStylesParams) {
       color: theme.success,
       fontWeight: fontWeights.bold,
       fontSize: fontSizes.md,
-    },
-    rewardPerfectCoinsRow: {
-      marginTop: spacing.xxs,
-    },
-    rewardPerfectCoins: {
-      color: theme.coins,
-      fontWeight: fontWeights.bold,
-      fontSize: fontSizes.xxl,
-    },
-    // Подсказка для урока ВНЕ активного приключения — что эти же ответы
-    // сэкономили бы времени, будь это задание приключения (см. C.3 плана).
-    rewardTimeHint: {
-      color: theme.textMuted,
-      fontSize: fontSizes.xs,
       textAlign: 'center',
-      marginTop: spacing.sm,
     },
-    rewardReasonText: {
+    // Звезды пока нет — как её получить (нейтрально, без упрёка).
+    rewardHintCard: {
+      alignSelf: 'stretch',
+      backgroundColor: theme.surface,
+      borderRadius: radius.lg,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.xl,
+      marginTop: spacing.lg,
+    },
+    rewardHintText: {
       color: theme.textSecondary,
       fontSize: fontSizes.md,
-      marginBottom: spacing.xxxl,
+      textAlign: 'center',
+    },
+    rewardLevelUp: {
+      alignSelf: 'stretch',
+      marginTop: spacing.lg,
     },
   });
 }

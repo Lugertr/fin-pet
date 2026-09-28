@@ -1,5 +1,5 @@
 // src/components/adventure/AdventureSummaryModal/AdventureSummaryModal.styles.ts
-// Экран итогов приключения (макет «Итоги работы»). Карточки «План и факт» и
+// Экран итогов смены (макет «Итоги работы»). Карточки «План и факт» и
 // «Перенос в копилку» — в своих компонентах (AdventurePlanFactCard,
 // AdventureAmountCard).
 
@@ -77,31 +77,6 @@ export function createAdventureSummaryModalStyles({ theme }: { theme: Theme }) {
       color: theme.textSecondary,
       fontSize: fontSizes.md,
       textAlign: 'center',
-    },
-
-    // ── Новый уровень ──
-    levelUpCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.md,
-      padding: spacing.lg,
-      borderRadius: radius.xl,
-      backgroundColor: withAlpha(theme.primary, 0.1),
-      borderWidth: 1,
-      borderColor: withAlpha(theme.primary, 0.3),
-    },
-    levelUpBody: {
-      flex: 1,
-    },
-    levelUpTitle: {
-      color: theme.textPrimary,
-      fontWeight: fontWeights.bold,
-      fontSize: fontSizes.lg,
-    },
-    levelUpText: {
-      color: theme.textSecondary,
-      fontSize: fontSizes.md,
-      marginTop: 2,
     },
 
     // ── Кнопки ──

@@ -4,7 +4,8 @@
 // урок — следующий непройденный урок выбранной темы. Смена длится до 24 часов
 // и заканчивается, когда урок пройден (LessonPlayer вызывает completeAdventure)
 // или время вышло (completeIfExpired) — тогда урок продолжится в следующую
-// смену с того же места. Итоги показываются на хабе.
+// смену с того же места. Итоги показываются на хабе. Опыта смена не даёт —
+// его дают уроки (useLessonsStore.finishLesson), в том числе урок смены.
 //
 // Смена НЕ создаётся автоматически при заходе на хаб — только явным действием
 // ребёнка (кнопка «Начать работу» / тап по ноутбуку), см. startPlanning().
@@ -27,13 +28,7 @@ import {
   createLessonProgress,
   totalNodeCount,
 } from '@/domain/lesson/lessonProgress';
-import { xpToNextLevel } from '@/domain/player/PlayerLevel';
-import {
-  LESSONS,
-  LevelUpResult,
-  useLessonsStore,
-  waitForLessonsLoaded,
-} from '@/lib/hooks/useLessons';
+import { LESSONS, useLessonsStore, waitForLessonsLoaded } from '@/lib/hooks/useLessons';
 import { create } from 'zustand';
 import { useShopStore } from '@/lib/hooks/useShop';
 import { usePreferencesStore } from './preferencesStore';
@@ -47,11 +42,6 @@ export const ADVENTURE_DURATION_MS = 24 * 60 * 60 * 1000;
  * тратится только в событиях урока, остаток в конце уходит в хаб). */
 export const ADVENTURE_BASE_INCOME = 100;
 const PLAN_BONUS = 10; // монет в бюджет смены — «факт трат ≤ план»
-/**
- * Опыт за завершение смены (§8.2). Этап 5 переносит опыт на уроки (закрытая
- * ветка — новый уровень); пока — прежнее правило.
- */
-export const ADVENTURE_XP = 150;
 
 /**
  * §2/§8 CLAUDE.md: «ошибка ребёнка не наказывается» — общее правило, штраф
@@ -82,9 +72,6 @@ export interface AdventureCompletionSummary {
   /** Бонус банка на переведённое «коплю» (новые деньги, §11.4). */
   bankBonus: number;
   toWallet: number;
-  /** Уже зачислен в useLessonsStore.totalXp — может дать level-up. */
-  xpAwarded: number;
-  levelUp: LevelUpResult | null;
   /** Доля пройденного урока смены: 1 — урок пройден (полная награда), меньше 1 — смена кончилась раньше. */
   completionRatio: number;
   /** true — смена закончилась сама, потому что 24 часа вышли (completeIfExpired). */
@@ -192,18 +179,13 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
     // Доля награды — доля пройденного урока смены (урок пройден — полная).
     // Иначе «начал смену и дождался конца» приносило бы весь бюджет, ничего
     // не пройдя. Это не штраф: урок продолжится в следующую смену.
-    // §18.2 демо-режим: завершение в любой момент — полная награда (иначе рост
-    // уровня из обязательного сценария §19 п.10 за 1–2 минуты не увидеть).
+    // §18.2 демо-режим: завершение в любой момент — полная выплата (показ
+    // итогов не ждёт прохождения урока целиком).
     const isDemo = useUserStore.getState().user?.is_demo ?? false;
     const completionRatio =
       isDemo || !lesson || lesson.finished ? 1 : lesson.nodesDone / lesson.nodesTotal;
     const fullBonus = isPlanBonusEligible(currentAdventure) ? PLAN_BONUS : 0;
     const bonusAwarded = Math.floor(fullBonus * completionRatio);
-    // §18 демо-режим (решение пользователя 28.09.2026): каждая демо-смена —
-    // новый уровень (и новый облик на уровнях 2 и 3).
-    const xpAwarded = isDemo
-      ? Math.max(ADVENTURE_XP, xpToNextLevel(useLessonsStore.getState().totalXp))
-      : Math.floor(ADVENTURE_XP * completionRatio);
     const { toBank, toWallet } = computeAdventurePayout(
       currentAdventure.budget + fullBonus,
       currentAdventure.plan.savings,
@@ -213,7 +195,8 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
     const bankBonusAllowed = completionRatio >= 1;
 
     try {
-      await getAdventureRepository().complete(currentAdventure.id, completedAt, xpAwarded);
+      // Опыта смена не даёт (его дают уроки) — xp_awarded остаётся 0.
+      await getAdventureRepository().complete(currentAdventure.id, completedAt, 0);
     } catch (error) {
       console.error('[AdventureStore] Не удалось завершить смену:', error);
       return null;
@@ -258,16 +241,12 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
       console.warn('[AdventureStore] Не удалось обновить стрик накоплений:', error);
     }
 
-    // Level up (и облик на уровнях 2/3, см. PlayerLevel.ts) считается
-    // и награждается ровно в одном месте — useLessonsStore.addXp.
-    const levelUp = useLessonsStore.getState().addXp(xpAwarded);
-
     const summary: AdventureCompletionSummary = {
       adventure: {
         ...currentAdventure,
         status: 'completed',
         completedAt,
-        xpAwarded,
+        xpAwarded: 0,
         budget: 0,
         fact: { ...currentAdventure.fact, savings: currentAdventure.fact.savings + paidToBank },
       },
@@ -275,8 +254,6 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
       toBank: paidToBank,
       bankBonus,
       toWallet: paidToWallet,
-      xpAwarded,
-      levelUp,
       completionRatio,
       autoCompleted,
       lesson,
