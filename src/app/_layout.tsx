@@ -1,12 +1,23 @@
 // app/_layout.tsx
-// Root Layout с ThemeProvider
+// Root Layout с ThemeProvider. Здесь же — запуск приложения (useAppBootstrap:
+// профиль, питомец, прогресс уроков и текущая смена из SQLite): экраны
+// показываются только после него, поэтому и прямая ссылка на вебе (например,
+// /lesson/3 или /shop) открывается с загруженными данными. Раньше запуск жил
+// в маршруте «/», и прямая ссылка его пропускала — сторы оставались пустыми,
+// прогресс не сохранялся. Без профиля любой экран, кроме онбординга, ведёт
+// на онбординг.
 
 import { AlertHost } from '@/components/shared';
+import { useAppBootstrap } from '@/lib/hooks/useAppBootstrap';
+import { useEnergyBonuses } from '@/lib/pet/useEnergyBonuses';
 import { useApplySettings } from '@/lib/settings/useApplySettings';
+import { useUserStore } from '@/lib/stores/userStore';
 import { ThemeProvider, useTheme } from '@/theme';
 import { FONT_SOURCES } from '@/theme/fonts';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
+import { useEffect } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -15,6 +26,28 @@ function RootStack() {
   const { theme, isDark } = useTheme();
   // Сохранённые звуки/вибрация/уведомления — к сервисам при старте и при изменении.
   useApplySettings();
+  // Бонусы декора к энергии — на любом экране, не только на хабе.
+  useEnergyBonuses();
+  const isReady = useAppBootstrap();
+  const isOnboarded = useUserStore((state) => state.isOnboarded);
+  const segments = useSegments();
+  const router = useRouter();
+
+  // Прямая ссылка на экран без профиля — на онбординг («/» решает сам, см. index.tsx).
+  const firstSegment = segments[0] as string | undefined;
+  const needsOnboarding =
+    isReady && !isOnboarded && firstSegment !== undefined && firstSegment !== '(auth)';
+  useEffect(() => {
+    if (needsOnboarding) router.replace('/(auth)/onboarding' as never);
+  }, [needsOnboarding, router]);
+
+  if (!isReady) {
+    return (
+      <View style={[styles.loading, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
+  }
 
   return (
     <>
@@ -71,3 +104,11 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

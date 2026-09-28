@@ -1,5 +1,7 @@
 // lib/hooks/useAppBootstrap.ts
-// Гидратация Zustand-сторов из SQLite при старте приложения.
+// Гидратация Zustand-сторов из SQLite при старте приложения. Вызывается из
+// корневого layout (app/_layout.tsx) — до показа любого экрана, в том числе
+// открытого прямой ссылкой.
 // Без этого userStore/petStore пустые после перезапуска — профиль и питомец
 // живут только SQLite-стороне, Zustand лишь кэширует их в памяти на сессию.
 
@@ -8,6 +10,7 @@ import { describeDatabaseError } from '@/data/local/database';
 import { getPetRepository, getProfileRepository } from '@/data/local/repositories';
 import { useLessonsStore } from '@/lib/hooks/useLessons';
 import { STARTER_FURNITURE_ITEM_IDS, SHOP_CATALOG, useShopStore } from '@/lib/hooks/useShop';
+import { useAdventureStore } from '@/lib/stores/adventureStore';
 import { usePetStore } from '@/lib/stores/petStore';
 import { usePreferencesStore } from '@/lib/stores/preferencesStore';
 import { useUserStore } from '@/lib/stores/userStore';
@@ -81,6 +84,9 @@ export function useAppBootstrap() {
           resetLockedRoomSkin();
           // Учебный прогресс и опыт — из SQLite (миграция v9), до показа экранов.
           await useLessonsStore.getState().load(profile.id);
+          // Идущая смена — чтобы и урок, открытый прямой ссылкой, знал, что он
+          // урок смены (хаб перечитывает её и завершает, если время вышло).
+          await useAdventureStore.getState().loadCurrent(profile.id);
           useUserStore.getState().setOnboarded(true);
         }
       } catch (error) {

@@ -32,6 +32,8 @@
 
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
+
+import { openWorkOrExplain } from '@/lib/adventure/openWork';
 import { useState } from 'react';
 import { LayoutChangeEvent, ScrollView, TouchableOpacity, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
@@ -51,7 +53,6 @@ import {
 } from '@/domain/room/RoomLayout';
 import { FURNITURE_CATEGORIES, SHOP_CATALOG, useShopStore } from '@/lib/hooks/useShop';
 import { useFeedback } from '@/lib/hooks/useFeedback';
-import { useAdventureStore } from '@/lib/stores/adventureStore';
 import { getAssetAspectRatio } from '@/lib/utils/imageAspectRatio';
 import { useResponsive, useTheme } from '@/theme';
 import { PetSprite } from '../PetSprite';
@@ -134,9 +135,9 @@ export function PetRoom({
 
   const handleOpenLessons = () => {
     triggerHaptic('light');
-    // Ноутбук — вход в приключение: идёт — его экран, нет — планирование.
-    const isActive = useAdventureStore.getState().currentAdventure?.status === 'active';
-    router.push((isActive ? '/(modal)/adventure' : '/(modal)/adventure-planning') as never);
+    // Ноутбук — вход в работу: идёт смена — её экран, нет — планирование
+    // (все уроки пройдены — объяснение, см. openWorkOrExplain).
+    openWorkOrExplain();
   };
 
   const handleOpenSavings = () => {

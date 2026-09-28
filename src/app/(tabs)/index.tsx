@@ -23,7 +23,9 @@
 // их не осталось) — обычный View с flex:1, чтобы комната действительно
 // занимала весь доступный вертикальный экран (см. HubHeader.tsx/PetRoom.tsx).
 
-import { useIsFocused, useRouter } from 'expo-router';
+import { useIsFocused } from 'expo-router';
+
+import { openWorkOrExplain } from '@/lib/adventure/openWork';
 import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
@@ -51,7 +53,6 @@ import { createHubStyles } from '../../styles/screens/tabs/_index.styles';
 
 export default function HubScreen() {
   const { theme } = useTheme();
-  const router = useRouter();
   const { trigger, triggerHaptic } = useFeedback();
   const { scheduleMoodRestored } = useNotifications();
 
@@ -70,14 +71,7 @@ export default function HubScreen() {
     }))
   );
   const refreshMood = usePetStore((s) => s.refreshMood);
-  // Бонусы — числа, поэтому useShallow триггерит ререндер только когда
-  // реально меняется сама сумма (а не любое поле placedDecor/equippedFurniture).
-  const { recoveryBonus, maxBonus } = useShopStore(
-    useShallow((s) => ({
-      recoveryBonus: s.getTotalEnergyRecoveryBonus(),
-      maxBonus: s.getTotalEnergyMaxBonus(),
-    }))
-  );
+  const recoveryBonus = useShopStore((s) => s.getTotalEnergyRecoveryBonus());
   const savedPetType = usePreferencesStore((s) => s.petType);
   const savedPetName = usePreferencesStore((s) => s.petName);
   const loadCurrentAdventure = useAdventureStore((s) => s.loadCurrent);
@@ -123,14 +117,8 @@ export default function HubScreen() {
     };
   }, []);
 
-  // §6.1/§12.2: размещённый декор двигает и скорость восстановления, и максимум энергии
-  useEffect(() => {
-    usePetStore.getState().setMoodBuffs(recoveryBonus);
-  }, [recoveryBonus]);
-
-  useEffect(() => {
-    usePetStore.getState().setMoodMaxBonus(maxBonus);
-  }, [maxBonus]);
+  // Бонусы декора к энергии применяет корневой layout (lib/pet/useEnergyBonuses.ts);
+  // здесь recoveryBonus нужен только для расчёта времени до полной энергии.
 
   // Только читаем текущее приключение (если есть) — в отличие от старого
   // периода, ничего не создаём автоматически на хабе. Если за время, пока
@@ -197,7 +185,7 @@ export default function HubScreen() {
           onClose={dismissCompletionSummary}
           onStartNew={() => {
             dismissCompletionSummary();
-            router.push('/(modal)/adventure-planning' as never);
+            openWorkOrExplain();
           }}
         />
       )}

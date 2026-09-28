@@ -10,6 +10,8 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+
+import { openWorkOrExplain } from '@/lib/adventure/openWork';
 import { TouchableOpacity, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -95,11 +97,7 @@ export function HubHeader({
         <TouchableOpacity
           onPress={() => {
             triggerHaptic('light');
-            router.push(
-              (adventureStatus === 'active'
-                ? '/(modal)/adventure'
-                : '/(modal)/adventure-planning') as never
-            );
+            openWorkOrExplain();
           }}
           activeOpacity={0.85}
           style={[styles.ctaMainButton, { paddingVertical: scale(14) }]}
