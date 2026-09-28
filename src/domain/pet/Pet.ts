@@ -57,11 +57,16 @@ export abstract class PetSpecies {
   getAnimation(state: PetMoodState, skinVariant = 0): PetAnimation | null {
     const asset = this.animations[state];
     if (!asset) return null;
+    // Скин со своим рисунком (не перекраска классического, например облики
+    // мишки) палитры не имеет — анимация классического облика на нём была бы
+    // чужой, поэтому по нажатию ничего не играет, остаётся SVG.
+    const palette = getSkinPalette(this.type, skinVariant);
+    if (skinVariant > 0 && !palette) return null;
 
     const key = `${state}:${skinVariant}`;
     let animation = this.animationCache.get(key);
     if (!animation) {
-      const recolored = recolorLottie(asset.json, getSkinPalette(this.type, skinVariant));
+      const recolored = recolorLottie(asset.json, palette);
       animation = {
         // op — последний кадр композиции: плеер доиграет до endFrame и остановится.
         source: { ...recolored, op: asset.endFrame },

@@ -4,12 +4,20 @@ import { PetMoodState } from '@/constants/petAssets';
 import { PetEmotion, PetSpecies } from '../Pet';
 import { PetAnimationAsset } from '../petAnimation';
 
-/** Только вариант 0 («Классический», встроенный) — покупных скинов у медведя
- * пока нет (не готов альтернативный арт тела, в отличие от робота/кота). */
+/** variant 0 — «Классический», 1 — розовый, 2 — чёрно-белый (content/items.json,
+ * category 'skin', pet_type 'bear'; арт добавлен 28.09.2026). */
 const BODY_ASSETS: Record<number, Record<PetMoodState, number>> = {
   0: {
     idle: require('../../../../assets/images/pets/bear/v0/idle.svg'),
     sleeping: require('../../../../assets/images/pets/bear/v0/sleeping.svg'),
+  },
+  1: {
+    idle: require('../../../../assets/images/pets/bear/v1/idle.svg'),
+    sleeping: require('../../../../assets/images/pets/bear/v1/sleeping.svg'),
+  },
+  2: {
+    idle: require('../../../../assets/images/pets/bear/v2/idle.svg'),
+    sleeping: require('../../../../assets/images/pets/bear/v2/sleeping.svg'),
   },
 };
 
@@ -18,15 +26,25 @@ const EMOTION_ASSETS: Record<number, Partial<Record<PetEmotion, number>>> = {
     question: require('../../../../assets/images/pets/bear/v0/question.svg'),
     reward: require('../../../../assets/images/pets/bear/v0/reward.svg'),
   },
+  1: {
+    question: require('../../../../assets/images/pets/bear/v1/question.svg'),
+    reward: require('../../../../assets/images/pets/bear/v1/reward.svg'),
+  },
+  2: {
+    question: require('../../../../assets/images/pets/bear/v2/question.svg'),
+    reward: require('../../../../assets/images/pets/bear/v2/reward.svg'),
+  },
 };
 
 const WORK_ASSETS: Record<number, number> = {
   0: require('../../../../assets/images/pets/bear/v0/work.svg'),
+  1: require('../../../../assets/images/pets/bear/v1/work.svg'),
+  2: require('../../../../assets/images/pets/bear/v2/work.svg'),
 };
 
-/** Lottie-анимация по нажатию (assets/animations/pets, scripts/build-pet-animations.js).
- * bear_happy — «сборка» статичного рисунка по деталям (0,8 с), играется
- * целиком. body — рамка v0/idle.svg в кадре 1200×1600 (подобрана наложением
+/** Lottie-анимация по нажатию (assets/animations/pets, scripts/build-pet-animations.js);
+ * облики 1/2 — перекраска по palettes.json. bear_happy — «сборка» статичного
+ * рисунка по деталям (0,8 с), играется целиком. body — рамка v0/idle.svg в кадре 1200×1600 (подобрана наложением
  * SVG на кадр). Спящей анимации у мишки пока нет — нажатие на уставшего
  * мишку ничего не проигрывает. */
 const ANIMATIONS: Partial<Record<PetMoodState, PetAnimationAsset>> = {

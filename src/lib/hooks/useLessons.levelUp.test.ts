@@ -44,12 +44,12 @@ describe('useLessonsStore.addXp — награда за уровень', () => {
     expect(useShopStore.getState().ownedItems[14]).toBe(1);
   });
 
-  it('вид с одним обликом (мишка) получает только монеты', () => {
+  it('мишка тоже получает облик своего вида (скины мишки — с 28.09.2026)', () => {
     usePreferencesStore.getState().setPetType('bear');
 
     const result = useLessonsStore.getState().addXp(XP_PER_LEVEL);
 
     expect(result?.coins).toBe(100);
-    expect(result?.skinName).toBeNull();
+    expect(result?.skinName).toBe('Мишка: Розовый скин');
   });
 });

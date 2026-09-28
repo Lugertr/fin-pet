@@ -16,7 +16,8 @@ import { PetSprite } from '@/components/pet';
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { getSkinsForPetType } from '@/lib/pet/petSkin';
 import { useResponsive, useTheme } from '@/theme';
-import { circleRadius, spacing } from '@/theme/tokens';
+import { isLightColor } from '@/theme/colorUtils';
+import { circleRadius, colorPalettes, spacing } from '@/theme/tokens';
 import { createOnboardingStepsStyles } from '../onboardingSteps.styles';
 import { PET_TYPES, PetType } from '../Step3PetType';
 
@@ -97,12 +98,16 @@ export function Step4PetCustomize({
                   onChangeColorVariant(swatch.variant);
                 }}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel={swatch.name}
+                accessibilityState={{ selected: isSelected }}
                 style={[
                   styles.swatchOuter,
+                  // §23: тап-зона не меньше 48×48 dp.
                   {
-                    width: scale(44),
-                    height: scale(44),
-                    borderRadius: circleRadius(scale(44)),
+                    width: scale(48),
+                    height: scale(48),
+                    borderRadius: circleRadius(scale(48)),
                   },
                   isSelected && [styles.swatchOuterSelected, { borderColor: swatch.color }],
                 ]}
@@ -111,15 +116,22 @@ export function Step4PetCustomize({
                   style={[
                     styles.swatchInner,
                     {
-                      width: scale(32),
-                      height: scale(32),
-                      borderRadius: circleRadius(scale(32)),
+                      width: scale(36),
+                      height: scale(36),
+                      borderRadius: circleRadius(scale(36)),
                       backgroundColor: swatch.color,
                     },
                   ]}
                 >
                   {isSelected && (
-                    <Ionicons name="checkmark" size={scale(16)} color={theme.onGradient} />
+                    <Ionicons
+                      name="checkmark"
+                      size={scale(16)}
+                      // На светлом свотче (кремовый мишка) белая галочка не видна.
+                      color={
+                        isLightColor(swatch.color) ? colorPalettes.slate[800] : theme.onGradient
+                      }
+                    />
                   )}
                 </View>
               </TouchableOpacity>

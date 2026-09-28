@@ -311,49 +311,97 @@ function shiftLikeAnchor(color, anchorFrom, anchorTo) {
 
 const HEX_COLOR = /#[0-9a-fA-F]{6}\b/g;
 
-/** Элементы SVG по «геометрии» (тег и атрибуты без цветов) → их цвета. */
-function svgElementsByGeometry(file) {
+/** Скин после переэкспорта из редактора: пути те же, но координаты округлены
+ * иначе, и точного совпадения геометрии нет. Тогда элемент ищется по первой
+ * точке (M пути, cx/cy, x/y) — не дальше этого числа пикселей. */
+const POSITION_MATCH_MAX_PX = 3;
+/** Меньшая доля сопоставленных элементов — у скина свой рисунок, не перекраска. */
+const MIN_MATCHED_SHARE = 0.75;
+/** Сколько сопоставленных элементов должны подтвердить пару «цвет v0 → цвет скина». */
+const MIN_ANCHOR_VOTES = 2;
+
+/** Элементы SVG с цветами: «геометрия» (тег и атрибуты без цветов), цвета и
+ * первая точка — для сопоставления с элементами скина. */
+function svgColoredElements(file) {
   const elements = fs.readFileSync(file, 'utf8').match(/<[a-zA-Z][^>]*>/g) || [];
-  const byGeometry = new Map();
-  for (const element of elements) {
+  return elements.flatMap((element) => {
     const colors = (element.match(HEX_COLOR) || []).map((c) => c.toUpperCase());
-    if (colors.length === 0) continue;
-    const key = element.replace(HEX_COLOR, '#');
-    byGeometry.set(key, [...(byGeometry.get(key) ?? []), colors]);
-  }
-  return byGeometry;
+    if (colors.length === 0) return [];
+    const move = /\bd="M\s*([-\d.]+)[ ,]([-\d.]+)/.exec(element);
+    const center = /\bcx="([-\d.]+)"[^>]*\bcy="([-\d.]+)"/.exec(element);
+    const corner = /\bx="([-\d.]+)"[^>]*\by="([-\d.]+)"/.exec(element);
+    const point = move || center || corner;
+    return [
+      {
+        key: element.replace(HEX_COLOR, '#'),
+        colors,
+        point: point ? [Number(point[1]), Number(point[2])] : null,
+      },
+    ];
+  });
+}
+
+/** Парный элемент скина: сначала с той же геометрией, иначе — ближайший по
+ * первой точке с тем же числом цветов (элемент скина может стать парой не
+ * одному элементу v0 — для голосования за цвета это не мешает). null — пары
+ * нет. */
+function matchSkinElement(element, skinElements) {
+  const exact = skinElements.findIndex((e) => e.key === element.key);
+  if (exact >= 0) return exact;
+  if (!element.point) return null;
+  let best = null;
+  let bestDistance = Infinity;
+  skinElements.forEach((e, i) => {
+    if (!e.point || e.colors.length !== element.colors.length) return;
+    const distance = Math.hypot(e.point[0] - element.point[0], e.point[1] - element.point[1]);
+    if (distance < bestDistance) {
+      best = i;
+      bestDistance = distance;
+    }
+  });
+  return bestDistance <= POSITION_MATCH_MAX_PX ? best : null;
 }
 
 /** Пары «цвет v0 → цвет скина» из SVG: файлы скинов отличаются от v0 только
- * цветами, но порядок элементов местами разный, поэтому элементы
- * сопоставляются по геометрии, а при расхождениях для цвета v0 берётся
- * самый частый парный цвет. */
+ * цветами, но порядок элементов местами разный (а после переэкспорта — и
+ * округление координат), поэтому элементы сопоставляются по геометрии или
+ * положению, а при расхождениях для цвета v0 берётся самый частый парный
+ * цвет. Сопоставилось мало элементов — у скина свой рисунок: ошибка, палитры
+ * нет (см. main). */
 function deriveAnchors(petType, variant) {
   const votes = new Map();
   for (const state of ['idle', 'sleeping']) {
     const base = path.join(PETS_DIR, petType, 'v0', `${state}.svg`);
     const skin = path.join(PETS_DIR, petType, `v${variant}`, `${state}.svg`);
     if (!fs.existsSync(base) || !fs.existsSync(skin)) continue;
-    const skinElements = svgElementsByGeometry(skin);
-    for (const [key, occurrences] of svgElementsByGeometry(base)) {
-      const pairs = skinElements.get(key);
-      if (!pairs || pairs.length !== occurrences.length) {
-        throw new Error(
-          `${petType} v${variant}/${state}.svg: рисунок отличается от v0 не только цветом`
-        );
-      }
-      occurrences.forEach((colors, i) =>
-        colors.forEach((color, j) => {
-          const counter = votes.get(color) ?? new Map();
-          counter.set(pairs[i][j], (counter.get(pairs[i][j]) ?? 0) + 1);
-          votes.set(color, counter);
-        })
+    const baseElements = svgColoredElements(base);
+    const skinElements = svgColoredElements(skin);
+    let matched = 0;
+    for (const element of baseElements) {
+      const index = matchSkinElement(element, skinElements);
+      if (index === null) continue;
+      matched += 1;
+      element.colors.forEach((color, j) => {
+        const counter = votes.get(color) ?? new Map();
+        const target = skinElements[index].colors[j];
+        counter.set(target, (counter.get(target) ?? 0) + 1);
+        votes.set(color, counter);
+      });
+    }
+    if (matched < baseElements.length * MIN_MATCHED_SHARE) {
+      throw new Error(
+        `${petType} v${variant}/${state}.svg: рисунок отличается от v0 не только цветом ` +
+          `(сопоставлено ${matched} из ${baseElements.length} элементов)`
       );
     }
   }
   const anchors = {};
   for (const [color, counter] of votes) {
-    anchors[color] = [...counter.entries()].sort((a, b) => b[1] - a[1])[0][0];
+    const [target, count] = [...counter.entries()].sort((a, b) => b[1] - a[1])[0];
+    // Пара по одному-единственному элементу (после переэкспорта мог
+    // сопоставиться не тот) — ненадёжна: такой цвет не перекрашиваем.
+    if (count < MIN_ANCHOR_VOTES && target !== color) continue;
+    anchors[color] = target;
   }
   return anchors;
 }
@@ -413,7 +461,17 @@ function main() {
       .map((match) => Number(match[1]))
       .sort((a, b) => a - b);
     for (const variant of variants) {
-      const { palette, report } = buildPalette(petColors, deriveAnchors(petType, variant));
+      // Скин со своим рисунком (не перекраска v0, например облики мишки):
+      // палитры нет — анимация по нажатию для него не играет, остаётся SVG
+      // (domain/pet/Pet.ts getAnimation).
+      let anchors;
+      try {
+        anchors = deriveAnchors(petType, variant);
+      } catch (error) {
+        console.log(`  палитра ${petType} v${variant}: нет — ${error.message}`);
+        continue;
+      }
+      const { palette, report } = buildPalette(petColors, anchors);
       palettes[petType] = { ...palettes[petType], [variant]: palette };
       console.log(`  палитра ${petType} v${variant}:`);
       report.forEach((line) => console.log(line));

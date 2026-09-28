@@ -101,10 +101,20 @@ describe('recolorLottie', () => {
 });
 
 describe('getSkinPalette', () => {
-  it('у классического облика и у мишки перекраски нет', () => {
+  it('у классического облика перекраски нет', () => {
     expect(getSkinPalette('robot', 0)).toBeNull();
     expect(getSkinPalette('cat', 0)).toBeNull();
     expect(getSkinPalette('bear', 0)).toBeNull();
+  });
+
+  it('§4.3: у каждого вида три облика — классический и два цветных (9 комбинаций)', () => {
+    for (const petType of PET_TYPES) {
+      const variants = itemsJson
+        .filter((item) => item.category === 'skin' && item.pet_type === petType)
+        .map((item) => item.skin_variant)
+        .sort();
+      expect({ petType, variants }).toEqual({ petType, variants: [0, 1, 2] });
+    }
   });
 
   it('у каждого скина из каталога есть палитра его вида', () => {
@@ -157,6 +167,11 @@ describe('PetSpecies.getAnimation', () => {
     expect(classic.has('#615CEF')).toBe(true);
     expect(orange.has('#615CEF')).toBe(false);
     expect(orange.has('#F3A231')).toBe(true);
+  });
+
+  it('скин без палитры (свой рисунок) — без анимации, остаётся SVG', () => {
+    expect(getPetSpecies('bear').getAnimation('idle', 7)).toBeNull();
+    expect(getPetSpecies('bear').getAnimation('idle', 1)).not.toBeNull();
   });
 
   it('перекраска считается один раз на состояние и скин', () => {

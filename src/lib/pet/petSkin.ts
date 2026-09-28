@@ -39,11 +39,17 @@ export function getSkinsForPetType(petType: PetType) {
       variant: item.skin_variant ?? 0,
       color: item.swatch_color ?? CLASSIC_SWATCH_COLOR[petType],
       itemId: item.id as number | null,
+      name: item.name,
     }));
 
   // Без записи классического облика в каталоге он остаётся встроенным.
   if (!looks.some((look) => look.variant === 0)) {
-    looks.unshift({ variant: 0, color: CLASSIC_SWATCH_COLOR[petType], itemId: null });
+    looks.unshift({
+      variant: 0,
+      color: CLASSIC_SWATCH_COLOR[petType],
+      itemId: null,
+      name: 'Классический облик',
+    });
   }
   return looks;
 }
