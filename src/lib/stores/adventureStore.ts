@@ -1,168 +1,151 @@
 // lib/stores/adventureStore.ts
-// Жизненный цикл «Приключения»: planning -> active -> completed.
-// Полностью заменяет periodStore.ts — план/факт/бонус за план те же по духу
-// (§7 ТЗ), но приключение привязано к выбранной ветке обучения и реальному
-// времени (8 часов), а не к ручной кнопке «Завершить период».
+// Жизненный цикл «Работы» (смены; в коде — adventure): planning -> active -> completed.
+// Смена = один урок (решение пользователя 28.09.2026): при старте фиксируется
+// урок — следующий непройденный урок выбранной темы. Смена длится до 24 часов
+// и заканчивается, когда урок пройден (LessonPlayer вызывает completeAdventure)
+// или время вышло (completeIfExpired) — тогда урок продолжится в следующую
+// смену с того же места. Итоги показываются на хабе.
 //
-// Важно: в отличие от периода, приключение НЕ создаётся автоматически при
-// заходе на хаб — только явным действием ребёнка (тап по ноутбуку/кнопка
-// «Начать приключение»), см. startPlanning(). А вот завершается оно автоматически,
-// когда время вышло (см. completeIfExpired) — итоги показываются на хабе.
+// Смена НЕ создаётся автоматически при заходе на хаб — только явным действием
+// ребёнка (кнопка «Начать работу» / тап по ноутбуку), см. startPlanning().
 
-import { getLocalContentRepository } from '@/data/content';
 import { getAdventureRepository } from '@/data/local/repositories';
 import {
   AdventureAllocation,
   AdventureRecord,
   BudgetCategory,
-  adventureProgressRatio,
+  canAfford,
   computeAdventurePayout,
-  applyTimeAdjustment,
   isPlanBonusEligible,
   isTimeUp,
   totalAllocation,
 } from '@/domain/adventure/Adventure';
-import {
-  EVENT_PACING,
-  EventTrigger,
-  isEventDue,
-  isOptionAffordable,
-  pickDemoEventTemplate,
-  pickRandomEventTemplate,
-  selectEventPool,
-} from '@/domain/adventure/AdventureEvent';
 import type { LessonEventOptionContent } from '@/domain/content/LessonContent';
+import { planForLesson } from '@/domain/lesson/LessonPlan';
+import {
+  completedNodeCount,
+  createLessonProgress,
+  totalNodeCount,
+} from '@/domain/lesson/lessonProgress';
 import { xpToNextLevel } from '@/domain/player/PlayerLevel';
-import { LevelUpResult, useLessonsStore, waitForLessonsLoaded } from '@/lib/hooks/useLessons';
+import {
+  LESSONS,
+  LevelUpResult,
+  useLessonsStore,
+  waitForLessonsLoaded,
+} from '@/lib/hooks/useLessons';
 import { create } from 'zustand';
 import { useShopStore } from '@/lib/hooks/useShop';
-import { usePetStore } from './petStore';
 import { usePreferencesStore } from './preferencesStore';
 import { useSavingsStore } from './savingsStore';
 import { useUserStore } from './userStore';
 import { waitForHydration } from './waitForHydration';
 
-export const ADVENTURE_DURATION_MS = 8 * 60 * 60 * 1000; // 8 реальных часов
-/** Доход приключения — стартовый бюджет приключения (отдельный от хаба контур
- * денег: тратится только на события, остаток в конце уходит в хаб). */
+/** Смена длится до 24 часов (решение пользователя 28.09.2026). */
+export const ADVENTURE_DURATION_MS = 24 * 60 * 60 * 1000;
+/** Доход смены — её стартовый бюджет (отдельный от хаба контур денег:
+ * тратится только в событиях урока, остаток в конце уходит в хаб). */
 export const ADVENTURE_BASE_INCOME = 100;
-const PLAN_BONUS = 10; // монет в бюджет приключения — «факт трат ≤ план»
-export const QUEST_TIME_BONUS_MS = 45 * 60 * 1000; // -45 мин таймера за пройденное задание-урок
-const MIN_REMAINING_MS = 15 * 60 * 1000; // таймер не обнуляется мгновенно от заданий/событий
+const PLAN_BONUS = 10; // монет в бюджет смены — «факт трат ≤ план»
 /**
- * Опыт — только за завершение приключения (решение пользователя 27.09.2026:
- * уроки и задания опыта не дают). 150 — уровень 2 после 2 приключений,
- * уровень 3 — ровно после 5 (§8.3/§20: «уровень 3 в пределах 5 демо-приключений»).
+ * Опыт за завершение смены (§8.2). Этап 5 переносит опыт на уроки (закрытая
+ * ветка — новый уровень); пока — прежнее правило.
  */
 export const ADVENTURE_XP = 150;
-/** option_id в журнале событий для события, которое так и не решили до конца приключения. */
-const EXPIRED_EVENT_OPTION_ID = 'expired';
 
 /**
  * §2/§8 CLAUDE.md: «ошибка ребёнка не наказывается» — общее правило, штраф
  * за неверный ответ нигде в уроках/аркаде не применяется. Единственное
- * согласованное с пользователем исключение: пока урок засчитывается как
- * задание активного приключения (см. StepRunner.tsx), неверный ответ тратит
- * немного энергии — вне приключения это же правило не действует.
+ * согласованное с пользователем исключение: пока урок идёт в смене (урок
+ * смены, см. LessonPlayer), неверный ответ тратит немного энергии — вне
+ * смены это же правило не действует.
  */
 export const ADVENTURE_WRONG_ANSWER_ENERGY_COST = 5;
 
 const EMPTY_ALLOCATION: AdventureAllocation = { mandatory: 0, optional: 0, savings: 0 };
 
+/** Урок смены в итогах: сколько этапов пройдено к концу смены. */
+export interface ShiftLessonSummary {
+  id: number;
+  title: string;
+  nodesDone: number;
+  nodesTotal: number;
+  finished: boolean;
+}
+
 export interface AdventureCompletionSummary {
   adventure: AdventureRecord;
-  /** Бонус за план — добавлен в бюджет приключения перед выплатой. */
+  /** Бонус за план — добавлен в бюджет смены перед выплатой. */
   bonusAwarded: number;
   /** Выплата остатка бюджета в хаб: «коплю» — в банк, остальное — в кошелёк. */
   toBank: number;
   /** Бонус банка на переведённое «коплю» (новые деньги, §11.4). */
   bankBonus: number;
   toWallet: number;
-  /** Уже зачислен в useLessonsStore.totalXp (см. completeAdventure ниже) — может дать level-up. */
+  /** Уже зачислен в useLessonsStore.totalXp — может дать level-up. */
   xpAwarded: number;
   levelUp: LevelUpResult | null;
-  /** 1 — приключение завершено по истечении времени (полная награда); меньше 1 — завершено досрочно. */
+  /** Доля пройденного урока смены: 1 — урок пройден (полная награда), меньше 1 — смена кончилась раньше. */
   completionRatio: number;
-  /** true — завершено само, потому что время вышло (см. completeIfExpired), а не кнопкой. */
+  /** true — смена закончилась сама, потому что 24 часа вышли (completeIfExpired). */
   autoCompleted: boolean;
+  /** null — смена старой модели, без урока. */
+  lesson: ShiftLessonSummary | null;
 }
 
 interface AdventureState {
   currentAdventure: AdventureRecord | null;
   isLoading: boolean;
-  /** Шаблоны событий, уже выпадавших в текущем приключении (из adventure_event_log) — лимит и выбор без повторов. */
-  usedEventTemplateIds: string[];
-  /** Итоги последнего завершённого приключения — показываются модалкой на хабе, пока их не закроют. */
+  /** Итоги последней завершённой смены — показываются модалкой на хабе, пока их не закроют. */
   lastCompletionSummary: AdventureCompletionSummary | null;
 
-  /** Загружает текущее незавершённое приключение профиля, ничего не создавая. */
+  /** Загружает текущую незавершённую смену профиля, ничего не создавая. */
   loadCurrent: (profileId: string) => Promise<void>;
-  /** Явно начинает планирование нового приключения (если текущего ещё нет). */
+  /** Явно начинает планирование новой смены (если текущей ещё нет). */
   startPlanning: (profileId: string) => Promise<void>;
-  /** Выбор компетенции — до подтверждения плана, только в памяти. */
+  /** Выбор темы — до подтверждения плана, только в памяти. */
   setBranch: (branchId: number) => void;
   /** Редактирование распределения будущего дохода — до подтверждения, только в памяти. */
   updatePlan: (plan: AdventureAllocation) => void;
-  /** Требует выбранную ветку и total > 0. Фиксирует план в SQLite, переводит в active, ставит таймер. */
-  confirmPlan: () => Promise<void>;
-  /** Прибавляет фактический расход/пополнение к направлению активного приключения. */
+  /**
+   * Фиксирует план и урок смены (следующий непройденный урок темы), ставит
+   * конец смены через 24 часа. false — нет темы, пустой план или в теме не
+   * осталось непройденных уроков.
+   */
+  confirmPlan: () => Promise<boolean>;
+  /** Прибавляет фактический расход/пополнение к направлению активной смены. */
   recordFact: (category: BudgetCategory, amount: number) => Promise<void>;
-  /** Пройдено задание-урок/тренажёр по ветке приключения: ускоряет таймер, увеличивает счётчик. */
-  registerQuestCompletion: () => Promise<void>;
-  /**
-   * Раунд Аркады по теме приключения (тренировка, не задание): ускоряет таймер
-   * на minutes (до 15, см. arcadeTimeBonusMinutes) — слабее урока-задания (45).
-   * Счётчик заданий не растёт. Возвращает, на сколько минут реально ускорено.
-   */
-  registerArcadeRound: (minutes: number) => Promise<number>;
-  /**
-   * Если подошло время и нет уже неразрешённого события — рождает новое.
-   * 'entry' (ребёнок зашёл на экран приключения) может сработать раньше
-   * обычного часового срока — см. EVENT_PACING/isEventDue.
-   */
-  checkForDueEvent: (trigger: EventTrigger) => Promise<void>;
-  /**
-   * Применяет выбранный вариант события: деньги (если есть) + коррекция
-   * времени, снимает блокировку завершения. Недоступный по деньгам вариант
-   * (§12.3) и любой выбор после окончания времени игнорируются.
-   */
-  resolveEvent: (optionId: string) => Promise<void>;
   /**
    * Выбор в событии урока (решение пользователя 28.09.2026: события — внутри
-   * уроков, не по времени). Деньги — только бюджет приключения: трата
-   * уменьшает его и идёт в факт «нужно» / «хочу», пополнение — в бюджет.
-   * false — приключение не идёт или на платный вариант не хватает (§12.3).
+   * уроков, не по времени). Деньги — только бюджет смены: трата уменьшает его
+   * и идёт в факт «нужно» / «хочу», пополнение — в бюджет. false — смена не
+   * идёт или на платный вариант не хватает (§12.3).
    */
   applyLessonEventChoice: (eventId: string, option: LessonEventOptionContent) => Promise<boolean>;
   /**
-   * Завершает приключение, начисляет бонусы. Блокируется, пока есть неразрешённое
-   * событие. Можно вызвать до истечения времени («завершить досрочно») — тогда
-   * бонус за план/за задания и опыт пропорционально уменьшаются по доле
-   * прошедшего времени (adventureProgressRatio); при обычном завершении (время
-   * уже вышло) доля равна 1 и награда не уменьшается.
+   * Завершает смену: урок пройден (LessonPlayer) или ✕ раньше времени. Если
+   * урок не пройден, награда пропорциональна пройденной доле урока — это не
+   * штраф, а выбор ребёнка; урок продолжится в следующую смену.
    */
   completeAdventure: () => Promise<AdventureCompletionSummary | null>;
-  /**
-   * Если время активного приключения вышло (по реальным часам, демо-режим не
-   * в счёт) — снимает висящее событие без эффектов и завершает приключение.
-   * Итоги кладутся в lastCompletionSummary для показа на хабе.
-   */
+  /** 24 часа вышли — завершает смену (итоги — в lastCompletionSummary для показа на хабе). */
   completeIfExpired: () => Promise<AdventureCompletionSummary | null>;
   /** Модалку итогов на хабе закрыли. */
   dismissCompletionSummary: () => void;
-  /**
-   * Ветка активного приключения — заменяет собой старый onboarding-выбор
-   * «приоритетной» ветки (preferencesStore.priorityBranches): тот же бонус
-   * +10% к наградам/бейдж на вкладке, но источник — текущее приключение.
-   */
+  /** Тема активной смены — бейдж и подсветка на вкладке «Уроки». */
   isActiveBranch: (branchId: number) => boolean;
+  /**
+   * Урок идёт в смене — задание смены: события платит бюджет смены, ошибка
+   * стоит энергии, урок пройден — смена завершается.
+   */
+  isShiftLesson: (lessonId: number, branchId: number) => boolean;
   reset: () => void;
 }
 
 /**
- * Завершение вызывается из нескольких мест (кнопка, хаб, тик таймера на
- * экране приключения) и асинхронно — без этого флага два почти одновременных
- * вызова оба увидели бы активное приключение и начислили награды дважды.
+ * Завершение вызывается из нескольких мест (✕, конец урока, хаб по таймеру) и
+ * асинхронно — без этого флага два почти одновременных вызова оба увидели бы
+ * активную смену и начислили награды дважды.
  */
 let completionInFlight = false;
 
@@ -178,6 +161,24 @@ async function withCompletionLock(
   }
 }
 
+/** Сколько урока смены пройдено сейчас (для выплаты и итогов). */
+function shiftLessonProgress(adventure: AdventureRecord): ShiftLessonSummary | null {
+  if (adventure.lessonId === null) return null;
+  const lesson = LESSONS.find((l) => l.id === adventure.lessonId);
+  if (!lesson) return null;
+  const isDemo = useUserStore.getState().user?.is_demo ?? false;
+  const plan = planForLesson(lesson, isDemo);
+  const state =
+    useLessonsStore.getState().lessonStates[lesson.id] ?? createLessonProgress(lesson.id);
+  return {
+    id: lesson.id,
+    title: lesson.title,
+    nodesDone: completedNodeCount(plan, state),
+    nodesTotal: totalNodeCount(plan),
+    finished: Boolean(state.completedAt),
+  };
+}
+
 export const useAdventureStore = create<AdventureState>((set, get) => {
   /** Общая часть ручного и автоматического завершения (вызывается под withCompletionLock). */
   const finalizeAdventure = async (
@@ -185,43 +186,36 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
   ): Promise<AdventureCompletionSummary | null> => {
     const { currentAdventure } = get();
     if (!currentAdventure || currentAdventure.status !== 'active') return null;
-    // Приключение не может закончиться, пока не решено текущее событие.
-    if (currentAdventure.pendingEventTemplateId) return null;
 
     const completedAt = new Date().toISOString();
-    // Досрочное завершение (до истечения таймера) пропорционально уменьшает
-    // награду — при обычном завершении (время вышло) ratio === 1, награда
-    // полная, поведение не меняется. Это выбор ребёнка, а не ошибка/провал —
-    // никакого штрафа или обнуления, просто меньшая (но всегда положительная) награда.
-    // §18.2 демо-режим: приключения переключаются без ожидания — завершение в
-    // любой момент считается полным (иначе в демо награда и опыт были бы ≈0 и
-    // рост уровня из обязательного сценария §19 п.10 не был бы виден).
+    const lesson = shiftLessonProgress(currentAdventure);
+    // Доля награды — доля пройденного урока смены (урок пройден — полная).
+    // Иначе «начал смену и дождался конца» приносило бы весь бюджет, ничего
+    // не пройдя. Это не штраф: урок продолжится в следующую смену.
+    // §18.2 демо-режим: завершение в любой момент — полная награда (иначе рост
+    // уровня из обязательного сценария §19 п.10 за 1–2 минуты не увидеть).
     const isDemo = useUserStore.getState().user?.is_demo ?? false;
-    const completionRatio = isDemo ? 1 : adventureProgressRatio(currentAdventure, Date.now());
+    const completionRatio =
+      isDemo || !lesson || lesson.finished ? 1 : lesson.nodesDone / lesson.nodesTotal;
     const fullBonus = isPlanBonusEligible(currentAdventure) ? PLAN_BONUS : 0;
     const bonusAwarded = Math.floor(fullBonus * completionRatio);
-    // §18 демо-режим (решение пользователя 28.09.2026): каждое демо-приключение
-    // — новый уровень (и новый облик на уровнях 2 и 3), иначе рост уровня за
-    // 1–2 минуты показа не увидеть: обычный уровень 2 — только после двух приключений.
+    // §18 демо-режим (решение пользователя 28.09.2026): каждая демо-смена —
+    // новый уровень (и новый облик на уровнях 2 и 3).
     const xpAwarded = isDemo
       ? Math.max(ADVENTURE_XP, xpToNextLevel(useLessonsStore.getState().totalXp))
       : Math.floor(ADVENTURE_XP * completionRatio);
-    // Остаток бюджета (с бонусом за план) уходит в хаб. При досрочном
-    // завершении — только доля, равная пройденной части времени (решение
-    // пользователя 27.09.2026): иначе «начал и сразу закрыл» приносило бы
-    // весь бюджет приключения.
     const { toBank, toWallet } = computeAdventurePayout(
       currentAdventure.budget + fullBonus,
       currentAdventure.plan.savings,
       completionRatio
     );
-    // Бонус банка на «коплю» — только за полностью пройденное приключение.
+    // Бонус банка на «коплю» — только за пройденный урок.
     const bankBonusAllowed = completionRatio >= 1;
 
     try {
       await getAdventureRepository().complete(currentAdventure.id, completedAt, xpAwarded);
     } catch (error) {
-      console.error('[AdventureStore] Не удалось завершить приключение:', error);
+      console.error('[AdventureStore] Не удалось завершить смену:', error);
       return null;
     }
 
@@ -247,7 +241,7 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
         .recordTransaction(
           paidToWallet,
           'adventure_payout',
-          `Итоги приключения №${currentAdventure.adventureNumber}`
+          `Итоги работы №${currentAdventure.adventureNumber}`
         );
     }
     try {
@@ -255,17 +249,16 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
       if (paidToBank > 0) await repo.addFact(currentAdventure.id, 'savings', paidToBank);
       await repo.setBudget(currentAdventure.id, 0);
     } catch (error) {
-      console.warn('[AdventureStore] Не удалось сохранить выплату приключения:', error);
+      console.warn('[AdventureStore] Не удалось сохранить выплату смены:', error);
     }
     // §11.5-аналог: стрик «без снятия» считается по каждому завершённому циклу дохода.
-    // Не критично для завершения приключения — если упадёт, не блокируем награды/выход.
     try {
       await useSavingsStore.getState().registerPeriodOutcome();
     } catch (error) {
       console.warn('[AdventureStore] Не удалось обновить стрик накоплений:', error);
     }
 
-    // Level up (и species-скин на уровнях 2/3, см. PlayerLevel.ts) считается
+    // Level up (и облик на уровнях 2/3, см. PlayerLevel.ts) считается
     // и награждается ровно в одном месте — useLessonsStore.addXp.
     const levelUp = useLessonsStore.getState().addXp(xpAwarded);
 
@@ -286,47 +279,25 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
       levelUp,
       completionRatio,
       autoCompleted,
+      lesson,
     };
-    set({ currentAdventure: null, usedEventTemplateIds: [], lastCompletionSummary: summary });
+    set({ currentAdventure: null, lastCompletionSummary: summary });
 
     return summary;
-  };
-
-  /** Событие, которое так и не решили до конца приключения, — снимается без денег/времени. */
-  const expirePendingEvent = async (adventure: AdventureRecord): Promise<void> => {
-    const templateId = adventure.pendingEventTemplateId;
-    if (!templateId) return;
-    const nowIso = new Date().toISOString();
-
-    set({
-      currentAdventure: { ...adventure, pendingEventTemplateId: null, pendingEventRolledAt: null },
-      usedEventTemplateIds: [...get().usedEventTemplateIds, templateId],
-    });
-
-    try {
-      const repo = getAdventureRepository();
-      await repo.resolveEvent(adventure.id, nowIso);
-      await repo.logEvent(adventure.id, templateId, EXPIRED_EVENT_OPTION_ID, null, 0, 0, nowIso);
-    } catch (error) {
-      console.warn('[AdventureStore] Не удалось сохранить истёкшее событие:', error);
-    }
   };
 
   return {
     currentAdventure: null,
     isLoading: true,
-    usedEventTemplateIds: [],
     lastCompletionSummary: null,
 
     loadCurrent: async (profileId) => {
       set({ isLoading: true });
       try {
-        const repo = getAdventureRepository();
-        const current = await repo.getCurrent(profileId);
-        const usedEventTemplateIds = current ? await repo.getEventTemplateIds(current.id) : [];
-        set({ currentAdventure: current, usedEventTemplateIds, isLoading: false });
+        const current = await getAdventureRepository().getCurrent(profileId);
+        set({ currentAdventure: current, isLoading: false });
       } catch (error) {
-        console.error('[AdventureStore] Не удалось загрузить приключение:', error);
+        console.error('[AdventureStore] Не удалось загрузить смену:', error);
         set({ isLoading: false });
       }
     },
@@ -349,6 +320,7 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
           adventureNumber,
           status: 'planning',
           branchId: null,
+          lessonId: null,
           projectedIncome: ADVENTURE_BASE_INCOME,
           budget: 0,
           plan: EMPTY_ALLOCATION,
@@ -356,17 +328,12 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
           startedAt: null,
           plannedEndAt: null,
           completedAt: null,
-          timeAdjustmentMs: 0,
-          questsCompleted: 0,
           xpAwarded: null,
-          pendingEventTemplateId: null,
-          pendingEventRolledAt: null,
-          nextEventCheckAt: null,
         });
 
-        set({ currentAdventure: created, usedEventTemplateIds: [], isLoading: false });
+        set({ currentAdventure: created, isLoading: false });
       } catch (error) {
-        console.error('[AdventureStore] Не удалось начать планирование приключения:', error);
+        console.error('[AdventureStore] Не удалось начать планирование смены:', error);
         set({ isLoading: false });
       }
     },
@@ -385,42 +352,45 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
 
     confirmPlan: async () => {
       const { currentAdventure } = get();
-      if (!currentAdventure || currentAdventure.status !== 'planning') return;
-      if (currentAdventure.branchId === null) return;
-      if (totalAllocation(currentAdventure.plan) <= 0) return;
+      if (!currentAdventure || currentAdventure.status !== 'planning') return false;
+      if (currentAdventure.branchId === null) return false;
+      if (totalAllocation(currentAdventure.plan) <= 0) return false;
+      // Урок смены — следующий непройденный урок темы (начатый продолжится с
+      // того же места: прогресс урока хранится отдельно от смены).
+      const lesson = useLessonsStore.getState().getNextLessonInBranch(currentAdventure.branchId);
+      if (!lesson) return false;
 
       const startedAt = new Date();
       const plannedEndAt = new Date(startedAt.getTime() + ADVENTURE_DURATION_MS);
-      const nextEventCheckAt = new Date(startedAt.getTime() + EVENT_PACING.regularGapMs);
 
       await getAdventureRepository().setPlan(
         currentAdventure.id,
         currentAdventure.branchId,
         currentAdventure.plan
       );
-      // Доход приключения — его собственный бюджет (не кошелёк хаба): план
-      // распределяет ИМЕННО эту сумму на надо/хочу/коплю, тратят её события,
-      // остаток в конце уходит в хаб (см. finalizeAdventure).
+      // Доход смены — её собственный бюджет (не кошелёк хаба): план
+      // распределяет ИМЕННО эту сумму на «потратить» и «коплю», тратят её
+      // события урока, остаток в конце уходит в хаб (см. finalizeAdventure).
       const budget = currentAdventure.projectedIncome;
       await getAdventureRepository().activate(
         currentAdventure.id,
         startedAt.toISOString(),
         plannedEndAt.toISOString(),
-        nextEventCheckAt.toISOString(),
-        budget
+        budget,
+        lesson.id
       );
 
       set({
         currentAdventure: {
           ...currentAdventure,
           status: 'active',
+          lessonId: lesson.id,
           budget,
           startedAt: startedAt.toISOString(),
           plannedEndAt: plannedEndAt.toISOString(),
-          nextEventCheckAt: nextEventCheckAt.toISOString(),
         },
-        usedEventTemplateIds: [],
       });
+      return true;
     },
 
     recordFact: async (category, amount) => {
@@ -436,229 +406,14 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
       try {
         await getAdventureRepository().addFact(currentAdventure.id, category, amount);
       } catch (error) {
-        console.warn('[AdventureStore] Не удалось сохранить факт приключения:', error);
-      }
-    },
-
-    registerQuestCompletion: async () => {
-      const { currentAdventure } = get();
-      if (
-        !currentAdventure ||
-        currentAdventure.status !== 'active' ||
-        !currentAdventure.plannedEndAt
-      ) {
-        return;
-      }
-
-      // Задание, законченное уже после дедлайна (урок начат до него), всё
-      // равно засчитывается в счётчик, но таймер не двигает — см. applyTimeAdjustment.
-      const nowMs = Date.now();
-      const previousEndMs = new Date(currentAdventure.plannedEndAt).getTime();
-      const nextPlannedEndAt = applyTimeAdjustment(
-        currentAdventure.plannedEndAt,
-        -QUEST_TIME_BONUS_MS,
-        nowMs,
-        MIN_REMAINING_MS
-      );
-      const appliedDeltaMs = new Date(nextPlannedEndAt).getTime() - previousEndMs;
-      const timeAdjustmentMs = currentAdventure.timeAdjustmentMs + appliedDeltaMs;
-      const questsCompleted = currentAdventure.questsCompleted + 1;
-
-      set({
-        currentAdventure: {
-          ...currentAdventure,
-          plannedEndAt: nextPlannedEndAt,
-          timeAdjustmentMs,
-          questsCompleted,
-        },
-      });
-
-      try {
-        const repo = getAdventureRepository();
-        await repo.adjustTime(currentAdventure.id, nextPlannedEndAt, timeAdjustmentMs);
-        await repo.incrementQuestsCompleted(currentAdventure.id);
-      } catch (error) {
-        console.warn('[AdventureStore] Не удалось сохранить ускорение приключения:', error);
-      }
-    },
-
-    registerArcadeRound: async (minutes) => {
-      const { currentAdventure } = get();
-      if (
-        minutes <= 0 ||
-        !currentAdventure ||
-        currentAdventure.status !== 'active' ||
-        !currentAdventure.plannedEndAt
-      ) {
-        return 0;
-      }
-
-      const previousEndMs = new Date(currentAdventure.plannedEndAt).getTime();
-      const nextPlannedEndAt = applyTimeAdjustment(
-        currentAdventure.plannedEndAt,
-        -minutes * 60_000,
-        Date.now(),
-        MIN_REMAINING_MS
-      );
-      const appliedDeltaMs = new Date(nextPlannedEndAt).getTime() - previousEndMs;
-      if (appliedDeltaMs === 0) return 0;
-      const timeAdjustmentMs = currentAdventure.timeAdjustmentMs + appliedDeltaMs;
-
-      set({
-        currentAdventure: { ...currentAdventure, plannedEndAt: nextPlannedEndAt, timeAdjustmentMs },
-      });
-      try {
-        await getAdventureRepository().adjustTime(
-          currentAdventure.id,
-          nextPlannedEndAt,
-          timeAdjustmentMs
-        );
-      } catch (error) {
-        console.warn('[AdventureStore] Не удалось сохранить ускорение от Аркады:', error);
-      }
-      return Math.round(-appliedDeltaMs / 60_000);
-    },
-
-    checkForDueEvent: async (trigger) => {
-      const { currentAdventure, usedEventTemplateIds } = get();
-      if (!currentAdventure) return;
-
-      // Деньги событий — бюджет приключения, а не кошелёк хаба.
-      const balance = currentAdventure.budget;
-      const mood = usePetStore.getState().currentMood;
-      // §18 демо-режим: событие при каждом заходе, по сценарию (demo_order).
-      const demo = useUserStore.getState().user?.is_demo ?? false;
-      const due = isEventDue(currentAdventure, {
-        nowMs: Date.now(),
-        trigger,
-        balance,
-        mood,
-        eventsSoFar: usedEventTemplateIds.length,
-        demo,
-      });
-      if (!due) return;
-
-      const templates = getLocalContentRepository().getAdventureEventsSync();
-      // Сужаем пул шаблонов под текущее состояние игрока (мало денег/энергии) —
-      // сами эффекты событий не меняются, меняется только то, какие темы могут
-      // выпасть (см. selectEventPool); уже выпадавшие в этом приключении не повторяются.
-      const pool = selectEventPool(templates, {
-        balance,
-        mood,
-        projectedIncome: currentAdventure.projectedIncome,
-      });
-      const template =
-        (demo ? pickDemoEventTemplate(templates, usedEventTemplateIds) : null) ??
-        pickRandomEventTemplate(pool, usedEventTemplateIds, templates);
-      if (!template) return;
-
-      const rolledAt = new Date().toISOString();
-      set({
-        currentAdventure: {
-          ...currentAdventure,
-          pendingEventTemplateId: template.id,
-          pendingEventRolledAt: rolledAt,
-        },
-      });
-
-      try {
-        await getAdventureRepository().rollEvent(currentAdventure.id, template.id, rolledAt);
-      } catch (error) {
-        console.warn('[AdventureStore] Не удалось сохранить новое событие:', error);
-      }
-    },
-
-    resolveEvent: async (optionId) => {
-      const adventure = get().currentAdventure;
-      if (!adventure || adventure.status !== 'active' || !adventure.pendingEventTemplateId) return;
-      // После окончания времени события не срабатывают — висящее снимет completeIfExpired.
-      if (isTimeUp(adventure, Date.now())) return;
-
-      const template = getLocalContentRepository()
-        .getAdventureEventsSync()
-        .find((t) => t.id === adventure.pendingEventTemplateId);
-      const option = template?.options.find((o) => o.id === optionId);
-      if (!template || !option) return;
-
-      const coinAmount = option.coinAmount;
-
-      // §12.3: при нехватке денег платный вариант недоступен целиком — без
-      // частичной оплаты (иначе ускорение доставалось бы за остаток бюджета).
-      // В каждом шаблоне есть бесплатный вариант, так что выбор всегда остаётся.
-      if (!isOptionAffordable(option, adventure.budget)) return;
-
-      // 1. Деньги события — только бюджет приключения: трата уменьшает бюджет и
-      // идёт в fact[category] (надо/хочу), награда пополняет бюджет. Кошелёк и
-      // банк хаба события не трогают. Скины события не выдают — облик
-      // питомца приходит только с новым уровнем.
-      let budget = adventure.budget;
-      if (coinAmount < 0 && option.category) {
-        const cost = -coinAmount;
-        budget -= cost;
-        await get().recordFact(option.category, cost);
-      } else if (coinAmount > 0) {
-        budget += coinAmount;
-      }
-
-      // recordFact выше уже мог обновить currentAdventure — перечитываем перед
-      // тем, как построить итоговое обновление, чтобы не затереть его.
-      const latest = get().currentAdventure;
-      if (!latest || !latest.plannedEndAt) return;
-
-      let plannedEndAt = latest.plannedEndAt;
-      let timeAdjustmentMs = latest.timeAdjustmentMs;
-      if (option.timeDeltaMinutes !== 0) {
-        const nowMs = Date.now();
-        const previousEndMs = new Date(latest.plannedEndAt).getTime();
-        plannedEndAt = applyTimeAdjustment(
-          latest.plannedEndAt,
-          option.timeDeltaMinutes * 60_000,
-          nowMs,
-          MIN_REMAINING_MS
-        );
-        timeAdjustmentMs =
-          latest.timeAdjustmentMs + (new Date(plannedEndAt).getTime() - previousEndMs);
-      }
-
-      const resolvedAt = new Date().toISOString();
-      const nextEventCheckAt = new Date(Date.now() + EVENT_PACING.regularGapMs).toISOString();
-
-      set({
-        currentAdventure: {
-          ...latest,
-          budget,
-          plannedEndAt,
-          timeAdjustmentMs,
-          pendingEventTemplateId: null,
-          pendingEventRolledAt: null,
-          nextEventCheckAt,
-        },
-        usedEventTemplateIds: [...get().usedEventTemplateIds, template.id],
-      });
-
-      try {
-        const repo = getAdventureRepository();
-        await repo.setBudget(latest.id, budget);
-        await repo.adjustTime(latest.id, plannedEndAt, timeAdjustmentMs);
-        await repo.resolveEvent(latest.id, nextEventCheckAt);
-        await repo.logEvent(
-          latest.id,
-          template.id,
-          optionId,
-          option.category,
-          coinAmount,
-          option.timeDeltaMinutes * 60_000,
-          resolvedAt
-        );
-      } catch (error) {
-        console.warn('[AdventureStore] Не удалось сохранить исход события:', error);
+        console.warn('[AdventureStore] Не удалось сохранить факт смены:', error);
       }
     },
 
     applyLessonEventChoice: async (eventId, option) => {
       const adventure = get().currentAdventure;
       if (!adventure || adventure.status !== 'active') return false;
-      if (!isOptionAffordable(option, adventure.budget)) return false;
+      if (!canAfford(option.coinAmount, adventure.budget)) return false;
 
       let budget = adventure.budget;
       if (option.coinAmount < 0 && option.category) {
@@ -699,9 +454,9 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
         const adventure = get().currentAdventure;
         if (!adventure || !isTimeUp(adventure, Date.now())) return null;
 
-        // На холодном старте (приложение открыли спустя часы) опыт ещё может
-        // читаться из SQLite, а инвентарь — восстанавливаться из AsyncStorage:
-        // начисление до конца загрузки было бы затёрто.
+        // На холодном старте (приложение открыли спустя часы) прогресс уроков и
+        // опыт ещё может читаться из SQLite, а инвентарь — восстанавливаться из
+        // AsyncStorage: начисление до конца загрузки было бы затёрто.
         await Promise.all([
           waitForLessonsLoaded(),
           waitForHydration(useShopStore),
@@ -710,7 +465,6 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
 
         const latest = get().currentAdventure;
         if (!latest || latest.id !== adventure.id || latest.status !== 'active') return null;
-        await expirePendingEvent(latest);
         return finalizeAdventure(true);
       }),
 
@@ -725,11 +479,19 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
       );
     },
 
+    isShiftLesson: (lessonId, branchId) => {
+      const { currentAdventure } = get();
+      if (!currentAdventure || currentAdventure.status !== 'active') return false;
+      // Смена старой модели (без урока) — урок её темы.
+      return currentAdventure.lessonId === null
+        ? currentAdventure.branchId === branchId
+        : currentAdventure.lessonId === lessonId;
+    },
+
     reset: () =>
       set({
         currentAdventure: null,
         isLoading: true,
-        usedEventTemplateIds: [],
         lastCompletionSummary: null,
       }),
   };

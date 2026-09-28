@@ -20,7 +20,7 @@ export function CompleteStage({
 }: {
   onExit: () => void;
   bonusCoins: number;
-  /** Задание приключения: монеты на счёт + ускорение приключения (см. RewardStep.tsx). */
+  /** Урок смены: он пройден — смена закрыта, итоги на хабе (см. LessonPlayer). */
   isAdventureQuest: boolean;
   /** Повтор пройденного урока — без награды (§9). */
   isReplay: boolean;
@@ -58,7 +58,7 @@ export function CompleteStage({
             {isReplay
               ? 'Повторение закрепляет знания — награда за этот урок уже получена.'
               : isAdventureQuest
-                ? `Приключение стало ближе к финалу — и +${formatPrice(bonusCoins)} на твой счёт!`
+                ? `Работа на сегодня сделана — и +${formatPrice(bonusCoins)} на твой счёт! Итоги смены ждут на хабе.`
                 : `+${formatPrice(bonusCoins)} за прохождение урока`}
           </Text>
         </ScrollView>
@@ -73,14 +73,14 @@ export function CompleteStage({
             style={[styles.gradientButtonInner, { padding: scale(spacing.lg) }]}
           >
             {/* Урок открыт поверх экрана, с которого его запустили (onExit —
-                router.back): задание — с приключения, повтор — со вкладки уроков. */}
+                router.back): урок смены — с экрана работы, повтор — со вкладки уроков. */}
             <Ionicons
               name={isAdventureQuest ? 'briefcase' : 'checkmark'}
               size={scale(24)}
               color={theme.onGradient}
             />
             <Text style={[styles.gradientButtonText, { fontSize: scaledFont('lg') }]}>
-              {isAdventureQuest ? 'Вернуться в приключение' : 'Готово'}
+              {isAdventureQuest ? 'К итогам работы' : 'Готово'}
             </Text>
           </LinearGradient>
         </TouchableOpacity>

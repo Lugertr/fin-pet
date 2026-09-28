@@ -60,6 +60,31 @@ export function createArcadeStyles({ theme }: ArcadeStylesParams) {
       paddingBottom: spacing.massive,
       gap: spacing.md,
     },
+    // Выбор темы — ряд чипов (тап-зона ≥48dp).
+    lobbyBranchRow: {
+      gap: spacing.sm,
+      paddingBottom: spacing.sm,
+    },
+    lobbyBranchChip: {
+      minHeight: 48,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.lg,
+      borderRadius: radius.full,
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    lobbyBranchChipSelected: {
+      backgroundColor: theme.primary,
+      borderColor: theme.primary,
+    },
+    lobbyBranchChipText: {
+      color: theme.textPrimary,
+      fontWeight: fontWeights.semibold,
+    },
+    lobbyBranchChipTextSelected: {
+      color: theme.onGradient,
+    },
     lobbyInfo: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -99,22 +124,6 @@ export function createArcadeStyles({ theme }: ArcadeStylesParams) {
       color: theme.textSecondary,
       fontSize: fontSizes.sm,
       marginTop: 2,
-    },
-    lobbyEmpty: {
-      alignItems: 'center',
-      paddingVertical: spacing.huge,
-      gap: spacing.sm,
-    },
-    lobbyEmptyTitle: {
-      color: theme.textPrimary,
-      fontWeight: fontWeights.bold,
-      fontSize: fontSizes.lg,
-      textAlign: 'center',
-    },
-    lobbyEmptyText: {
-      color: theme.textSecondary,
-      fontSize: fontSizes.md,
-      textAlign: 'center',
     },
   });
 }

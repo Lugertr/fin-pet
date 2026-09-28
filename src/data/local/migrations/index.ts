@@ -202,4 +202,14 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE profiles ADD COLUMN total_xp INTEGER NOT NULL DEFAULT 0;
     `,
   },
+  {
+    version: 10,
+    // Смена = один урок (решение пользователя 28.09.2026): урок смены
+    // фиксируется при старте. Таймер 24 часа без ускорений, событий по
+    // времени больше нет — колонки time_adjustment_ms, quests_completed,
+    // pending_event_*, next_event_check_at остаются, но не используются.
+    sql: `
+      ALTER TABLE adventures ADD COLUMN lesson_id INTEGER;
+    `,
+  },
 ];

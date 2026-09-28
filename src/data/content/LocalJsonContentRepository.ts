@@ -10,7 +10,6 @@
 // не потребует менять ничего, кроме этого файла.
 
 import { AchievementDefinition } from '@/domain/achievement/Achievement';
-import { AdventureEventTemplate } from '@/domain/adventure/AdventureEvent';
 import { AiStubContent } from '@/domain/ai/AiAssistant';
 import {
   ArcadeSwipeCardsContent,
@@ -26,7 +25,6 @@ import {
 } from '@/domain/content/ReferenceContent';
 import { ContentRepository } from '@/domain/repositories/ContentRepository';
 import achievementsJson from '../../../content/achievements.json';
-import adventureEventsJson from '../../../content/adventure_events.json';
 import arcadeSwipeCardsJson from '../../../content/arcade_swipe_cards.json';
 import aiStubResponsesJson from '../../../content/ai_stub_responses.json';
 import branchesJson from '../../../content/branches.json';
@@ -43,7 +41,6 @@ const ITEMS_CONTENT = itemsJson as ItemContent[];
 const ACHIEVEMENTS_CONTENT = achievementsJson as AchievementDefinition[];
 const AI_STUB_CONTENT = aiStubResponsesJson as AiStubContent;
 const FIVE_LETTERS_WORDS_CONTENT = fiveLettersWordsJson as FiveLettersWordContent[];
-const ADVENTURE_EVENTS_CONTENT = adventureEventsJson as AdventureEventTemplate[];
 const GLOSSARY_CONTENT = glossaryJson as GlossaryTermContent[];
 const SCREEN_HELP_CONTENT = screenHelpJson as ScreenHelpContent[];
 const ARCADE_SWIPE_CARDS_CONTENT = arcadeSwipeCardsJson as ArcadeSwipeCardsContent[];
@@ -72,10 +69,6 @@ export class LocalJsonContentRepository implements ContentRepository {
 
   async getFiveLettersWords(): Promise<FiveLettersWordContent[]> {
     return this.getFiveLettersWordsSync();
-  }
-
-  async getAdventureEvents(): Promise<AdventureEventTemplate[]> {
-    return this.getAdventureEventsSync();
   }
 
   async getGlossary(): Promise<GlossaryTermContent[]> {
@@ -121,10 +114,6 @@ export class LocalJsonContentRepository implements ContentRepository {
 
   getFiveLettersWordsSync(): FiveLettersWordContent[] {
     return FIVE_LETTERS_WORDS_CONTENT;
-  }
-
-  getAdventureEventsSync(): AdventureEventTemplate[] {
-    return ADVENTURE_EVENTS_CONTENT;
   }
 
   getGlossarySync(): GlossaryTermContent[] {

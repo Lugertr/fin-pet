@@ -14,11 +14,8 @@ import {
 } from '@/domain/content/LessonContent';
 import { lessonQuestionPools } from '@/domain/lesson/LessonPlan';
 import {
-  ARCADE_MAX_TIME_BONUS_MINUTES,
-  arcadeTimeBonusMinutes,
   BranchArcadeSources,
   buildBranchGameSession,
-  buildQuestTrainerSession,
   DEMO_ROUND_LIMIT,
   FIVE_LETTERS_TRAINER_WORD_COUNT,
   listBranchGames,
@@ -89,7 +86,6 @@ describe('buildBranchGameSession', () => {
     const session = buildBranchGameSession('quiz', 1, sources);
     const ids = session!.questions.map((q) => q.id).sort((a, b) => a - b);
     expect(ids).toEqual([1, 11, 12, 21]);
-    expect(session!.countsAsQuest).toBe(false);
   });
 
   it('свайпы: из уроков темы и карточек Аркады', () => {
@@ -135,15 +131,6 @@ describe('buildBranchGameSession', () => {
   });
 });
 
-describe('buildQuestTrainerSession', () => {
-  it('раунд-задание (тема пройдена на 100%) засчитывается как задание', () => {
-    const session = buildQuestTrainerSession(1, sources);
-    expect(session).not.toBeNull();
-    expect(session!.countsAsQuest).toBe(true);
-    expect(session!.branchId).toBe(1);
-  });
-});
-
 describe('контент Аркады', () => {
   const realSources: BranchArcadeSources = {
     lessons: lessonsJson as LessonContent[],
@@ -181,19 +168,6 @@ describe('контент Аркады', () => {
   });
 });
 
-describe('arcadeTimeBonusMinutes (Аркада ускоряет слабее урока)', () => {
-  it('идеальный раунд — 15 минут, меньше урока-задания (45)', () => {
-    expect(arcadeTimeBonusMinutes(10, 10)).toBe(ARCADE_MAX_TIME_BONUS_MINUTES);
-    expect(ARCADE_MAX_TIME_BONUS_MINUTES).toBeLessThan(45);
-  });
-
-  it('пропорционально верным ответам, без ошибок в плюс', () => {
-    expect(arcadeTimeBonusMinutes(5, 10)).toBe(7);
-    expect(arcadeTimeBonusMinutes(0, 10)).toBe(0);
-    expect(arcadeTimeBonusMinutes(3, 0)).toBe(0);
-  });
-});
-
 describe('демо-режим (§18): короткие раунды Аркады', () => {
   const big: BranchArcadeSources = {
     lessons: [
@@ -222,13 +196,10 @@ describe('демо-режим (§18): короткие раунды Аркады
     ]);
   });
 
-  it('buildBranchGameSession и задание-тренировка в демо — тоже короткие', () => {
+  it('buildBranchGameSession в демо — тоже короткие раунды', () => {
     for (const type of ['quiz', 'tinder_swipe', 'five_letters'] as const) {
-      const session = buildBranchGameSession(type, 1, big, false, true);
+      const session = buildBranchGameSession(type, 1, big, true);
       expect(trainerRoundLength(session!)).toBe(DEMO_ROUND_LIMIT[type]);
     }
-    const quest = buildQuestTrainerSession(1, big, true);
-    expect(trainerRoundLength(quest!)).toBeLessThanOrEqual(3);
-    expect(quest!.countsAsQuest).toBe(true);
   });
 });

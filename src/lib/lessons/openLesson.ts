@@ -27,10 +27,10 @@ export function openLessonOrExplain(lessonId: number): boolean {
 
   const adventureActive = useAdventureStore.getState().currentAdventure?.status === 'active';
   Alert.alert(
-    'Уроки — в приключении',
+    'Новые уроки — в работе',
     adventureActive
-      ? 'Новые уроки — это задания приключения: жми «Выполнить задание» на вкладке «Приключение».'
-      : 'Новые уроки проходятся в приключении — начни его на вкладке «Хаб».'
+      ? 'Новые уроки проходятся в смене: жми «Начать задание» на экране работы.'
+      : 'Новые уроки проходятся в смене — нажми «Начать работу» на хабе.'
   );
   return false;
 }

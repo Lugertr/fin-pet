@@ -1,18 +1,17 @@
 // domain/content/Economy.test.ts
 // Экономика магазина и наград (решения пользователя 27.09.2026):
 // - улучшения ноутбука/копилки/кровати нельзя купить на деньги одного даже
-//   идеального приключения — копить приходится в банке;
+//   идеальной смены — копить приходится в банке;
 // - скины не продаются (облик — только с новым уровнем);
 // - достижения дают монеты, подарков за них нет.
 
 import achievementsJson from '../../../content/achievements.json';
-import adventureEventsJson from '../../../content/adventure_events.json';
 import itemsJson from '../../../content/items.json';
 import lessonsJson from '../../../content/lessons.json';
 import { AchievementDefinition } from '@/domain/achievement/Achievement';
-import { AdventureEventTemplate, EVENT_PACING } from '@/domain/adventure/AdventureEvent';
 import { ItemContent } from '@/domain/content/ItemContent';
 import { AnyLessonContent } from '@/domain/content/LessonContent';
+import { isNodeLesson } from '@/domain/lesson/LessonPlan';
 import { LESSON_STEP_REWARDS } from '@/domain/lesson/lessonRewards';
 import { QUIZ_TRAINER_QUESTION_COUNT } from '@/domain/arcade/TrainerSelection';
 import { ARCADE_COINS_PER_CORRECT, ARCADE_ENERGY_COST } from '@/constants/gameplay';
@@ -20,43 +19,48 @@ import { ARCADE_COINS_PER_CORRECT, ARCADE_ENERGY_COST } from '@/constants/gamepl
 const ITEMS = itemsJson as ItemContent[];
 const LESSONS = lessonsJson as unknown as AnyLessonContent[];
 
-/** Бюджет приключения (ADVENTURE_BASE_INCOME) + бонус за план. */
-const ADVENTURE_BUDGET_WITH_PLAN_BONUS = 100 + 10;
-/** Надбавка за урок-задание приключения (+10%, см. StepRunner). */
+/** Бюджет смены (ADVENTURE_BASE_INCOME) + бонус за план. */
+const SHIFT_BUDGET_WITH_PLAN_BONUS = 100 + 10;
+/** Надбавка за урок смены (+10%, см. LessonPlayer). */
 const QUEST_COIN_MULTIPLIER = 1.1;
 
 /**
- * Верхняя граница денег за одно идеальное приключение: весь бюджет с бонусом
- * за план, все денежные награды событий (без повторов, до лимита событий) и
- * все уроки самой длинной темы как задания (стартовый ноутбук без бонуса).
+ * Верхняя граница денег за одну идеальную смену (смена = один урок): весь
+ * бюджет с бонусом за план, самые щедрые варианты всех событий самого
+ * «денежного» урока и монеты за урок (стартовый ноутбук без бонуса).
  * Награды за уровень — отдельные вехи, в эту границу не входят.
  */
-function perfectAdventureMaxIncome(): number {
-  const eventRewards = (adventureEventsJson as AdventureEventTemplate[])
-    .map((t) => Math.max(0, ...t.options.map((o) => o.coinAmount)))
-    .sort((a, b) => b - a)
-    .slice(0, EVENT_PACING.maxPerAdventure)
-    .reduce((sum, coins) => sum + coins, 0);
-  const lessonsPerBranch = new Map<number, number>();
-  for (const lesson of LESSONS) {
-    lessonsPerBranch.set(lesson.branch_id, (lessonsPerBranch.get(lesson.branch_id) ?? 0) + 1);
-  }
-  const maxLessons = Math.max(...lessonsPerBranch.values());
+function perfectShiftMaxIncome(): number {
+  const eventRewards = Math.max(
+    0,
+    ...LESSONS.filter(isNodeLesson).map((lesson) =>
+      lesson.nodes
+        .flatMap((node) => node.activities)
+        .reduce(
+          (sum, activity) =>
+            activity.type === 'event'
+              ? sum +
+                Math.max(0, ...activity.pool.flatMap((e) => e.options.map((o) => o.coinAmount)))
+              : sum,
+          0
+        )
+    )
+  );
   const lessonCoins = Math.round(
     (LESSON_STEP_REWARDS.theory + LESSON_STEP_REWARDS.minigame + LESSON_STEP_REWARDS.test) *
       QUEST_COIN_MULTIPLIER
   );
-  return ADVENTURE_BUDGET_WITH_PLAN_BONUS + eventRewards + maxLessons * lessonCoins;
+  return SHIFT_BUDGET_WITH_PLAN_BONUS + eventRewards + lessonCoins;
 }
 
 describe('экономика магазина', () => {
-  it('улучшения ноутбука, копилки и кровати дороже идеального приключения', () => {
+  it('улучшения ноутбука, копилки и кровати дороже идеальной смены', () => {
     const upgrades = ITEMS.filter(
       (i) => ['laptop', 'piggybank', 'bed'].includes(i.category) && !i.is_starter
     );
     expect(upgrades.length).toBeGreaterThan(0);
     const cheapest = Math.min(...upgrades.map((i) => i.price));
-    expect(cheapest).toBeGreaterThan(perfectAdventureMaxIncome());
+    expect(cheapest).toBeGreaterThan(perfectShiftMaxIncome());
   });
 
   it('еда — не меньше 10 C за 1⚡ (фарм «еда → Аркада» невыгоден) и не подорожала', () => {

@@ -241,7 +241,7 @@ export function PetRoom({
             <RoomLabelPill
               top={layout.laptop.top}
               left={layout.laptop.left}
-              label="Приключение"
+              label="Работа"
               badge={laptopBonusText}
               styles={styles}
             />

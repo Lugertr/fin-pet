@@ -67,8 +67,8 @@ export function ThemeCompleteReward({ branchName }: { branchName: string }) {
             textAlign: 'center',
           }}
         >
-          Тема «{branchName}» пройдена целиком! Уроки можно повторять, а тренироваться — в Аркаде
-          приключения.
+          Тема «{branchName}» пройдена целиком! Уроки можно повторять, а тренироваться — в Аркаде на
+          хабе.
         </Text>
       </LinearGradient>
     </Animated.View>

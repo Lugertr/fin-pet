@@ -1,39 +1,38 @@
 // src/components/adventure/AdventureSummaryModal/AdventureSummaryModal.tsx
-// Итоги завершённого приключения (макет «Итоги работы», 27.09.2026) —
-// полноэкранное окно на хабе и после ручного завершения, и после
-// автоматического (время вышло, см. adventureStore.completeIfExpired).
-// Сверху — карточка-герой с питомцем, ниже «План и факт», перенос в банк и в
-// кошелёк, награды; внизу — «Домой» и «Новое приключение». Данные — снимок
+// Итоги смены (макет «Итоги работы», 28.09.2026) — полноэкранное окно на хабе:
+// урок пройден, смену закончили раньше (✕) или 24 часа вышли (см.
+// adventureStore.completeIfExpired). Сверху — карточка-герой с иконкой
+// питомца reward.svg (вид и скин), ниже «План и факт» (AdventurePlanFactCard),
+// «Перенос в копилку» — куда ушёл бюджет смены; если урок не закончен — где
+// он продолжится. Внизу — «Домой» и «Новая работа». Данные — снимок
 // AdventureCompletionSummary, награды к этому моменту уже начислены.
 // Ошибка не наказывается (§8): если трат больше плана — нейтральный тон.
 
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Modal, ScrollView, TouchableOpacity, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
 import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { PetSprite } from '@/components/pet';
+import { PetAvatarBubble } from '@/components/pet';
 import { HelpButton } from '@/components/shared';
+import { FURNITURE_ASSETS } from '@/constants/itemAssets';
 import { PLAN_CATEGORY_COLORS } from '@/constants/planCategories';
-import { actualSpend, isPlanBonusEligible, plannedSpend } from '@/domain/adventure/Adventure';
+import { isPlanBonusEligible } from '@/domain/adventure/Adventure';
 import { getLevelTitle } from '@/domain/player/PlayerLevel';
 import { useFeedback } from '@/lib/hooks/useFeedback';
-import { BRANCHES } from '@/lib/hooks/useLessons';
 import type { AdventureCompletionSummary } from '@/lib/stores/adventureStore';
 import { usePetStore } from '@/lib/stores/petStore';
 import { usePreferencesStore } from '@/lib/stores/preferencesStore';
-import { formatCoins, formatPrice } from '@/lib/utils/formatters';
+import { formatPrice } from '@/lib/utils/formatters';
 import { useResponsive, useTheme } from '@/theme';
 import { withAlpha } from '@/theme/colorUtils';
+import { colorPalettes } from '@/theme/tokens';
+import { AdventureAmountCard } from '../AdventureAmountCard';
+import { AdventurePlanFactCard } from '../AdventurePlanFactCard';
 import { createAdventureSummaryModalStyles } from './AdventureSummaryModal.styles';
-
-/** Доля для полоски (0–100); больше плана — полная полоска. */
-function percentOf(value: number, total: number): number {
-  if (total <= 0) return value > 0 ? 100 : 0;
-  return Math.min(100, Math.round((value / total) * 100));
-}
 
 export function AdventureSummaryModal({
   summary,
@@ -43,10 +42,10 @@ export function AdventureSummaryModal({
   summary: AdventureCompletionSummary;
   /** «Домой» — закрыть итоги и остаться на хабе. */
   onClose: () => void;
-  /** «Новое приключение» — закрыть итоги и сразу открыть планирование. */
+  /** «Новая работа» — закрыть итоги и сразу открыть планирование. */
   onStartNew: () => void;
 }) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const { scale, scaledFont } = useResponsive();
   const insets = useSafeAreaInsets();
   const { triggerHaptic } = useFeedback();
@@ -56,10 +55,20 @@ export function AdventureSummaryModal({
 
   const { adventure } = summary;
   const planKept = isPlanBonusEligible(adventure);
-  const spendPlan = plannedSpend(adventure);
-  const spendFact = actualSpend(adventure);
-  const overspend = Math.max(0, spendFact - spendPlan);
-  const branchName = BRANCHES.find((b) => b.id === adventure.branchId)?.name;
+  // Золотой «Успех» — контрастный оттенок для светлой и тёмной темы.
+  const chipColor = planKept ? colorPalettes.amber[isDark ? 400 : 700] : theme.textSecondary;
+  const transferred = summary.toWallet + summary.toBank + summary.bankBonus;
+
+  // Как в макете: «15 на хотения, 30 на цель» (+ бонус копилки за новые деньги).
+  const transferSplit = [
+    `${summary.toWallet} на хотения`,
+    `${summary.toBank} на цель`,
+    ...(summary.bankBonus > 0 ? [`+${summary.bankBonus} бонус копилки`] : []),
+  ].join(', ');
+  const rewardsLine = [
+    ...(summary.bonusAwarded > 0 ? [`бонус за план +${summary.bonusAwarded}`] : []),
+    `опыт +${summary.xpAwarded}`,
+  ].join(' · ');
 
   const handleHome = () => {
     triggerHaptic('light');
@@ -81,25 +90,33 @@ export function AdventureSummaryModal({
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Герой: результат одной фразой + питомец */}
+          {/* Герой: результат одной фразой + питомец с наградой */}
           <Animated.View entering={FadeInDown.duration(350)}>
             <LinearGradient
               colors={[
-                withAlpha(PLAN_CATEGORY_COLORS.need, 0.16),
-                withAlpha(PLAN_CATEGORY_COLORS.need, 0.3),
+                withAlpha(PLAN_CATEGORY_COLORS.need, 0.14),
+                withAlpha(PLAN_CATEGORY_COLORS.need, 0.28),
               ]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.heroCard}
             >
+              <View style={[styles.heroCircle, { width: scale(96), height: scale(96) }]} />
               <View style={styles.heroText}>
                 <View style={styles.heroChip}>
-                  <Text style={[styles.heroChipText, { fontSize: scaledFont('sm') }]}>
-                    {planKept ? '🏆 Успех' : '📋 Итоги'}
+                  <Ionicons
+                    name={planKept ? 'trophy' : 'clipboard-outline'}
+                    size={scale(16)}
+                    color={chipColor}
+                  />
+                  <Text
+                    style={[styles.heroChipText, { color: chipColor, fontSize: scaledFont('md') }]}
+                  >
+                    {planKept ? 'Успех' : 'Итоги'}
                   </Text>
                 </View>
                 <Text style={[styles.heroTitle, { fontSize: scaledFont('xxl') }]}>
-                  {planKept ? 'Отличная работа!' : 'Приключение завершено'}
+                  {planKept ? 'Отличная работа!' : 'Смена завершена'}
                 </Text>
                 <Text style={[styles.heroSubtitle, { fontSize: scaledFont('md') }]}>
                   {planKept
@@ -107,38 +124,47 @@ export function AdventureSummaryModal({
                     : 'Потрачено больше плана — в следующий раз получится точнее'}
                 </Text>
               </View>
-              <PetSprite
+              <PetAvatarBubble
                 petType={petType}
-                mood={100}
+                emotion="reward"
                 skinVariant={skinVariant}
-                height={scale(120)}
+                size={112}
               />
             </LinearGradient>
           </Animated.View>
 
           {(summary.autoCompleted || summary.completionRatio < 1) && (
-            <Text style={[styles.note, { fontSize: scaledFont('sm') }]}>
-              {summary.autoCompleted
-                ? 'Время приключения вышло — вот что получилось.'
-                : `Завершено досрочно: получено ${Math.round(summary.completionRatio * 100)}% бюджета и опыта, бонус банка не начислялся.`}
+            <Text style={[styles.note, { fontSize: scaledFont('md') }]}>
+              {summary.autoCompleted ? '24 часа смены вышли. ' : ''}
+              {summary.completionRatio < 1
+                ? `Урок пройден на ${Math.round(summary.completionRatio * 100)}% — столько же бюджета и опыта, бонус копилки не начислялся.`
+                : 'Вот что получилось.'}
+            </Text>
+          )}
+          {/* Урок не закончен — прогресс сохранён, следующая смена продолжит его. */}
+          {summary.lesson && !summary.lesson.finished && (
+            <Text style={[styles.note, { fontSize: scaledFont('md') }]}>
+              Урок «{summary.lesson.title}» продолжишь в следующую смену — с этапа{' '}
+              {Math.min(summary.lesson.nodesDone + 1, summary.lesson.nodesTotal)} из{' '}
+              {summary.lesson.nodesTotal}.
             </Text>
           )}
 
           {summary.levelUp && (
             <Animated.View entering={ZoomIn.duration(400)} style={styles.levelUpCard}>
               <Text style={{ fontSize: scale(32) }}>🎉</Text>
-              <View style={{ flex: 1 }}>
+              <View style={styles.levelUpBody}>
                 <Text style={[styles.levelUpTitle, { fontSize: scaledFont('lg') }]}>
                   Новый уровень {summary.levelUp.to}: «{getLevelTitle(summary.levelUp.to)}»
                 </Text>
                 {/* §8.4: объясняем, что именно получено — только реально выданное */}
                 {summary.levelUp.coins > 0 && (
-                  <Text style={[styles.levelUpText, { fontSize: scaledFont('sm') }]}>
+                  <Text style={[styles.levelUpText, { fontSize: scaledFont('md') }]}>
                     Награда: +{formatPrice(summary.levelUp.coins)}
                   </Text>
                 )}
                 {summary.levelUp.skinName && (
-                  <Text style={[styles.levelUpText, { fontSize: scaledFont('sm') }]}>
+                  <Text style={[styles.levelUpText, { fontSize: scaledFont('md') }]}>
                     Новый облик питомца: {summary.levelUp.skinName}
                   </Text>
                 )}
@@ -147,145 +173,26 @@ export function AdventureSummaryModal({
           )}
 
           {/* План и факт (§7.4) */}
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={[styles.cardTitle, { fontSize: scaledFont('xl') }]}>План и факт</Text>
-              <View style={styles.tag}>
-                <Text style={[styles.tagText, { fontSize: scaledFont('xs') }]}>
-                  Приключение №{adventure.adventureNumber}
-                </Text>
-              </View>
-            </View>
-            {branchName && (
-              <Text style={[styles.cardSubtitle, { fontSize: scaledFont('sm') }]}>
-                Тема: {branchName}
-              </Text>
-            )}
+          <AdventurePlanFactCard
+            adventure={adventure}
+            tag="Смена закрыта"
+            savingsFact={summary.toBank}
+          />
 
-            <View
-              style={styles.planRow}
-              accessible
-              accessibilityLabel={`Потратить: план ${formatCoins(spendPlan)}, факт ${formatCoins(spendFact)}`}
-            >
-              <View style={styles.planRowHeader}>
-                <View style={[styles.dot, { backgroundColor: PLAN_CATEGORY_COLORS.spend }]} />
-                <Text style={[styles.planLabel, { fontSize: scaledFont('lg') }]}>Потратить</Text>
-                <Text style={[styles.planValues, { fontSize: scaledFont('sm') }]}>
-                  план {spendPlan} · факт{' '}
-                  <Text style={styles.planFact}>{formatPrice(spendFact)}</Text>
-                </Text>
-              </View>
-              <View style={styles.track}>
-                <View
-                  style={[
-                    styles.fill,
-                    {
-                      width: `${percentOf(spendFact, spendPlan)}%`,
-                      backgroundColor: PLAN_CATEGORY_COLORS.spend,
-                    },
-                  ]}
-                />
-              </View>
-              {/* Надо / хочу не планируются — видны только в факте трат событий */}
-              <View style={styles.splitRow}>
-                <View style={styles.splitItem}>
-                  <View style={[styles.dotSmall, { backgroundColor: PLAN_CATEGORY_COLORS.need }]} />
-                  <Text style={[styles.splitText, { fontSize: scaledFont('sm') }]}>
-                    нужное {formatPrice(adventure.fact.mandatory)}
-                  </Text>
-                </View>
-                <View style={styles.splitItem}>
-                  <View style={[styles.dotSmall, { backgroundColor: PLAN_CATEGORY_COLORS.want }]} />
-                  <Text style={[styles.splitText, { fontSize: scaledFont('sm') }]}>
-                    желаемое {formatPrice(adventure.fact.optional)}
-                  </Text>
-                </View>
-              </View>
-              <Text style={[styles.statusText, { fontSize: scaledFont('sm') }]}>
-                {overspend > 0
-                  ? `Больше плана на ${formatPrice(overspend)}`
-                  : `✓ В плане${summary.bonusAwarded > 0 ? ` — бонус +${formatPrice(summary.bonusAwarded)}` : ''}`}
-              </Text>
-            </View>
-
-            <View
-              style={styles.planRow}
-              accessible
-              accessibilityLabel={`Коплю: план ${formatCoins(adventure.plan.savings)}, в банк ${formatCoins(summary.toBank)}`}
-            >
-              <View style={styles.planRowHeader}>
-                <View style={[styles.dot, { backgroundColor: PLAN_CATEGORY_COLORS.save }]} />
-                <Text style={[styles.planLabel, { fontSize: scaledFont('lg') }]}>Коплю</Text>
-                <Text style={[styles.planValues, { fontSize: scaledFont('sm') }]}>
-                  план {adventure.plan.savings} · факт{' '}
-                  <Text style={styles.planFact}>{formatPrice(summary.toBank)}</Text>
-                </Text>
-              </View>
-              <View style={styles.track}>
-                <View
-                  style={[
-                    styles.fill,
-                    {
-                      width: `${percentOf(summary.toBank, adventure.plan.savings)}%`,
-                      backgroundColor: PLAN_CATEGORY_COLORS.save,
-                    },
-                  ]}
-                />
-              </View>
-            </View>
-          </View>
-
-          {/* Куда ушёл остаток бюджета приключения */}
-          <View style={styles.transferCard}>
-            <View
-              style={[
-                styles.transferIcon,
-                { backgroundColor: withAlpha(PLAN_CATEGORY_COLORS.save, 0.2) },
-              ]}
-            >
-              <Text style={{ fontSize: scale(24) }}>🐷</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <View style={styles.transferTitleRow}>
-                <Text style={[styles.transferTitle, { fontSize: scaledFont('lg') }]}>
-                  Перенос в банк:
-                </Text>
-                <View style={styles.amountChip}>
-                  <Text style={[styles.amountChipText, { fontSize: scaledFont('md') }]}>
-                    {formatPrice(summary.toBank + summary.bankBonus)}
-                  </Text>
-                </View>
-              </View>
-              <Text style={[styles.transferText, { fontSize: scaledFont('sm') }]}>
-                {summary.bankBonus > 0
-                  ? `${summary.toBank} из «Коплю» + ${summary.bankBonus} бонус банка`
-                  : 'всё отложенное в «Коплю» — на твою цель'}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.transferCard}>
-            <View
-              style={[styles.transferIcon, { backgroundColor: withAlpha(theme.primary, 0.15) }]}
-            >
-              <Ionicons name="wallet-outline" size={scale(24)} color={theme.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <View style={styles.transferTitleRow}>
-                <Text style={[styles.transferTitle, { fontSize: scaledFont('lg') }]}>
-                  В кошелёк:
-                </Text>
-                <View style={styles.amountChip}>
-                  <Text style={[styles.amountChipText, { fontSize: scaledFont('md') }]}>
-                    {formatPrice(summary.toWallet)}
-                  </Text>
-                </View>
-              </View>
-              <Text style={[styles.transferText, { fontSize: scaledFont('sm') }]}>
-                остаток бюджета приключения · опыт +{summary.xpAwarded}
-              </Text>
-            </View>
-          </View>
+          {/* Куда ушёл бюджет смены: остаток — в «Хочу», «Коплю» — на цель */}
+          <AdventureAmountCard
+            icon={
+              <Image
+                source={FURNITURE_ASSETS.piggybank[0]}
+                style={{ width: scale(36), height: scale(30) }}
+                contentFit="contain"
+              />
+            }
+            iconBackground={withAlpha(PLAN_CATEGORY_COLORS.save, 0.2)}
+            title="Перенос в копилку:"
+            amount={transferred}
+            lines={[transferSplit, rewardsLine]}
+          />
         </ScrollView>
 
         <View style={[styles.footer, { paddingBottom: insets.bottom + scale(12) }]}>
@@ -304,7 +211,7 @@ export function AdventureSummaryModal({
             accessibilityRole="button"
           >
             <Text style={[styles.secondaryButtonText, { fontSize: scaledFont('lg') }]}>
-              Новое приключение
+              Новая работа
             </Text>
           </TouchableOpacity>
         </View>

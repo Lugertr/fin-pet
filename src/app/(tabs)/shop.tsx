@@ -86,12 +86,12 @@ export default function ShopScreen() {
       const missing = item.price - balance;
       Alert.alert(
         'Недостаточно монет',
-        `Для покупки «${item.name}» не хватает ${formatPrice(missing)}. Отправляйся в приключение или заходи каждый день за ежедневной наградой, чтобы заработать монеты.`,
+        `Для покупки «${item.name}» не хватает ${formatPrice(missing)}. Начни работу или заходи каждый день за ежедневной наградой, чтобы заработать монеты.`,
         [
           { text: 'Понятно', style: 'cancel' },
           // Монеты зарабатываются в приключении — вкладка хаба (во время
           // приключения на ней сам экран приключения).
-          { text: 'К приключению', onPress: () => router.push('/(tabs)' as never) },
+          { text: 'К работе', onPress: () => router.push('/(tabs)' as never) },
         ]
       );
       return;

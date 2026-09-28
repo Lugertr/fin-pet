@@ -1,29 +1,16 @@
-// src/components/adventure/AdventureEventModal/AdventureEventModal.styles.ts
+// src/components/lesson/LessonEventStep/LessonEventStep.styles.ts
+// Стили события урока (раньше — модалка событий по времени, удалена вместе с ними).
 
 import type { Theme } from '@/theme';
 import { fontSizes, fontWeights, radius, spacing, touchTarget } from '@/theme/tokens';
 import { StyleSheet } from 'react-native';
 
-interface AdventureEventModalStylesParams {
+interface LessonEventStepStylesParams {
   theme: Theme;
 }
 
-export function createAdventureEventModalStyles({ theme }: AdventureEventModalStylesParams) {
+export function createLessonEventStepStyles({ theme }: LessonEventStepStylesParams) {
   return StyleSheet.create({
-    modalOverlay: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: theme.overlay,
-      justifyContent: 'center',
-      paddingHorizontal: spacing.xl,
-    },
-    modalContent: {
-      backgroundColor: theme.surface,
-      borderRadius: radius.xxl,
-    },
     icon: {
       textAlign: 'center',
     },

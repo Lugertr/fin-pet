@@ -46,6 +46,7 @@ function activityRow(
 
 export function LessonOverview({
   plan,
+  nodeIndex,
   progress,
   eventFor,
   onOpenReading,
@@ -54,6 +55,8 @@ export function LessonOverview({
   onClose,
 }: {
   plan: LessonPlan;
+  /** Только этот этап (открыт с трека смены); без него — весь урок. */
+  nodeIndex?: number;
   progress: LessonProgressState;
   /** Событие, которое выпало в этом действии (для подписи). */
   eventFor: (activity: PlanActivity) => LessonEventContent | null;
@@ -108,38 +111,40 @@ export function LessonOverview({
           </Text>
         </View>
 
-        {plan.nodes.map((node) => (
-          <View key={node.index} style={styles.section}>
-            <Text style={[styles.sectionTitle, { fontSize: scaledFont('md') }]}>
-              Этап {node.index + 1}
-            </Text>
-            {renderRow(
-              `reading-${node.index}`,
-              'book-outline',
-              node.situation ? 'Ситуация и теория' : 'Теория',
-              null,
-              { label: 'Перечитать', onPress: () => onOpenReading(node) }
-            )}
-            {node.activities.map((activity) => {
-              const result = progress.results[activity.id];
-              const { icon, label } = activityRow(activity, eventFor(activity));
-              if (activity.content.type === 'event') {
-                return renderRow(activity.id, icon, label, result ? 'решено' : null, null);
-              }
-              const status = result?.perfect
-                ? '★ без ошибок'
-                : result?.completed
-                  ? '✓ пройдено, были ошибки'
-                  : null;
-              return renderRow(activity.id, icon, label, status, {
-                label: 'Перепройти',
-                onPress: () => onOpenActivity(activity),
-              });
-            })}
-          </View>
-        ))}
+        {plan.nodes
+          .filter((node) => nodeIndex === undefined || node.index === nodeIndex)
+          .map((node) => (
+            <View key={node.index} style={styles.section}>
+              <Text style={[styles.sectionTitle, { fontSize: scaledFont('md') }]}>
+                Этап {node.index + 1}
+              </Text>
+              {renderRow(
+                `reading-${node.index}`,
+                'book-outline',
+                node.situation ? 'Ситуация и теория' : 'Теория',
+                null,
+                { label: 'Перечитать', onPress: () => onOpenReading(node) }
+              )}
+              {node.activities.map((activity) => {
+                const result = progress.results[activity.id];
+                const { icon, label } = activityRow(activity, eventFor(activity));
+                if (activity.content.type === 'event') {
+                  return renderRow(activity.id, icon, label, result ? 'решено' : null, null);
+                }
+                const status = result?.perfect
+                  ? '★ без ошибок'
+                  : result?.completed
+                    ? '✓ пройдено, были ошибки'
+                    : null;
+                return renderRow(activity.id, icon, label, status, {
+                  label: 'Перепройти',
+                  onPress: () => onOpenActivity(activity),
+                });
+              })}
+            </View>
+          ))}
 
-        {plan.conclusion && (
+        {plan.conclusion && nodeIndex === undefined && (
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { fontSize: scaledFont('md') }]}>Финал</Text>
             {renderRow('conclusion', 'flag-outline', plan.conclusion.title, null, {

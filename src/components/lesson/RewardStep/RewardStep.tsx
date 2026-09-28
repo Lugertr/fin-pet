@@ -1,12 +1,10 @@
 // src/components/lesson/RewardStep/RewardStep.tsx
 // Шаг «Награда». Монеты за первое прохождение урока идут сразу на счёт хаба
-// (кошелёк) — и за обычный урок, и за задание приключения (решение
-// пользователя 27.09.2026: у приключения свой бюджет, уроки его не пополняют;
-// опыт за уроки не начисляется — только за завершение приключения).
-// - задание приключения — монеты + ускорение приключения (registerQuestCompletion
-//   уже вызван в StepRunner, здесь только показываем); без ошибок — ещё похвала.
-// - обычный урок — монеты и подсказка, сколько времени это сэкономило бы, будь
-//   это задание приключения.
+// (кошелёк) — и за обычный урок, и за урок смены (у смены свой бюджет, уроки
+// его не пополняют).
+// - урок смены — монеты; урок пройден — смена закрыта, итоги ждут на хабе;
+//   без ошибок — ещё похвала.
+// - обычный урок — монеты.
 // - повтор пройденного — без награды (§9).
 // Монеты начисляются один раз при показе (не при каждом ререндере).
 
@@ -15,7 +13,6 @@ import { useEffect, useRef } from 'react';
 import { ScrollView, TouchableOpacity, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
 
-import { QUEST_TIME_BONUS_MS } from '@/lib/stores/adventureStore';
 import { CoinAmount } from '@/components/shared';
 import { ScreenFooter } from '@/components/ui';
 import { RewardStep as RewardStepData } from '@/domain/lesson/LessonStep';
@@ -23,8 +20,6 @@ import { useUserStore } from '@/lib/stores/userStore';
 import { useResponsive, useTheme } from '@/theme';
 import { emojiSizes, spacing } from '@/theme/tokens';
 import { createLessonStepsStyles } from '../lessonSteps.styles';
-
-const TIME_SAVED_MINUTES = Math.round(QUEST_TIME_BONUS_MS / 60_000);
 
 export function RewardStep({
   step,
@@ -62,7 +57,7 @@ export function RewardStep({
       <View style={styles.rewardScrollArea}>
         <ScrollView contentContainerStyle={styles.rewardScrollContent}>
           <Text style={{ fontSize: scale(emojiSizes.xxl) }}>
-            {isReplay ? '🔁' : isAdventureQuest ? '⏩' : '🎉'}
+            {isReplay ? '🔁' : isAdventureQuest ? '🏁' : '🎉'}
           </Text>
 
           {isReplay ? (
@@ -77,7 +72,7 @@ export function RewardStep({
           ) : isAdventureQuest ? (
             <>
               <Text style={[styles.rewardTimeText, { fontSize: scaledFont('title') }]}>
-                Приключение ускорено на {TIME_SAVED_MINUTES} минут!
+                Урок смены пройден!
               </Text>
               <CoinAmount
                 amount={step.coins}
@@ -108,10 +103,6 @@ export function RewardStep({
               />
               <Text style={[styles.rewardReasonText, { fontSize: scaledFont('md') }]}>
                 {step.reason}
-              </Text>
-              <Text style={[styles.rewardTimeHint, { fontSize: scaledFont('xs') }]}>
-                Если бы это было задание приключения — оно сэкономило бы ещё {TIME_SAVED_MINUTES}{' '}
-                минут
               </Text>
             </>
           )}

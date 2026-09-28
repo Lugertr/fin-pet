@@ -42,7 +42,7 @@ export function SavingsHistory({ items }: { items: SavingsTransactionRecord[] })
       <View style={styles.card}>
         {items.length === 0 ? (
           <Text style={[styles.emptyText, { fontSize: scaledFont('md') }]}>
-            Пока пусто. Заверши приключение — отложенное в «Коплю» придёт сюда.
+            Пока пусто. Заверши смену — отложенное в «Коплю» придёт сюда.
           </Text>
         ) : (
           items.map((item, index) => {

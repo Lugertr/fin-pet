@@ -51,7 +51,7 @@ export function ProgressLevelCard({
         <Text style={[styles.levelStageText, { fontSize: scaledFont('sm') }]}>
           облик {lookStage}/{lookStagesTotal}
         </Text>
-        <Text style={[styles.captionText, { fontSize: scaledFont('sm') }]}>XP за приключения</Text>
+        <Text style={[styles.captionText, { fontSize: scaledFont('sm') }]}>XP за смены</Text>
       </View>
     </View>
   );

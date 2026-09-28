@@ -151,7 +151,7 @@ class NotificationService {
         identifier: NOTIFICATION_IDS.MOOD_RESTORED,
         content: {
           title: '😊 Питомец снова в форме!',
-          body: 'Энергия восстановилась. Можно продолжать приключение!',
+          body: 'Энергия восстановилась. Можно продолжать работу!',
           data: { type: 'mood_restored' },
           sound: 'default',
         },

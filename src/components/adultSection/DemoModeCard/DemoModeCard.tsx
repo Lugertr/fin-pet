@@ -37,8 +37,8 @@ export function DemoModeCard({
               Режим для демонстрации
             </Text>
             <Text style={[styles.switchHint, { fontSize: scaledFont('xs') }]}>
-              Весь сценарий за 1–2 минуты: все уроки открыты, события сразу, короткие раунды Аркады
-              и урока, каждое приключение — новый уровень
+              Весь сценарий за 1–2 минуты: все уроки открыты, короткие уроки и раунды Аркады, смену
+              можно закончить сразу, каждая смена — новый уровень
             </Text>
           </View>
           <Switch value={user?.is_demo ?? false} onValueChange={onToggleDemo} disabled={isBusy} />

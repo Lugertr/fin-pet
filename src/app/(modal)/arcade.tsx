@@ -1,8 +1,7 @@
 // src/app/(modal)/arcade.tsx
-// Аркада (§10 ТЗ): раунд выбранной мини-игры по теме приключения (см.
-// (modal)/arcade-lobby.tsx), 10⚡ за игру, +10 монет за верный ответ,
-// подарки не выпадают (§10.2). Заданием приключения раунд считается, только
-// если его запустила кнопка задания (session.countsAsQuest).
+// Аркада (§10 ТЗ): раунд выбранной мини-игры по теме (см.
+// (modal)/arcade-lobby.tsx — открывается с хаба), 10⚡ за игру, монеты за
+// верные ответы, подарки не выпадают (§10.2). К смене раунд отношения не имеет.
 //
 // Этапы (старт/игра/результаты) живут в src/components/arcade/ — этот файл
 // отвечает только за сессию, энергозатраты и переключение между этапами.
@@ -24,7 +23,6 @@ import { HelpButton } from '@/components/shared';
 import { IconButton } from '@/components/ui';
 import { ARCADE_ENERGY_COST } from '@/constants/gameplay';
 import {
-  arcadeTimeBonusMinutes,
   buildBranchGameSession,
   TrainerSession,
   trainerRoundLength,
@@ -34,7 +32,6 @@ import { useFeedback } from '@/lib/hooks/useFeedback';
 import { Alert } from '@/lib/utils/alert';
 import { BRANCHES } from '@/lib/hooks/useLessons';
 import { useAchievementsStore } from '@/lib/stores/achievementsStore';
-import { useAdventureStore } from '@/lib/stores/adventureStore';
 import { useArcadeSessionStore } from '@/lib/stores/arcadeSessionStore';
 import { usePetStore } from '@/lib/stores/petStore';
 import { useUserStore } from '@/lib/stores/userStore';
@@ -128,26 +125,9 @@ export default function ArcadeScreen() {
         .recordTransaction(coinsEarned, 'minigame_reward', `Аркада: ${branch?.name ?? ''}`);
     }
 
-    // Раунд, запущенный кнопкой задания (тема уже пройдена на 100%, тренажёр
-    // вместо урока — см. AdventureActiveView.tsx), засчитывается как задание
-    // (−45 мин). Игра, выбранная в Аркаде, — тренировка: ускоряет приключение
-    // слабее урока, до 15 минут по доле верных ответов.
-    const adventureStore = useAdventureStore.getState();
-    let savedMinutes = 0;
-    if (session && adventureStore.isActiveBranch(session.branchId)) {
-      if (session.countsAsQuest) {
-        await adventureStore.registerQuestCompletion();
-      } else {
-        savedMinutes = await adventureStore.registerArcadeRound(
-          arcadeTimeBonusMinutes(correctAnswers, roundLength)
-        );
-      }
-    }
-
     Alert.alert(
       '🎉 Раунд завершён!',
-      `Правильных ответов: ${correctAnswers} из ${roundLength}\nПолучено: +${formatPrice(coinsEarned)}` +
-        (savedMinutes > 0 ? `\nПриключение ближе на ${savedMinutes} мин` : '')
+      `Правильных ответов: ${correctAnswers} из ${roundLength}\nПолучено: +${formatPrice(coinsEarned)}`
     );
     router.back();
   };
@@ -160,7 +140,6 @@ export default function ArcadeScreen() {
           session.minigameType,
           session.branchId,
           ARCADE_SOURCES,
-          session.countsAsQuest,
           useUserStore.getState().user?.is_demo ?? false
         )
       : null;

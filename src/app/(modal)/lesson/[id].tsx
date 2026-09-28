@@ -20,8 +20,10 @@ import { useTheme } from '@/theme';
 import { createLessonStyles } from '../../../styles/screens/lesson/_[id].styles';
 
 export default function LessonScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  // node — открыт с трека смены пройденный этап (перечитать / перепройти).
+  const { id, node } = useLocalSearchParams<{ id: string; node?: string }>();
   const lessonId = parseInt(id, 10);
+  const focusNode = node !== undefined ? parseInt(node, 10) : undefined;
   const router = useRouter();
 
   const { theme } = useTheme();
@@ -84,6 +86,7 @@ export default function LessonScreen() {
     <View style={styles.container}>
       <LessonPlayer
         lesson={lesson}
+        focusNode={Number.isNaN(focusNode) ? undefined : focusNode}
         onExit={() => router.back()}
         onRequestExit={handleBackPress}
         onExitGuardChange={setNeedsExitConfirm}

@@ -8,7 +8,8 @@
 // подстраиваться под какой-то расчётный процент от высоты (см. PetRoom.styles.ts).
 
 import type { Theme } from '@/theme';
-import { fontSizes, fontWeights, radius, spacing } from '@/theme/tokens';
+import { withAlpha } from '@/theme/colorUtils';
+import { fontSizes, fontWeights, radius, spacing, touchTarget } from '@/theme/tokens';
 import { StyleSheet } from 'react-native';
 
 interface HubHeaderStylesParams {
@@ -30,6 +31,14 @@ export function createHubHeaderStyles({ theme }: HubHeaderStylesParams) {
     ctaRow: {
       flexDirection: 'row',
       gap: spacing.sm,
+    },
+    // Аркада — квадратная кнопка справа от главной (тап-зона ≥48dp).
+    arcadeButton: {
+      width: touchTarget.recommended + spacing.sm,
+      borderRadius: radius.lg,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: withAlpha(theme.warning, 0.15),
     },
     ctaMainButton: {
       flex: 1,

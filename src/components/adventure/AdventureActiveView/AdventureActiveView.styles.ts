@@ -1,12 +1,11 @@
 // src/components/adventure/AdventureActiveView/AdventureActiveView.styles.ts
-// Сцена (work.svg — питомец за работой, фон уже внутри картинки) ограничена
-// по ширине (см. AdventureActiveView.tsx: sceneWidth/sceneHeight), чтобы на
-// широких экранах не растягивалась на весь экран.
-// Полоска прогресса с оставшимся временем — сразу под сценой, той же ширины.
+// Экран смены (макет «Работа», 28.09.2026). Сцена (work.svg — питомец за
+// работой, фон уже внутри картинки) ограничена по ширине (см.
+// AdventureActiveView.tsx: sceneWidth/sceneHeight), чтобы на широких экранах
+// не растягивалась на весь экран.
 
 import type { Theme } from '@/theme';
-import { withAlpha } from '@/theme/colorUtils';
-import { fontSizes, fontWeights, radius, spacing, touchTarget } from '@/theme/tokens';
+import { fontSizes, fontWeights, radius, shadows, spacing } from '@/theme/tokens';
 import { StyleSheet } from 'react-native';
 
 interface AdventureActiveViewStylesParams {
@@ -20,15 +19,15 @@ export function createAdventureActiveViewStyles({ theme }: AdventureActiveViewSt
       backgroundColor: theme.background,
     },
     scrollContent: {
-      paddingHorizontal: spacing.xxl,
+      paddingHorizontal: spacing.lg,
       paddingBottom: spacing.xxxl,
-    },
-    blockSpacing: {
-      marginBottom: spacing.md,
+      gap: spacing.md,
+      width: '100%',
+      maxWidth: 560,
+      alignSelf: 'center',
     },
     sceneOuter: {
       alignItems: 'center',
-      marginBottom: spacing.lg,
     },
     sceneBox: {
       borderRadius: radius.lg,
@@ -39,82 +38,67 @@ export function createAdventureActiveViewStyles({ theme }: AdventureActiveViewSt
       width: '100%',
       height: '100%',
     },
-    // Прогресс приключения под сценой — заполнение по adventureProgressRatio
-    // (тот же расчёт, что у награды при досрочном завершении), рядом текстом
-    // оставшееся время — смысл передаёт не только цвет полоски (§23).
-    timeBlock: {
-      marginTop: spacing.sm,
-    },
-    progressBarTrack: {
-      height: 10,
-      borderRadius: radius.sm,
-      backgroundColor: theme.surfaceLight,
-      overflow: 'hidden',
-    },
-    progressBarFill: {
-      height: '100%',
-      borderRadius: radius.sm,
-    },
-    budgetRow: {
+    // «Работа: 2 из 5» — плашка над треком этапов.
+    progressPill: {
       alignSelf: 'center',
-      marginTop: spacing.xxs,
+      borderRadius: radius.full,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
     },
-    budgetText: {
-      color: theme.textPrimary,
-      fontWeight: fontWeights.bold,
+    progressPillText: {
+      color: theme.textSecondary,
+      fontWeight: fontWeights.semibold,
       fontSize: fontSizes.md,
     },
     remainingTimeText: {
       color: theme.textSecondary,
-      fontWeight: fontWeights.semibold,
       fontSize: fontSizes.md,
       textAlign: 'center',
-      marginTop: spacing.xs,
     },
-    // Карточка «сейчас в приключении» — тема (ветка) + текущий урок/задание.
-    lessonInfoTopic: {
-      color: theme.textMuted,
-      fontSize: fontSizes.xs,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      marginBottom: spacing.xxs,
+    // Карточка текущего шага: иконка типа, название, пояснение, стрелка.
+    stepCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      minHeight: 72,
+      backgroundColor: theme.surface,
+      borderRadius: radius.xl,
+      padding: spacing.md,
+      ...shadows.sm,
     },
-    lessonInfoTitle: {
+    stepIconBox: {
+      width: 48,
+      height: 48,
+      borderRadius: radius.lg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    stepText: {
+      flex: 1,
+    },
+    stepTitle: {
       color: theme.textPrimary,
       fontWeight: fontWeights.bold,
       fontSize: fontSizes.lg,
     },
-    // Кнопка «План» — одна строка (иконка + заголовок/подпись + стрелка).
-    // «Банка» в приключении нет — он только на хабе (копилка).
-    quickActionCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.md,
-      minHeight: 48,
-      backgroundColor: theme.surface,
-      borderRadius: radius.lg,
-      borderWidth: 1,
-      borderColor: theme.borderLight,
-      padding: spacing.md,
+    stepSubtitle: {
+      color: theme.textSecondary,
+      fontSize: fontSizes.md,
     },
-    quickActionIconBox: {
-      width: 32,
-      height: 32,
-      borderRadius: radius.md,
+    primaryButton: {
+      minHeight: 56,
+      backgroundColor: theme.primary,
+      borderRadius: radius.xl,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    quickActionTextColumn: {
-      flex: 1,
-    },
-    quickActionTitle: {
-      color: theme.textPrimary,
+    primaryButtonText: {
+      color: theme.onGradient,
       fontWeight: fontWeights.bold,
-      fontSize: fontSizes.md,
-    },
-    quickActionSubtitle: {
-      color: theme.textSecondary,
-      fontSize: fontSizes.xs,
+      fontSize: fontSizes.lg,
     },
     // Модалка «План» — карточка по центру экрана фиксированной ширины (не
     // растягивается на широких экранах), высота — по содержимому.
@@ -126,7 +110,7 @@ export function createAdventureActiveViewStyles({ theme }: AdventureActiveViewSt
       bottom: 0,
       backgroundColor: theme.overlay,
       justifyContent: 'center',
-      paddingHorizontal: spacing.xl,
+      paddingHorizontal: spacing.md,
     },
     backdrop: {
       position: 'absolute',
@@ -135,13 +119,18 @@ export function createAdventureActiveViewStyles({ theme }: AdventureActiveViewSt
       right: 0,
       bottom: 0,
     },
+    // Фон окна — как у экрана итогов: карточки внутри (План и факт, бюджет)
+    // отделяются от него сами.
     planModalContent: {
       width: '100%',
-      maxWidth: 400,
+      maxWidth: 440,
       alignSelf: 'center',
-      backgroundColor: theme.surface,
+      backgroundColor: theme.background,
       borderRadius: radius.xxl,
-      padding: spacing.xl,
+      padding: spacing.md,
+    },
+    planModalBody: {
+      gap: spacing.md,
     },
     planModalHeaderRow: {
       flexDirection: 'row',
@@ -153,63 +142,6 @@ export function createAdventureActiveViewStyles({ theme }: AdventureActiveViewSt
       color: theme.textPrimary,
       fontWeight: fontWeights.bold,
       fontSize: fontSizes.xl,
-    },
-    rowLabel: {
-      color: theme.textSecondary,
-      fontSize: fontSizes.sm,
-      marginBottom: spacing.xxs,
-    },
-    // Сумма (CoinAmount) — отступ у строки, а не у текста, чтобы иконка
-    // монеты оставалась на одной линии с числом.
-    valueRow: {
-      marginBottom: spacing.sm,
-    },
-    rowValue: {
-      color: theme.textPrimary,
-      fontWeight: fontWeights.semibold,
-      fontSize: fontSizes.md,
-    },
-    primaryButton: {
-      backgroundColor: theme.primary,
-      borderRadius: radius.lg,
-      paddingVertical: spacing.lg,
-      alignItems: 'center',
-    },
-    // «Выполнить задание» + квадратная кнопка аркады справа.
-    questRow: {
-      flexDirection: 'row',
-      gap: spacing.sm,
-    },
-    questButton: {
-      flex: 1,
-    },
-    arcadeButton: {
-      width: touchTarget.recommended + spacing.sm,
-      backgroundColor: withAlpha(theme.warning, 0.15),
-      borderRadius: radius.lg,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    // «Есть нерешённое событие — открыть» — над кнопкой задания.
-    eventBanner: {
-      backgroundColor: theme.surfaceLight,
-      borderRadius: radius.lg,
-      paddingVertical: spacing.lg,
-      alignItems: 'center',
-      marginBottom: spacing.md,
-    },
-    buttonDisabled: {
-      opacity: 0.5,
-    },
-    primaryButtonText: {
-      color: theme.onGradient,
-      fontWeight: fontWeights.bold,
-      fontSize: fontSizes.lg,
-    },
-    secondaryButtonText: {
-      color: theme.textPrimary,
-      fontWeight: fontWeights.bold,
-      fontSize: fontSizes.lg,
     },
   });
 }

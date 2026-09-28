@@ -36,6 +36,7 @@ const PLAN_STRIP_COLORS = [
 export function AppHeaderStats({
   energy,
   coins,
+  title,
   leftAction,
   help,
   helpPosition = 'left',
@@ -44,6 +45,8 @@ export function AppHeaderStats({
 }: {
   energy: number;
   coins: number;
+  /** Заголовок экрана рядом с кнопкой слева (например «Работа» на экране смены). */
+  title?: string;
   /** Вместо лого слева — кнопка-иконка (у неё нет подписи, поэтому label обязателен, §23). */
   leftAction?: { icon: IconName; onPress: () => void; accessibilityLabel: string };
   /** Подсказка по экрану — кнопка «?» (по умолчанию слева, рядом с лого/кнопкой). */
@@ -70,11 +73,22 @@ export function AppHeaderStats({
     <View style={styles.row}>
       <View style={styles.leftGroup}>
         {leftAction ? (
-          <IconButton
-            icon={leftAction.icon}
-            onPress={leftAction.onPress}
-            accessibilityLabel={leftAction.accessibilityLabel}
-          />
+          <>
+            <IconButton
+              icon={leftAction.icon}
+              onPress={leftAction.onPress}
+              accessibilityLabel={leftAction.accessibilityLabel}
+            />
+            {title && (
+              <Text
+                style={[styles.logoText, { fontSize: scaledFont('xl') }]}
+                numberOfLines={1}
+                accessibilityRole="header"
+              >
+                {title}
+              </Text>
+            )}
+          </>
         ) : (
           <Text style={[styles.logoText, { fontSize: scaledFont('xl') }]} numberOfLines={1}>
             Финни

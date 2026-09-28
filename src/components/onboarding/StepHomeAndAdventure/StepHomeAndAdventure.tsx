@@ -34,8 +34,8 @@ const PLACES = [
     key: 'adventure',
     chip: 'Финансы и навыки',
     chipColor: colorPalettes.amber[500],
-    title: 'В приключении',
-    text: 'питомец работает, а ты зарабатываешь и решаешь, куда деть монеты',
+    title: 'На работе',
+    text: 'питомец работает, а ты проходишь урок и решаешь, куда деть монеты',
   },
 ];
 
@@ -56,7 +56,7 @@ export function StepHomeAndAdventure({
       <View style={styles.eyebrow}>
         <Text style={[styles.eyebrowText, { fontSize: scaledFont('xs') }]}>● ЗНАКОМСТВО</Text>
       </View>
-      <Text style={[styles.title, { fontSize: scaledFont('xxl') }]}>Дом и приключения</Text>
+      <Text style={[styles.title, { fontSize: scaledFont('xxl') }]}>Дом и работа</Text>
       <Text style={[styles.subtitle, { fontSize: scaledFont('md') }]}>два места — два занятия</Text>
 
       {PLACES.map((place) => (

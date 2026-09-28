@@ -1,7 +1,8 @@
 // domain/arcade/TrainerSelection.ts
-// Контент для Аркады (решение пользователя 27.09.2026): Аркада открывается из
-// приключения и даёт сыграть в любую из мини-игр по теме (компетенции)
-// приключения — «Викторину», «Свайпы» или «5 букв». Раньше раунд собирался по
+// Контент для Аркады: любая из мини-игр по выбранной теме (компетенции) —
+// «Викторина», «Свайпы» или «5 букв». Аркада открывается на хабе (решение
+// пользователя 28.09.2026; раньше — только внутри приключения) и к смене
+// отношения не имеет: раунд — тренировка за монеты. Раньше раунд собирался по
 // случайной пройденной теме (§10.3 ранней версии ТЗ).
 
 import {
@@ -21,19 +22,6 @@ export const QUIZ_TRAINER_QUESTION_COUNT = 10;
 export const TINDER_SWIPE_TRAINER_QUESTION_COUNT = 5;
 export const FIVE_LETTERS_TRAINER_WORD_COUNT = 3;
 
-/**
- * Раунд Аркады по теме приключения ускоряет его, но слабее урока (решение
- * пользователя 27.09.2026): урок-задание — 45 минут, раунд Аркады — до 15,
- * пропорционально доле верных ответов (все неверные — не ускоряет).
- */
-export const ARCADE_MAX_TIME_BONUS_MINUTES = 15;
-
-export function arcadeTimeBonusMinutes(correctAnswers: number, roundLength: number): number {
-  if (roundLength <= 0 || correctAnswers <= 0) return 0;
-  const share = Math.min(1, correctAnswers / roundLength);
-  return Math.floor(ARCADE_MAX_TIME_BONUS_MINUTES * share);
-}
-
 export interface TrainerSession {
   branchId: number;
   minigameType: ArcadeGameType;
@@ -41,12 +29,6 @@ export interface TrainerSession {
   questions: QuestionContent[];
   /** five_letters — слова раунда (одно слово = один «вопрос»). */
   words: FiveLettersWordContent[];
-  /**
-   * Раунд засчитывается как задание приключения — только когда его запустила
-   * кнопка задания (тема уже пройдена на 100%, §7.5). Раунды, выбранные в
-   * Аркаде, — просто тренировка и таймер приключения не ускоряют.
-   */
-  countsAsQuest: boolean;
 }
 
 /** Весь контент темы, из которого собираются раунды. */
@@ -114,8 +96,7 @@ const ROUND_LIMIT: Record<ArcadeGameType, number> = {
 
 /**
  * Демо-режим (§18, решение пользователя 28.09.2026): все три игры Аркады
- * показываются за полминуты — короткие раунды. Ускорение приключения считается
- * по доле верных ответов (arcadeTimeBonusMinutes), так что короче — не выгоднее.
+ * показываются за полминуты — короткие раунды.
  */
 export const DEMO_ROUND_LIMIT: Record<ArcadeGameType, number> = {
   quiz: 3,
@@ -141,13 +122,12 @@ export function buildBranchGameSession(
   type: ArcadeGameType,
   branchId: number,
   sources: BranchArcadeSources,
-  countsAsQuest = false,
   demo = false
 ): TrainerSession | null {
   const pool = gamePool(type, branchId, sources);
   const questions = shuffle(pool.questions).slice(0, roundLimit(type, demo));
   const words = shuffle(pool.words).slice(0, roundLimit(type, demo));
-  const session: TrainerSession = { branchId, minigameType: type, questions, words, countsAsQuest };
+  const session: TrainerSession = { branchId, minigameType: type, questions, words };
   return trainerRoundLength(session) > 0 ? session : null;
 }
 
@@ -162,17 +142,4 @@ export function listBranchGames(
     const available = type === 'five_letters' ? pool.words.length : pool.questions.length;
     return { type, roundLength: Math.min(available, roundLimit(type, demo)) };
   }).filter((game) => game.roundLength > 0);
-}
-
-/**
- * Задание приключения для темы, уже пройденной на 100% (§7.5): раунд случайной
- * игры этой темы, засчитывается как задание.
- */
-export function buildQuestTrainerSession(
-  branchId: number,
-  sources: BranchArcadeSources,
-  demo = false
-): TrainerSession | null {
-  const game = pickRandom(listBranchGames(branchId, sources, demo));
-  return game ? buildBranchGameSession(game.type, branchId, sources, true, demo) : null;
 }

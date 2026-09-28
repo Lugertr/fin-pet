@@ -1,7 +1,7 @@
 // src/components/lesson/LessonEventStep/LessonEventStep.tsx
 // Событие внутри урока (решение пользователя 28.09.2026): выбор по ситуации
-// урока, не по времени. Платит бюджет приключения — если урок идёт как
-// задание приключения; иначе выбор без денег (урок вне приключения).
+// урока, не по времени. Платит бюджет смены — если это урок смены; иначе
+// выбор без денег (урок вне смены).
 // Платный вариант, на который не хватает бюджета, неактивен и подписан
 // текстом (§12.3 — без частичной оплаты; §23 — смысл не только цветом).
 
@@ -9,14 +9,14 @@ import { useState } from 'react';
 import { ScrollView, TouchableOpacity, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
 
-import { createAdventureEventModalStyles } from '@/components/adventure/AdventureEventModal/AdventureEventModal.styles';
 import { CoinAmount } from '@/components/shared';
-import { isOptionAffordable } from '@/domain/adventure/AdventureEvent';
+import { canAfford } from '@/domain/adventure/Adventure';
 import { LessonEventContent } from '@/domain/content/LessonContent';
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { useResponsive, useTheme } from '@/theme';
 import { emojiSizes, spacing } from '@/theme/tokens';
 import { createLessonStepsStyles } from '../lessonSteps.styles';
+import { createLessonEventStepStyles } from './LessonEventStep.styles';
 
 export function LessonEventStep({
   event,
@@ -32,13 +32,12 @@ export function LessonEventStep({
   const { scale, scaledFont } = useResponsive();
   const { triggerHaptic } = useFeedback();
   const stepStyles = createLessonStepsStyles({ theme });
-  const styles = createAdventureEventModalStyles({ theme });
+  const styles = createLessonEventStepStyles({ theme });
   // Выбор применяется асинхронно (запись бюджета) — повторный тап до его
   // окончания списал бы деньги дважды.
   const [submittedOptionId, setSubmittedOptionId] = useState<string | null>(null);
 
-  const affordable = (coinAmount: number) =>
-    budget === null || isOptionAffordable({ coinAmount }, budget);
+  const affordable = (coinAmount: number) => budget === null || canAfford(coinAmount, budget);
 
   const handleChoose = (optionId: string) => {
     if (submittedOptionId) return;
@@ -64,12 +63,12 @@ export function LessonEventStep({
         </Text>
         {budget === null ? (
           <Text style={[styles.description, { fontSize: scaledFont('sm') }]}>
-            Урок идёт не в приключении — бюджет не изменится.
+            Урок идёт не в смене — бюджет не изменится.
           </Text>
         ) : (
           <CoinAmount
             amount={budget}
-            prefix="Бюджет приключения: "
+            prefix="Бюджет работы: "
             fontSize={scaledFont('md')}
             style={styles.budgetRow}
             textStyle={styles.budgetText}

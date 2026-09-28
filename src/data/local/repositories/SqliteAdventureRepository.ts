@@ -10,6 +10,7 @@ interface AdventureRow {
   adventure_number: number;
   status: string;
   branch_id: number | null;
+  lesson_id: number | null;
   projected_income: number;
   budget: number;
   plan_mandatory: number;
@@ -21,12 +22,7 @@ interface AdventureRow {
   started_at: string | null;
   planned_end_at: string | null;
   completed_at: string | null;
-  time_adjustment_ms: number;
-  quests_completed: number;
   xp_awarded: number | null;
-  pending_event_template_id: string | null;
-  pending_event_rolled_at: string | null;
-  next_event_check_at: string | null;
 }
 
 function rowToAdventure(row: AdventureRow): AdventureRecord {
@@ -36,6 +32,7 @@ function rowToAdventure(row: AdventureRow): AdventureRecord {
     adventureNumber: row.adventure_number,
     status: row.status as AdventureRecord['status'],
     branchId: row.branch_id,
+    lessonId: row.lesson_id ?? null,
     projectedIncome: row.projected_income,
     budget: row.budget ?? 0,
     plan: {
@@ -51,12 +48,7 @@ function rowToAdventure(row: AdventureRow): AdventureRecord {
     startedAt: row.started_at,
     plannedEndAt: row.planned_end_at,
     completedAt: row.completed_at,
-    timeAdjustmentMs: row.time_adjustment_ms,
-    questsCompleted: row.quests_completed,
     xpAwarded: row.xp_awarded,
-    pendingEventTemplateId: row.pending_event_template_id,
-    pendingEventRolledAt: row.pending_event_rolled_at,
-    nextEventCheckAt: row.next_event_check_at,
   };
 }
 
@@ -95,11 +87,9 @@ export class SqliteAdventureRepository implements AdventureRepository {
         (profile_id, adventure_number, status, branch_id, projected_income,
          plan_mandatory, plan_optional, plan_savings,
          fact_mandatory, fact_optional, fact_savings,
-         started_at, planned_end_at, completed_at, time_adjustment_ms,
-         quests_completed, xp_awarded,
-         pending_event_template_id, pending_event_rolled_at, next_event_check_at,
-         created_at, budget)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         started_at, planned_end_at, completed_at, xp_awarded,
+         created_at, budget, lesson_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         record.profileId,
         record.adventureNumber,
@@ -115,14 +105,10 @@ export class SqliteAdventureRepository implements AdventureRepository {
         record.startedAt,
         record.plannedEndAt,
         record.completedAt,
-        record.timeAdjustmentMs,
-        record.questsCompleted,
         record.xpAwarded,
-        record.pendingEventTemplateId,
-        record.pendingEventRolledAt,
-        record.nextEventCheckAt,
         new Date().toISOString(),
         record.budget,
+        record.lessonId,
       ]
     );
     return { id: result.lastInsertRowId, ...record };
@@ -140,15 +126,15 @@ export class SqliteAdventureRepository implements AdventureRepository {
     id: number,
     startedAt: string,
     plannedEndAt: string,
-    nextEventCheckAt: string,
-    budget: number
+    budget: number,
+    lessonId: number
   ): Promise<void> {
     const db = await this.getDb();
     await db.runAsync(
       `UPDATE adventures
-       SET status = 'active', started_at = ?, planned_end_at = ?, next_event_check_at = ?, budget = ?
+       SET status = 'active', started_at = ?, planned_end_at = ?, budget = ?, lesson_id = ?
        WHERE id = ?`,
-      [startedAt, plannedEndAt, nextEventCheckAt, budget, id]
+      [startedAt, plannedEndAt, budget, lessonId, id]
     );
   }
 
@@ -161,40 +147,6 @@ export class SqliteAdventureRepository implements AdventureRepository {
     const db = await this.getDb();
     const column = FACT_COLUMN[category];
     await db.runAsync(`UPDATE adventures SET ${column} = ${column} + ? WHERE id = ?`, [amount, id]);
-  }
-
-  async adjustTime(id: number, plannedEndAt: string, timeAdjustmentMs: number): Promise<void> {
-    const db = await this.getDb();
-    await db.runAsync(
-      'UPDATE adventures SET planned_end_at = ?, time_adjustment_ms = ? WHERE id = ?',
-      [plannedEndAt, timeAdjustmentMs, id]
-    );
-  }
-
-  async incrementQuestsCompleted(id: number): Promise<void> {
-    const db = await this.getDb();
-    await db.runAsync(
-      'UPDATE adventures SET quests_completed = quests_completed + 1 WHERE id = ?',
-      [id]
-    );
-  }
-
-  async rollEvent(id: number, templateId: string, rolledAt: string): Promise<void> {
-    const db = await this.getDb();
-    await db.runAsync(
-      'UPDATE adventures SET pending_event_template_id = ?, pending_event_rolled_at = ? WHERE id = ?',
-      [templateId, rolledAt, id]
-    );
-  }
-
-  async resolveEvent(id: number, nextEventCheckAt: string): Promise<void> {
-    const db = await this.getDb();
-    await db.runAsync(
-      `UPDATE adventures
-       SET pending_event_template_id = NULL, pending_event_rolled_at = NULL, next_event_check_at = ?
-       WHERE id = ?`,
-      [nextEventCheckAt, id]
-    );
   }
 
   async logEvent(
@@ -213,15 +165,6 @@ export class SqliteAdventureRepository implements AdventureRepository {
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [adventureId, templateId, optionId, category, coinAmount, timeDeltaMs, resolvedAt]
     );
-  }
-
-  async getEventTemplateIds(adventureId: number): Promise<string[]> {
-    const db = await this.getDb();
-    const rows = await db.getAllAsync<{ template_id: string }>(
-      'SELECT template_id FROM adventure_event_log WHERE adventure_id = ? ORDER BY id',
-      [adventureId]
-    );
-    return rows.map((row) => row.template_id);
   }
 
   async countResolvedEvents(profileId: string): Promise<number> {

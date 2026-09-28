@@ -1,10 +1,10 @@
 // domain/adventure/Adventure.ts
-// «Приключение» — объединяет планирование бюджета и прохождение уроков в один
-// цикл: план (надо/хочу/коплю) → выбор компетенции → 8 реальных часов работы
-// (ускоряется заданиями-уроками, прерывается часовыми событиями) → итог.
-// Полностью заменяет собой GamePeriod (§7 ТЗ) — план/факт/бонус за план те же,
-// но привязаны к конкретной ветке обучения и реальному времени, а не к кнопке
-// «Завершить период».
+// «Работа» (смена; в коде — adventure) — объединяет планирование бюджета и
+// урок в один цикл: план («Потратить» / «Коплю») → тема → смена до 24 часов,
+// в которой проходится один урок (решение пользователя 28.09.2026) → итог.
+// Смена заканчивается, когда урок пройден или 24 часа вышли; незаконченный
+// урок продолжается в следующую смену с того же места. События — внутри урока
+// (не по времени), платят бюджет смены.
 
 export type BudgetCategory = 'mandatory' | 'optional' | 'savings';
 
@@ -23,6 +23,9 @@ export interface AdventureRecord {
   status: AdventureStatus;
   /** Выбранная компетенция (ветка обучения) — задаётся вместе с планом, до активации. */
   branchId: number | null;
+  /** Урок смены — следующий непройденный урок темы, фиксируется при старте.
+   * null — смена, начатая до уроков из этапов (старая модель). */
+  lessonId: number | null;
   /** Сколько монет заработает это приключение — известно уже на планировании. */
   projectedIncome: number;
   /**
@@ -36,18 +39,10 @@ export interface AdventureRecord {
   fact: AdventureAllocation;
   /** Устанавливается при переходе planning -> active. */
   startedAt: string | null;
-  /** startedAt + 8ч + суммарная коррекция от заданий/событий. */
+  /** startedAt + 24 часа — конец смены. */
   plannedEndAt: string | null;
   completedAt: string | null;
-  /** Накопленная коррекция таймера (мс): отрицательная — ускорение, положительная — задержка. */
-  timeAdjustmentMs: number;
-  questsCompleted: number;
   xpAwarded: number | null;
-  /** Пока не null — есть неразрешённое случайное событие; приключение нельзя завершить (см. AdventureEvent.ts). */
-  pendingEventTemplateId: string | null;
-  pendingEventRolledAt: string | null;
-  /** Когда в следующий раз проверять «не пора ли новое событие» (~раз в час). */
-  nextEventCheckAt: string | null;
 }
 
 export function totalAllocation(allocation: AdventureAllocation): number {
@@ -135,44 +130,7 @@ export function isTimeUp(adventure: AdventureRecord, nowMs: number): boolean {
   return nowMs >= new Date(adventure.plannedEndAt).getTime();
 }
 
-/**
- * Доля прошедшего времени приключения на момент nowMs: 0 в момент старта,
- * 1 — когда время вышло (или уже сейчас, если план/старт почему-то не заданы).
- * Используется для пропорциональной награды при досрочном завершении — см.
- * adventureStore.completeAdventure(). При обычном завершении (когда время уже
- * вышло) всегда даёт ровно 1, то есть полную награду — досрочное завершение
- * не меняет поведение обычного пути.
- */
-export function adventureProgressRatio(adventure: AdventureRecord, nowMs: number): number {
-  if (!adventure.startedAt || !adventure.plannedEndAt) return 1;
-  const startedAtMs = new Date(adventure.startedAt).getTime();
-  const totalMs = new Date(adventure.plannedEndAt).getTime() - startedAtMs;
-  if (totalMs <= 0) return 1;
-  const elapsedMs = nowMs - startedAtMs;
-  return Math.max(0, Math.min(1, elapsedMs / totalMs));
-}
-
-/**
- * Применяет коррекцию времени (отрицательная — ускорение за задание/событие,
- * положительная — задержка от события) с нижним полом `minRemainingMs`, чтобы
- * таймер не мог обнулиться раньше, чем у события будет шанс сработать.
- *
- * Пол только ограничивает ускорение и никогда не продлевает таймер: если
- * время уже вышло — конец не двигается вовсе (иначе задание, завершённое
- * после дедлайна, «оживляло» бы закончившееся приключение на now + пол), а
- * ускорение при остатке меньше пола оставляет конец на месте.
- */
-export function applyTimeAdjustment(
-  currentPlannedEndAtIso: string,
-  deltaMs: number,
-  nowMs: number,
-  minRemainingMs: number
-): string {
-  const currentEndMs = new Date(currentPlannedEndAtIso).getTime();
-  if (currentEndMs <= nowMs) return currentPlannedEndAtIso;
-  if (deltaMs >= 0) return new Date(currentEndMs + deltaMs).toISOString();
-
-  const earliestAllowedMs = nowMs + minRemainingMs;
-  const nextEndMs = Math.min(currentEndMs, Math.max(earliestAllowedMs, currentEndMs + deltaMs));
-  return new Date(nextEndMs).toISOString();
+/** §12.3: платный вариант события доступен, только если бюджета хватает целиком — без частичной оплаты. */
+export function canAfford(coinAmount: number, budget: number): boolean {
+  return coinAmount >= 0 || budget >= -coinAmount;
 }

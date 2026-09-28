@@ -1,14 +1,15 @@
 // src/app/(modal)/arcade-lobby.tsx
-// Аркада приключения (решение пользователя 27.09.2026): открывается кнопкой
-// рядом с «Выполнить задание» и даёт сыграть в любую мини-игру по теме
-// (компетенции) текущего приключения — «Викторину», «Свайпы» или «5 букв».
-// Каждая игра — 10⚡, +2 C за верный ответ и до 15 минут ускорения
-// приключения (слабее урока-задания, −45); заданием она не считается. Сама игра — (modal)/arcade.tsx; этот экран
-// только собирает раунд и передаёт его туда через useArcadeSessionStore.
+// Аркада (решение пользователя 28.09.2026: переехала из смены на хаб) —
+// кнопка рядом с «Начать работу». Любая мини-игра по выбранной теме —
+// «Викторина», «Свайпы» или «5 букв»; тема по умолчанию — тема текущей смены.
+// Каждая игра — 10⚡ и монеты за верные ответы; к смене отношения не имеет.
+// Сама игра — (modal)/arcade.tsx; этот экран только собирает раунд и
+// передаёт его туда через useArcadeSessionStore.
 
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { ScrollView, TouchableOpacity, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
 
@@ -45,14 +46,15 @@ export default function ArcadeLobbyScreen() {
   const adventure = useAdventureStore((s) => s.currentAdventure);
   // §18 демо-режим — короткие раунды (DEMO_ROUND_LIMIT).
   const isDemo = useUserStore((s) => s.user?.is_demo ?? false);
-  const branchId = adventure?.status === 'active' ? adventure.branchId : null;
-  const branch = branchId !== null ? BRANCHES.find((b) => b.id === branchId) : undefined;
-  const games = branchId !== null ? listBranchGames(branchId, ARCADE_SOURCES, isDemo) : [];
-  const accent = (branchId !== null && BRANCH_GRADIENTS[branchId]?.[0]) || theme.primary;
+  const [branchId, setBranchId] = useState<number>(
+    () => (adventure?.status === 'active' ? adventure.branchId : null) ?? BRANCHES[0].id
+  );
+  const branch = BRANCHES.find((b) => b.id === branchId);
+  const games = listBranchGames(branchId, ARCADE_SOURCES, isDemo);
+  const accent = BRANCH_GRADIENTS[branchId]?.[0] || theme.primary;
 
   const handlePlay = (type: ArcadeGameType) => {
-    if (branchId === null) return;
-    const session = buildBranchGameSession(type, branchId, ARCADE_SOURCES, false, isDemo);
+    const session = buildBranchGameSession(type, branchId, ARCADE_SOURCES, isDemo);
     if (!session) {
       Alert.alert('Недоступно', 'Для этой темы пока нет заданий в этой игре');
       return;
@@ -90,60 +92,76 @@ export default function ArcadeLobbyScreen() {
       </LinearGradient>
 
       <ScrollView contentContainerStyle={styles.lobbyContent} showsVerticalScrollIndicator={false}>
-        {branchId === null ? (
-          <View style={styles.lobbyEmpty}>
-            <Text style={{ fontSize: scale(48) }}>🎮</Text>
-            <Text style={[styles.lobbyEmptyTitle, { fontSize: scaledFont('lg') }]}>
-              Аркада открывается в приключении
-            </Text>
-            <Text style={[styles.lobbyEmptyText, { fontSize: scaledFont('md') }]}>
-              Начни приключение — и играй в мини-игры по его теме
-            </Text>
-          </View>
-        ) : (
-          <>
-            <View style={styles.lobbyInfo}>
-              <Text style={{ fontSize: scale(22) }}>💡</Text>
-              <Text style={[styles.lobbyInfoText, { fontSize: scaledFont('md') }]}>
-                Игра стоит {ARCADE_ENERGY_COST}⚡, за каждый верный ответ — +
-                {formatPrice(COINS_PER_CORRECT)}. Игра приближает финиш приключения до 15 минут
-                (урок — на 45).
-              </Text>
-            </View>
-
-            {games.map(({ type, roundLength }) => {
-              const meta = ARCADE_GAME_META[type];
-              return (
-                <TouchableOpacity
-                  key={type}
-                  onPress={() => handlePlay(type)}
-                  activeOpacity={0.85}
-                  style={styles.lobbyGameCard}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${meta.title}. ${meta.description}. ${meta.countLabel}: ${roundLength}`}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.lobbyBranchRow}
+        >
+          {BRANCHES.map((item) => {
+            const selected = item.id === branchId;
+            return (
+              <TouchableOpacity
+                key={item.id}
+                onPress={() => {
+                  triggerHaptic('selection');
+                  setBranchId(item.id);
+                }}
+                activeOpacity={0.85}
+                style={[styles.lobbyBranchChip, selected && styles.lobbyBranchChipSelected]}
+                accessibilityRole="tab"
+                accessibilityState={{ selected }}
+              >
+                <Text
+                  style={[
+                    styles.lobbyBranchChipText,
+                    selected && styles.lobbyBranchChipTextSelected,
+                    { fontSize: scaledFont('md') },
+                  ]}
                 >
-                  <View
-                    style={[styles.lobbyGameIcon, { backgroundColor: withAlpha(accent, 0.15) }]}
-                  >
-                    <Ionicons name={meta.icon} size={scale(28)} color={accent} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.lobbyGameTitle, { fontSize: scaledFont('lg') }]}>
-                      {meta.title}
-                    </Text>
-                    <Text style={[styles.lobbyGameText, { fontSize: scaledFont('sm') }]}>
-                      {meta.description}
-                    </Text>
-                    <Text style={[styles.lobbyGameText, { fontSize: scaledFont('sm') }]}>
-                      {meta.countLabel}: {roundLength}
-                    </Text>
-                  </View>
-                  <Ionicons name="play-circle" size={scale(32)} color={accent} />
-                </TouchableOpacity>
-              );
-            })}
-          </>
-        )}
+                  {item.name}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        <View style={styles.lobbyInfo}>
+          <Text style={{ fontSize: scale(22) }}>💡</Text>
+          <Text style={[styles.lobbyInfoText, { fontSize: scaledFont('md') }]}>
+            Игра стоит {ARCADE_ENERGY_COST}⚡, за каждый верный ответ — +
+            {formatPrice(COINS_PER_CORRECT)}.
+          </Text>
+        </View>
+
+        {games.map(({ type, roundLength }) => {
+          const meta = ARCADE_GAME_META[type];
+          return (
+            <TouchableOpacity
+              key={type}
+              onPress={() => handlePlay(type)}
+              activeOpacity={0.85}
+              style={styles.lobbyGameCard}
+              accessibilityRole="button"
+              accessibilityLabel={`${meta.title}. ${meta.description}. ${meta.countLabel}: ${roundLength}`}
+            >
+              <View style={[styles.lobbyGameIcon, { backgroundColor: withAlpha(accent, 0.15) }]}>
+                <Ionicons name={meta.icon} size={scale(28)} color={accent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.lobbyGameTitle, { fontSize: scaledFont('lg') }]}>
+                  {meta.title}
+                </Text>
+                <Text style={[styles.lobbyGameText, { fontSize: scaledFont('sm') }]}>
+                  {meta.description}
+                </Text>
+                <Text style={[styles.lobbyGameText, { fontSize: scaledFont('sm') }]}>
+                  {meta.countLabel}: {roundLength}
+                </Text>
+              </View>
+              <Ionicons name="play-circle" size={scale(32)} color={accent} />
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
     </View>
   );

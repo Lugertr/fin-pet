@@ -1,12 +1,14 @@
 // app/(modal)/adventure-planning.tsx
-// Планирование «Приключения» в 2 шага (решение пользователя 27.09.2026):
-//   1. бюджет приключения делится на «Потратить» и «Коплю» (§7.3); в каждом
-//      поле заливка и «N%» показывают долю бюджета. Нужное/желаемое здесь
-//      не планируется — его показывает факт трат событий;
-//   2. выбор одной из тем обучения.
-// Бюджет приключения — отдельный от хаба контур денег: его тратят события, а
+// Планирование смены («Работа») в 2 шага (решение пользователя 27.09.2026):
+//   1. бюджет смены делится на «Потратить» и «Коплю» (§7.3); в каждом поле
+//      заливка и «N%» показывают долю бюджета. Нужное/желаемое здесь не
+//      планируется — его показывает факт трат в событиях урока;
+//   2. выбор темы. Смена = один урок — следующий непройденный урок темы
+//      (решение пользователя 28.09.2026); тема с начатым уроком выбрана сразу
+//      (урок продолжится с того же места), пройденную тему выбрать нельзя.
+// Бюджет смены — отдельный от хаба контур денег: его тратят события урока, а
 // остаток в конце уходит в хаб («коплю» — в банк, остальное — в кошелёк).
-// Открывается с хаба — тап по ноутбуку или кнопка «Начать приключение».
+// Открывается с хаба — тап по ноутбуку или кнопка «Начать работу».
 
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -44,14 +46,14 @@ const CATEGORIES: {
   {
     key: 'mandatory',
     title: 'Потратить',
-    description: 'На события приключения — нужное и желаемое',
+    description: 'На события урока — нужное и желаемое',
     icon: 'wallet',
     color: PLAN_CATEGORY_COLORS.spend,
   },
   {
     key: 'savings',
     title: 'Коплю',
-    description: 'В конце приключения уйдёт в банк — на твою цель',
+    description: 'В конце смены уйдёт в банк — на твою цель',
     icon: 'trending-up',
     color: PLAN_CATEGORY_COLORS.save,
   },
@@ -80,6 +82,8 @@ export default function AdventurePlanningScreen() {
   const updatePlan = useAdventureStore((s) => s.updatePlan);
   const confirmPlan = useAdventureStore((s) => s.confirmPlan);
   const getBranchProgress = useLessonsStore((s) => s.getBranchProgress);
+  const getNextLessonInBranch = useLessonsStore((s) => s.getNextLessonInBranch);
+  const lessonStates = useLessonsStore((s) => s.lessonStates);
 
   const styles = createAdventurePlanningStyles({ theme });
 
@@ -113,28 +117,31 @@ export default function AdventurePlanningScreen() {
   const percentOf = (value: number) =>
     available > 0 ? Math.min(100, Math.round((value / available) * 100)) : 0;
 
-  const handleSelectBranch = (branchId: number) => {
-    const { completed, total: totalLessons } = getBranchProgress(branchId);
-    const alreadyDone = totalLessons > 0 && completed === totalLessons;
+  /** Урок начат, но не закончен — смена по этой теме продолжит его с того же места. */
+  const hasStartedLesson = (branchId: number) => {
+    const next = getNextLessonInBranch(branchId);
+    const state = next ? lessonStates[next.id] : undefined;
+    return Boolean(state && (state.readNodes.length > 0 || Object.keys(state.results).length > 0));
+  };
 
-    if (alreadyDone) {
+  // Незаконченный урок — тема выбрана сразу («в следующий раз продолжит с того же места»).
+  const planningBranchId =
+    currentAdventure?.status === 'planning' ? currentAdventure.branchId : undefined;
+  useEffect(() => {
+    if (planningBranchId !== null) return;
+    const started = BRANCHES.find((branch) => hasStartedLesson(branch.id));
+    if (started) setBranch(started.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planningBranchId]);
+
+  const handleSelectBranch = (branchId: number) => {
+    if (!getNextLessonInBranch(branchId)) {
       Alert.alert(
         'Эта тема уже пройдена',
-        'Все уроки этой темы пройдены. Задания в приключении будут случайными вопросами на повторение. Выбрать всё равно?',
-        [
-          { text: 'Отмена', style: 'cancel' },
-          {
-            text: 'Выбрать',
-            onPress: () => {
-              triggerHaptic('selection');
-              setBranch(branchId);
-            },
-          },
-        ]
+        'Все уроки этой темы пройдены — их можно перечитать на вкладке «Уроки». Для смены выбери другую тему.'
       );
       return;
     }
-
     triggerHaptic('selection');
     setBranch(branchId);
   };
@@ -147,8 +154,13 @@ export default function AdventurePlanningScreen() {
     try {
       // Итоговый план — 3 направления: надо / хочу / коплю.
       updatePlan({ mandatory: amounts.mandatory, optional: 0, savings: amounts.savings });
-      await confirmPlan();
-      // Сразу на экран приключения (хаб остаётся под ним — «назад» вернёт туда).
+      const started = await confirmPlan();
+      if (!started) {
+        Alert.alert('Не получилось начать', 'В этой теме нет непройденных уроков — выбери другую.');
+        setIsConfirming(false);
+        return;
+      }
+      // Сразу на экран смены (хаб остаётся под ним — «назад» вернёт туда).
       router.replace('/(modal)/adventure' as never);
     } catch (error) {
       console.error('[AdventurePlanning] Не удалось подтвердить план:', error);
@@ -235,7 +247,7 @@ export default function AdventurePlanningScreen() {
         style={styles.adventureInfoBar}
       >
         <Text style={[styles.headerTitle, { fontSize: scaledFont('xl') }]}>
-          Приключение №{currentAdventure.adventureNumber}
+          Смена №{currentAdventure.adventureNumber}
         </Text>
         <Text style={[styles.headerSubtitle, { fontSize: scaledFont('sm') }]}>
           {STEP_SUBTITLES[wizardStep]}
@@ -249,7 +261,7 @@ export default function AdventurePlanningScreen() {
         >
           <Card padding="md" style={styles.availableCardSpacing}>
             <Text style={[styles.availableLabel, { fontSize: scaledFont('sm') }]}>
-              Бюджет приключения
+              Бюджет работы
             </Text>
             <CoinAmount
               amount={available}
@@ -315,6 +327,8 @@ export default function AdventurePlanningScreen() {
             const { completed, total: totalLessons } = getBranchProgress(branch.id);
             const isDone = totalLessons > 0 && completed === totalLessons;
             const isSelected = currentAdventure.branchId === branch.id;
+            const nextLesson = getNextLessonInBranch(branch.id);
+            const started = hasStartedLesson(branch.id);
             const accentColor = BRANCH_GRADIENTS[branch.id]?.[0] ?? theme.primary;
 
             return (
@@ -325,7 +339,15 @@ export default function AdventurePlanningScreen() {
                 style={[
                   styles.branchCard,
                   isSelected ? styles.branchCardSelected : styles.branchCardUnselected,
+                  isDone && styles.branchCardDone,
                 ]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isSelected, disabled: isDone }}
+                accessibilityLabel={
+                  isDone
+                    ? `${branch.name}. Все уроки пройдены`
+                    : `${branch.name}. ${started ? 'Продолжить' : 'Урок'}: ${nextLesson?.title ?? ''}`
+                }
               >
                 <View style={[styles.branchIconBox, { backgroundColor: `${accentColor}20` }]}>
                   <Ionicons
@@ -338,12 +360,19 @@ export default function AdventurePlanningScreen() {
                   <Text style={[styles.branchName, { fontSize: scaledFont('md') }]}>
                     {branch.name}
                   </Text>
-                  {isDone && (
+                  {isDone ? (
                     <View style={styles.branchDoneBadge}>
-                      <Text style={[styles.branchDoneBadgeText, { fontSize: scaledFont('xxs') }]}>
-                        Пройдено ✓
+                      <Text style={[styles.branchDoneBadgeText, { fontSize: scaledFont('xs') }]}>
+                        Все уроки пройдены ✓
                       </Text>
                     </View>
+                  ) : (
+                    nextLesson && (
+                      <Text style={[styles.branchLessonText, { fontSize: scaledFont('sm') }]}>
+                        {started ? 'Продолжить: ' : 'Урок: '}
+                        {nextLesson.title}
+                      </Text>
+                    )
                   )}
                 </View>
                 {isSelected && (
@@ -363,7 +392,7 @@ export default function AdventurePlanningScreen() {
             ]}
           >
             <Text style={[styles.primaryButtonText, { fontSize: scaledFont('lg') }]}>
-              {isConfirming ? 'Начинаем...' : 'Начать приключение'}
+              {isConfirming ? 'Начинаем...' : 'Начать работу'}
             </Text>
           </TouchableOpacity>
         </ScrollView>

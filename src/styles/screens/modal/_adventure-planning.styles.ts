@@ -184,6 +184,15 @@ export function createAdventurePlanningStyles({ theme }: AdventurePlanningStyles
       fontWeight: fontWeights.semibold,
       fontSize: fontSizes.md,
     },
+    // Пройденная тема — урока для смены нет, выбрать нельзя.
+    branchCardDone: {
+      opacity: 0.55,
+    },
+    branchLessonText: {
+      color: theme.textSecondary,
+      fontSize: fontSizes.sm,
+      marginTop: spacing.xxs,
+    },
     branchDoneBadge: {
       alignSelf: 'flex-start',
       backgroundColor: withAlpha(theme.success, 0.15),

@@ -1,16 +1,23 @@
 // lib/stores/adventureStore.test.ts
-// CLAUDE.md: «план vs факт за период» (здесь — за приключение, полностью
-// заменившее период, см. память проекта) + рост уровня как замена роста
-// стадии по успешным периодам.
+// CLAUDE.md: «план vs факт за период» (здесь — за смену «Работа», заменившую
+// период и приключение, см. память проекта) + рост уровня как замена роста
+// стадии по успешным периодам. Смена = один урок (решение 28.09.2026): доля
+// награды — доля пройденного урока, урок пройден — полная.
 
 import { AdventureRecord } from '@/domain/adventure/Adventure';
+import { planForLesson } from '@/domain/lesson/LessonPlan';
+import { LessonProgressState, createLessonProgress } from '@/domain/lesson/lessonProgress';
 import { computeLevel } from '@/domain/player/PlayerLevel';
-import { useLessonsStore } from '@/lib/hooks/useLessons';
+import { LESSONS, useLessonsStore } from '@/lib/hooks/useLessons';
 import { SHOP_CATALOG, useShopStore } from '@/lib/hooks/useShop';
-import { ADVENTURE_XP, useAdventureStore } from './adventureStore';
+import { ADVENTURE_DURATION_MS, ADVENTURE_XP, useAdventureStore } from './adventureStore';
 import { usePetStore } from './petStore';
 import { useSavingsStore } from './savingsStore';
 import { useUserStore } from './userStore';
+
+/** Урок смены в тестах — первый урок ветки «Бюджет» (формат этапов). */
+const SHIFT_LESSON = LESSONS.find((l) => l.branch_id === 1 && l.order_index === 1)!;
+const SHIFT_PLAN = planForLesson(SHIFT_LESSON);
 
 function seedActiveAdventure(overrides: Partial<AdventureRecord> = {}): void {
   useAdventureStore.setState({
@@ -21,45 +28,83 @@ function seedActiveAdventure(overrides: Partial<AdventureRecord> = {}): void {
       adventureNumber: 1,
       status: 'active',
       branchId: 1,
+      lessonId: SHIFT_LESSON.id,
       projectedIncome: 100,
       budget: 100,
       plan: { mandatory: 40, optional: 30, savings: 30 },
       fact: { mandatory: 0, optional: 0, savings: 0 },
       startedAt: new Date().toISOString(),
-      plannedEndAt: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(),
+      plannedEndAt: new Date(Date.now() + ADVENTURE_DURATION_MS).toISOString(),
       completedAt: null,
-      timeAdjustmentMs: 0,
-      questsCompleted: 0,
       xpAwarded: null,
-      pendingEventTemplateId: null,
-      pendingEventRolledAt: null,
-      nextEventCheckAt: null,
       ...overrides,
     },
   });
 }
 
-function seedWallet(liquidBalance: number): void {
+/** Состояние урока смены: пройдено nodesDone этапов (все — урок завершён). */
+function seedShiftLesson(nodesDone: number): void {
+  let state: LessonProgressState = createLessonProgress(SHIFT_LESSON.id);
+  for (const node of SHIFT_PLAN.nodes.slice(0, nodesDone)) {
+    state = { ...state, readNodes: [...state.readNodes, node.index] };
+    for (const activity of node.activities) {
+      state = {
+        ...state,
+        results: {
+          ...state.results,
+          [activity.id]: { completed: true, perfect: true, attempts: 1 },
+        },
+      };
+    }
+  }
+  if (nodesDone >= SHIFT_PLAN.nodes.length) {
+    state = { ...state, completedAt: new Date().toISOString() };
+  }
+  useLessonsStore.setState({ lessonStates: { [SHIFT_LESSON.id]: state } });
+}
+
+function seedWallet(liquidBalance: number, isDemo = false): void {
   useUserStore.getState().setUser({
     id: 'test-profile',
     username: 'Тест',
     liquid_balance: liquidBalance,
     created_at: new Date().toISOString(),
-    is_demo: false,
+    is_demo: isDemo,
   });
 }
+
+function seedBank(): void {
+  useSavingsStore.setState({
+    isLoading: false,
+    savings: {
+      id: 1,
+      profileId: 'test-profile',
+      currentAmount: 0,
+      bonusRate: 1,
+      targetItemId: null,
+      periodsSinceWithdrawal: 0,
+      withdrawalCredit: 0,
+    },
+  });
+}
+
+/** 24 часа смены уже вышли. */
+const TIME_UP_OVERRIDES: Partial<AdventureRecord> = {
+  startedAt: new Date(Date.now() - ADVENTURE_DURATION_MS - 60_000).toISOString(),
+  plannedEndAt: new Date(Date.now() - 60_000).toISOString(),
+};
 
 beforeEach(() => {
   useAdventureStore.setState({
     currentAdventure: null,
     isLoading: true,
-    usedEventTemplateIds: [],
     lastCompletionSummary: null,
   });
   usePetStore.setState({ currentMood: 80 });
   useUserStore.getState().reset();
   useShopStore.getState().resetInventory();
   useLessonsStore.getState().resetProgress();
+  useSavingsStore.setState({ savings: null });
 });
 
 describe('adventureStore.recordFact (план vs факт)', () => {
@@ -70,11 +115,11 @@ describe('adventureStore.recordFact (план vs факт)', () => {
     expect(useAdventureStore.getState().currentAdventure?.fact.mandatory).toBe(20);
   });
 
-  it('без активного приключения — тихий no-op, без исключений', async () => {
+  it('без активной смены — тихий no-op, без исключений', async () => {
     await expect(useAdventureStore.getState().recordFact('mandatory', 10)).resolves.not.toThrow();
   });
 
-  it('магазин — контур хаба: покупка во время приключения не пишется в его факт', () => {
+  it('магазин — контур хаба: покупка во время смены не пишется в её факт', () => {
     seedActiveAdventure();
     seedWallet(1000);
     const decor = SHOP_CATALOG.find(
@@ -91,204 +136,136 @@ describe('adventureStore.recordFact (план vs факт)', () => {
   });
 });
 
-describe('adventureStore.registerQuestCompletion (ускорение таймера заданиями)', () => {
-  it('сокращает оставшееся время и увеличивает счётчик пройденных заданий', async () => {
-    seedActiveAdventure();
-    const before = useAdventureStore.getState().currentAdventure!;
+describe('adventureStore.confirmPlan — смена = один урок, 24 часа', () => {
+  const planning: Partial<AdventureRecord> = {
+    status: 'planning',
+    lessonId: null,
+    budget: 0,
+    startedAt: null,
+    plannedEndAt: null,
+  };
 
-    await useAdventureStore.getState().registerQuestCompletion();
+  it('урок смены — следующий непройденный урок темы, конец через 24 часа', async () => {
+    seedWallet(0);
+    seedActiveAdventure(planning);
 
-    const after = useAdventureStore.getState().currentAdventure!;
-    expect(new Date(after.plannedEndAt!).getTime()).toBeLessThan(
-      new Date(before.plannedEndAt!).getTime()
-    );
-    expect(after.questsCompleted).toBe(1);
+    expect(await useAdventureStore.getState().confirmPlan()).toBe(true);
+
+    const adventure = useAdventureStore.getState().currentAdventure!;
+    expect(adventure.status).toBe('active');
+    expect(adventure.lessonId).toBe(SHIFT_LESSON.id);
+    expect(
+      new Date(adventure.plannedEndAt!).getTime() - new Date(adventure.startedAt!).getTime()
+    ).toBe(ADVENTURE_DURATION_MS);
+  });
+
+  it('доход смены идёт в её бюджет, а не в кошелёк хаба', async () => {
+    seedWallet(0);
+    seedActiveAdventure(planning);
+
+    await useAdventureStore.getState().confirmPlan();
+
+    expect(useAdventureStore.getState().currentAdventure?.budget).toBe(100);
+    expect(useUserStore.getState().user?.liquid_balance).toBe(0);
+  });
+
+  it('в пройденной теме урока нет — смена не начинается', async () => {
+    seedWallet(0);
+    const completedAt = new Date().toISOString();
+    useLessonsStore.setState({
+      lessonStates: Object.fromEntries(
+        LESSONS.filter((l) => l.branch_id === 1).map((l) => [
+          l.id,
+          { ...createLessonProgress(l.id), completedAt },
+        ])
+      ),
+    });
+    seedActiveAdventure(planning);
+
+    expect(await useAdventureStore.getState().confirmPlan()).toBe(false);
+    expect(useAdventureStore.getState().currentAdventure?.status).toBe('planning');
   });
 });
 
-// Приключение, у которого время уже вышло (см. adventureProgressRatio) —
-// используется там, где тест проверяет НЕ пропорциональное урезание награды
-// за досрочное завершение, а саму логику бонуса/опыта при ПОЛНОЙ награде.
-const TIME_UP_OVERRIDES: Partial<AdventureRecord> = {
-  startedAt: new Date(Date.now() - 9 * 60 * 60 * 1000).toISOString(),
-  plannedEndAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
-};
-
-describe('adventureStore.completeAdventure', () => {
-  it('блокируется, пока есть нерешённое событие', async () => {
-    seedActiveAdventure({ pendingEventTemplateId: 'snack' });
-
-    const result = await useAdventureStore.getState().completeAdventure();
-
-    expect(result).toBeNull();
-    expect(useAdventureStore.getState().currentAdventure).not.toBeNull();
+describe('adventureStore.isShiftLesson', () => {
+  it('урок смены — только её урок', () => {
+    seedActiveAdventure();
+    const other = LESSONS.find((l) => l.branch_id === 1 && l.id !== SHIFT_LESSON.id)!;
+    expect(useAdventureStore.getState().isShiftLesson(SHIFT_LESSON.id, 1)).toBe(true);
+    expect(useAdventureStore.getState().isShiftLesson(other.id, 1)).toBe(false);
   });
 
-  it('начисляет бонус за план, когда факт не превышает план', async () => {
+  it('смена старой модели (без урока) — урок её темы', () => {
+    seedActiveAdventure({ lessonId: null });
+    expect(useAdventureStore.getState().isShiftLesson(SHIFT_LESSON.id, 1)).toBe(true);
+    expect(useAdventureStore.getState().isShiftLesson(SHIFT_LESSON.id, 2)).toBe(false);
+  });
+});
+
+describe('adventureStore.completeAdventure', () => {
+  it('урок пройден — полная доля и бонус за план, когда факт не превышает план', async () => {
     seedWallet(0);
-    seedActiveAdventure({
-      ...TIME_UP_OVERRIDES,
-      fact: { mandatory: 40, optional: 30, savings: 0 },
-    });
+    seedShiftLesson(SHIFT_PLAN.nodes.length);
+    seedActiveAdventure({ fact: { mandatory: 40, optional: 30, savings: 0 } });
 
     const result = await useAdventureStore.getState().completeAdventure();
 
-    expect(result?.bonusAwarded).toBeGreaterThan(0);
+    expect(result?.completionRatio).toBe(1);
+    expect(result?.bonusAwarded).toBe(10);
+    expect(result?.lesson).toMatchObject({ id: SHIFT_LESSON.id, finished: true });
     expect(useAdventureStore.getState().currentAdventure).toBeNull();
   });
 
   it('не начисляет бонус за план, когда факт превышает план', async () => {
     seedWallet(0);
-    seedActiveAdventure({
-      ...TIME_UP_OVERRIDES,
-      fact: { mandatory: 41, optional: 30, savings: 0 },
-    });
+    seedShiftLesson(SHIFT_PLAN.nodes.length);
+    seedActiveAdventure({ fact: { mandatory: 41, optional: 30, savings: 0 } });
 
     const result = await useAdventureStore.getState().completeAdventure();
 
     expect(result?.bonusAwarded).toBe(0);
   });
 
-  it('зачисляет опыт в систему уровней игрока (замена роста стадии по успешным периодам)', async () => {
+  it('зачисляет опыт в систему уровней игрока', async () => {
     seedWallet(0);
-    seedActiveAdventure(TIME_UP_OVERRIDES);
-    const xpBefore = useLessonsStore.getState().totalXp;
+    seedShiftLesson(SHIFT_PLAN.nodes.length);
+    seedActiveAdventure();
 
     const result = await useAdventureStore.getState().completeAdventure();
 
-    expect(result?.xpAwarded).toBeGreaterThan(0);
-    expect(useLessonsStore.getState().totalXp).toBe(xpBefore + (result?.xpAwarded ?? 0));
+    expect(result?.xpAwarded).toBe(ADVENTURE_XP);
+    expect(useLessonsStore.getState().totalXp).toBe(ADVENTURE_XP);
   });
 
-  it('обычное завершение (время вышло) даёт completionRatio 1 и полную награду', async () => {
+  it('урок не пройден — доля по пройденным этапам, урок продолжится (итоги знают где)', async () => {
     seedWallet(0);
-    seedActiveAdventure({
-      ...TIME_UP_OVERRIDES,
-      questsCompleted: 2,
-      fact: { mandatory: 40, optional: 30, savings: 0 },
-    });
+    seedShiftLesson(1);
+    seedActiveAdventure({ fact: { mandatory: 40, optional: 30, savings: 0 } });
+    const total = SHIFT_PLAN.nodes.length + 1;
 
     const result = await useAdventureStore.getState().completeAdventure();
 
-    expect(result?.completionRatio).toBe(1);
-    expect(result?.bonusAwarded).toBe(10); // PLAN_BONUS полностью
+    expect(result?.completionRatio).toBeCloseTo(1 / total);
+    expect(result?.bonusAwarded).toBe(Math.floor(10 / total));
+    expect(result?.xpAwarded).toBe(Math.floor(ADVENTURE_XP / total));
+    expect(result?.lesson).toMatchObject({ nodesDone: 1, nodesTotal: total, finished: false });
+    // Прогресс урока не трогается — следующая смена продолжит с того же места.
+    expect(useLessonsStore.getState().lessonStates[SHIFT_LESSON.id].readNodes).toEqual([0]);
   });
 
-  it('досрочное завершение пропорционально уменьшает бонус за план и опыт', async () => {
+  it('ничего не пройдено — выплаты нет, но и наказания нет', async () => {
     seedWallet(0);
-    // Ровно половина 8-часового приключения прошла -> ratio 0.5.
-    const startedAt = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
-    const plannedEndAt = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
-    seedActiveAdventure({
-      startedAt,
-      plannedEndAt,
-      questsCompleted: 2,
-      fact: { mandatory: 40, optional: 30, savings: 0 },
-    });
+    seedActiveAdventure();
 
     const result = await useAdventureStore.getState().completeAdventure();
 
-    expect(result?.completionRatio).toBeCloseTo(0.5);
-    expect(result?.bonusAwarded).toBe(5); // floor(10 * 0.5)
-    // Награда меньше полной, но никогда не отрицательная/не наказание — просто урезанная.
-    expect(result?.bonusAwarded).toBeGreaterThanOrEqual(0);
-  });
-});
-
-describe('adventureStore.resolveEvent (желаемое — обычная трата без предметов)', () => {
-  // 'snack'/'treat' — реальный шаблон+вариант из content/adventure_events.json.
-  // Скины события не выдают (облик питомца — только за уровень, решение 27.09.2026).
-  it('списывает цену из контента с бюджета приключения, пишет в «хочу» и ничего не выдаёт', async () => {
-    seedWallet(0);
-    seedActiveAdventure({ pendingEventTemplateId: 'snack', budget: 100 });
-    const ownedBefore = { ...useShopStore.getState().ownedItems };
-
-    await useAdventureStore.getState().resolveEvent('treat');
-
-    expect(useAdventureStore.getState().currentAdventure?.budget).toBe(100 - 15);
-    expect(useAdventureStore.getState().currentAdventure?.fact.optional).toBe(15);
+    expect(result?.completionRatio).toBe(0);
+    expect(result?.toWallet).toBe(0);
     expect(useUserStore.getState().user?.liquid_balance).toBe(0);
-    expect(useShopStore.getState().ownedItems).toEqual(ownedBefore);
-    expect(useAdventureStore.getState().currentAdventure?.pendingEventTemplateId).toBeNull();
   });
 });
 
-describe('adventureStore.resolveEvent (§12.3 — без частичной оплаты)', () => {
-  it('отклоняет платный вариант, на который не хватает денег: баланс не меняется, событие остаётся', async () => {
-    // 'repair'/'master' — реальный вариант из контента, стоит 25 монет.
-    seedActiveAdventure({ pendingEventTemplateId: 'repair', budget: 10 });
-
-    await useAdventureStore.getState().resolveEvent('master');
-
-    expect(useAdventureStore.getState().currentAdventure?.budget).toBe(10);
-    expect(useAdventureStore.getState().currentAdventure?.pendingEventTemplateId).toBe('repair');
-    expect(useAdventureStore.getState().currentAdventure?.fact.mandatory).toBe(0);
-  });
-
-  it('бесплатный вариант доступен и с пустым кошельком, решённое событие попадает в список выпавших', async () => {
-    seedActiveAdventure({ pendingEventTemplateId: 'repair', budget: 0 });
-
-    await useAdventureStore.getState().resolveEvent('fix_myself');
-
-    expect(useAdventureStore.getState().currentAdventure?.pendingEventTemplateId).toBeNull();
-    expect(useAdventureStore.getState().usedEventTemplateIds).toEqual(['repair']);
-  });
-
-  it('после окончания времени выбор не применяется', async () => {
-    seedActiveAdventure({ ...TIME_UP_OVERRIDES, pendingEventTemplateId: 'repair', budget: 1000 });
-
-    await useAdventureStore.getState().resolveEvent('master');
-
-    expect(useAdventureStore.getState().currentAdventure?.budget).toBe(1000);
-  });
-});
-
-describe('adventureStore.checkForDueEvent (ритм событий)', () => {
-  const MIN = 60 * 1000;
-
-  it('при заходе на экран событие появляется через 30 мин, обычная проверка ждёт час', async () => {
-    seedWallet(100);
-    const accelerated = {
-      startedAt: new Date(Date.now() - 35 * MIN).toISOString(),
-      nextEventCheckAt: new Date(Date.now() + 25 * MIN).toISOString(),
-    };
-
-    seedActiveAdventure(accelerated);
-    await useAdventureStore.getState().checkForDueEvent('tick');
-    expect(useAdventureStore.getState().currentAdventure?.pendingEventTemplateId).toBeNull();
-
-    seedActiveAdventure(accelerated);
-    await useAdventureStore.getState().checkForDueEvent('entry');
-    expect(useAdventureStore.getState().currentAdventure?.pendingEventTemplateId).not.toBeNull();
-  });
-
-  it('после окончания времени событие не рождается', async () => {
-    seedWallet(100);
-    seedActiveAdventure({
-      ...TIME_UP_OVERRIDES,
-      nextEventCheckAt: new Date(Date.now() - 2 * 60 * MIN).toISOString(),
-    });
-
-    await useAdventureStore.getState().checkForDueEvent('entry');
-
-    expect(useAdventureStore.getState().currentAdventure?.pendingEventTemplateId).toBeNull();
-  });
-});
-
-describe('adventureStore.registerQuestCompletion после окончания времени', () => {
-  it('засчитывает задание, но не продлевает закончившееся приключение', async () => {
-    seedActiveAdventure(TIME_UP_OVERRIDES);
-    const endBefore = useAdventureStore.getState().currentAdventure!.plannedEndAt;
-
-    await useAdventureStore.getState().registerQuestCompletion();
-
-    const after = useAdventureStore.getState().currentAdventure!;
-    expect(after.plannedEndAt).toBe(endBefore);
-    expect(after.questsCompleted).toBe(1);
-  });
-});
-
-describe('adventureStore.completeIfExpired (автозавершение по времени)', () => {
+describe('adventureStore.completeIfExpired (24 часа вышли)', () => {
   it('ничего не делает, пока время не вышло', async () => {
     seedActiveAdventure();
 
@@ -299,29 +276,23 @@ describe('adventureStore.completeIfExpired (автозавершение по в
     expect(useAdventureStore.getState().lastCompletionSummary).toBeNull();
   });
 
-  it('завершает истёкшее приключение, снимая висящее событие без денежных эффектов', async () => {
+  it('завершает смену с незаконченным уроком — доля по этапам, итоги на хаб', async () => {
     seedWallet(0);
-    seedActiveAdventure({
-      ...TIME_UP_OVERRIDES,
-      pendingEventTemplateId: 'repair',
-      fact: { mandatory: 40, optional: 30, savings: 0 },
-    });
+    seedShiftLesson(2);
+    seedActiveAdventure(TIME_UP_OVERRIDES);
 
     const result = await useAdventureStore.getState().completeIfExpired();
 
     expect(result?.autoCompleted).toBe(true);
-    expect(result?.completionRatio).toBe(1);
-    // Событие «Позвать мастера» (-25 монет) не применилось: весь бюджет (100) +
-    // бонус за план ушли в хаб (банк не загружен — всё в кошелёк).
-    expect(useUserStore.getState().user?.liquid_balance).toBe(100 + (result?.bonusAwarded ?? 0));
+    expect(result?.completionRatio).toBeCloseTo(2 / (SHIFT_PLAN.nodes.length + 1));
     expect(useAdventureStore.getState().currentAdventure).toBeNull();
     expect(useAdventureStore.getState().lastCompletionSummary).toBe(result);
   });
 
   it('параллельные вызовы начисляют награды ровно один раз', async () => {
     seedWallet(0);
+    seedShiftLesson(SHIFT_PLAN.nodes.length);
     seedActiveAdventure(TIME_UP_OVERRIDES);
-    const xpBefore = useLessonsStore.getState().totalXp;
 
     const results = await Promise.all([
       useAdventureStore.getState().completeIfExpired(),
@@ -331,12 +302,12 @@ describe('adventureStore.completeIfExpired (автозавершение по в
 
     const completed = results.filter((r) => r !== null);
     expect(completed).toHaveLength(1);
-    expect(useLessonsStore.getState().totalXp).toBe(xpBefore + completed[0]!.xpAwarded);
+    expect(useLessonsStore.getState().totalXp).toBe(completed[0]!.xpAwarded);
   });
 
   it('ручное завершение тоже кладёт итоги для показа на хабе', async () => {
     seedWallet(0);
-    seedActiveAdventure(TIME_UP_OVERRIDES);
+    seedActiveAdventure();
 
     const result = await useAdventureStore.getState().completeAdventure();
 
@@ -348,56 +319,19 @@ describe('adventureStore.completeIfExpired (автозавершение по в
 });
 
 describe('adventureStore — демо-режим (§18.2)', () => {
-  it('завершение в демо сразу после старта даёт полную награду (приключения без ожидания)', async () => {
-    useUserStore.getState().setUser({
-      id: 'test-profile',
-      username: 'Тест',
-      liquid_balance: 0,
-      created_at: new Date().toISOString(),
-      is_demo: true,
-    });
+  it('завершение сразу после старта — полная награда (смена без ожидания)', async () => {
+    seedWallet(0, true);
     seedActiveAdventure({ fact: { mandatory: 40, optional: 30, savings: 0 } });
-    const xpBefore = useLessonsStore.getState().totalXp;
 
     const result = await useAdventureStore.getState().completeAdventure();
 
     expect(result?.completionRatio).toBe(1);
     expect(result?.bonusAwarded).toBe(10);
-    expect(useLessonsStore.getState().totalXp).toBe(xpBefore + (result?.xpAwarded ?? 0));
     expect(result?.xpAwarded).toBeGreaterThan(0);
   });
-});
 
-describe('adventureStore — демо-режим: сценарий за 1–2 минуты', () => {
-  function seedDemoUser(): void {
-    useUserStore.getState().setUser({
-      id: 'test-profile',
-      username: 'Тест',
-      liquid_balance: 0,
-      created_at: new Date().toISOString(),
-      is_demo: true,
-    });
-  }
-
-  it('события при заходе сразу после старта — по сценарию: трата «надо/хочу», затем подарок', async () => {
-    seedDemoUser();
-    seedActiveAdventure({ nextEventCheckAt: new Date(Date.now() + 60 * 60 * 1000).toISOString() });
-
-    await useAdventureStore.getState().checkForDueEvent('entry');
-    expect(useAdventureStore.getState().currentAdventure?.pendingEventTemplateId).toBe('snack');
-
-    await useAdventureStore.getState().resolveEvent('treat');
-    await useAdventureStore.getState().checkForDueEvent('entry');
-    expect(useAdventureStore.getState().currentAdventure?.pendingEventTemplateId).toBe('bonus');
-
-    await useAdventureStore.getState().resolveEvent('keep');
-    await useAdventureStore.getState().checkForDueEvent('entry');
-    // Демо-лимит исчерпан — третьего события нет.
-    expect(useAdventureStore.getState().currentAdventure?.pendingEventTemplateId).toBeNull();
-  });
-
-  it('каждое демо-приключение даёт новый уровень', async () => {
-    seedDemoUser();
+  it('каждая демо-смена даёт новый уровень', async () => {
+    seedWallet(0, true);
     for (const expectedLevel of [2, 3, 4]) {
       seedActiveAdventure();
       const result = await useAdventureStore.getState().completeAdventure();
@@ -406,118 +340,47 @@ describe('adventureStore — демо-режим: сценарий за 1–2 м
     }
   });
 
-  it('без демо уровень 2 — только после второго приключения', async () => {
+  it('без демо уровень 2 — только после второй смены', async () => {
     seedWallet(0);
-    seedActiveAdventure({ ...TIME_UP_OVERRIDES });
+    seedShiftLesson(SHIFT_PLAN.nodes.length);
+    seedActiveAdventure();
     const first = await useAdventureStore.getState().completeAdventure();
     expect(first?.levelUp).toBeNull();
     expect(first?.xpAwarded).toBe(ADVENTURE_XP);
   });
 });
 
-describe('adventureStore — бюджет приключения (отдельный контур денег)', () => {
-  it('доход приключения идёт в его бюджет, а не в кошелёк хаба', async () => {
+describe('adventureStore — бюджет смены (отдельный контур денег)', () => {
+  it('урок пройден: «коплю» уходит в банк (с бонусом), остаток — в кошелёк', async () => {
     seedWallet(0);
-    seedActiveAdventure({ status: 'planning', budget: 0, startedAt: null, plannedEndAt: null });
-
-    await useAdventureStore.getState().confirmPlan();
-
-    expect(useAdventureStore.getState().currentAdventure?.budget).toBe(100);
-    expect(useUserStore.getState().user?.liquid_balance).toBe(0);
-  });
-
-  it('при завершении «коплю» уходит в банк, остаток — в кошелёк', async () => {
-    seedWallet(0);
-    useSavingsStore.setState({
-      isLoading: false,
-      savings: {
-        id: 1,
-        profileId: 'test-profile',
-        currentAmount: 0,
-        bonusRate: 1,
-        targetItemId: null,
-        periodsSinceWithdrawal: 0,
-        withdrawalCredit: 0,
-      },
-    });
-    // план: надо 40, хочу 30, коплю 30; траты в пределах плана -> бонус 10
-    seedActiveAdventure({ ...TIME_UP_OVERRIDES, budget: 100 });
+    seedBank();
+    seedShiftLesson(SHIFT_PLAN.nodes.length);
+    // план: потратить 70, коплю 30; траты в пределах плана -> бонус 10
+    seedActiveAdventure({ budget: 100 });
 
     const result = await useAdventureStore.getState().completeAdventure();
 
     expect(result?.toBank).toBe(30);
     expect(result?.toWallet).toBe(80); // 100 + 10 бонуса − 30 в банк
-    expect(useSavingsStore.getState().savings?.currentAmount).toBe(30);
+    expect(result?.bankBonus).toBeGreaterThanOrEqual(0);
     expect(useUserStore.getState().user?.liquid_balance).toBe(80);
-    useSavingsStore.setState({ savings: null });
   });
 
-  it('досрочно на 10% — выплачивается только 10% бюджета и «коплю», без бонуса банка', async () => {
+  it('урок пройден наполовину — выплачивается половина, без бонуса копилки', async () => {
     seedWallet(0);
-    useSavingsStore.setState({
-      isLoading: false,
-      savings: {
-        id: 1,
-        profileId: 'test-profile',
-        currentAmount: 0,
-        bonusRate: 1,
-        targetItemId: null,
-        periodsSinceWithdrawal: 0,
-        withdrawalCredit: 0,
-      },
-    });
-    // 48 минут из 8 часов = 10%; план: коплю 30, траты в плане -> бонус за план 10.
-    seedActiveAdventure({
-      budget: 100,
-      startedAt: new Date(Date.now() - 48 * 60 * 1000).toISOString(),
-      plannedEndAt: new Date(Date.now() + (8 * 60 - 48) * 60 * 1000).toISOString(),
-    });
+    seedBank();
+    // Урок из 3 этапов + финал: 2 из 4 — ровно половина.
+    expect(SHIFT_PLAN.nodes.length + 1).toBe(4);
+    seedShiftLesson(2);
+    seedActiveAdventure({ budget: 100 });
 
     const result = await useAdventureStore.getState().completeAdventure();
 
-    expect(result?.completionRatio).toBeCloseTo(0.1, 2);
-    // floor((100 + 10) × 0.1) = 11: в банк floor(30 × 0.1) = 3, в кошелёк 8.
-    expect(result?.toBank).toBe(3);
-    expect(result?.toWallet).toBe(8);
+    expect(result?.completionRatio).toBe(0.5);
+    // floor((100 + 10) × 0.5) = 55: в банк floor(30 × 0.5) = 15, в кошелёк 40.
+    expect(result?.toBank).toBe(15);
+    expect(result?.toWallet).toBe(40);
     expect(result?.bankBonus).toBe(0);
-    expect(useUserStore.getState().user?.liquid_balance).toBe(8);
-    useSavingsStore.setState({ savings: null });
-  });
-
-  it('опыт — только за завершение приключения: фиксированно 150', async () => {
-    seedWallet(0);
-    seedActiveAdventure({ ...TIME_UP_OVERRIDES, questsCompleted: 5 });
-
-    const result = await useAdventureStore.getState().completeAdventure();
-
-    expect(result?.xpAwarded).toBe(ADVENTURE_XP);
-    expect(ADVENTURE_XP).toBe(150);
-  });
-});
-
-describe('adventureStore.registerArcadeRound (Аркада ускоряет, но слабее урока)', () => {
-  it('сдвигает финиш на переданные минуты и не считает раунд заданием', async () => {
-    seedActiveAdventure();
-    const before = useAdventureStore.getState().currentAdventure!;
-
-    const saved = await useAdventureStore.getState().registerArcadeRound(15);
-
-    const after = useAdventureStore.getState().currentAdventure!;
-    expect(saved).toBe(15);
-    expect(new Date(before.plannedEndAt!).getTime() - new Date(after.plannedEndAt!).getTime()).toBe(
-      15 * 60_000
-    );
-    expect(after.questsCompleted).toBe(before.questsCompleted);
-  });
-
-  it('раунд без верных ответов (0 минут) ничего не меняет', async () => {
-    seedActiveAdventure();
-    const before = useAdventureStore.getState().currentAdventure!;
-
-    const saved = await useAdventureStore.getState().registerArcadeRound(0);
-
-    expect(saved).toBe(0);
-    expect(useAdventureStore.getState().currentAdventure?.plannedEndAt).toBe(before.plannedEndAt);
   });
 });
 
@@ -528,10 +391,15 @@ describe('adventureStore.applyLessonEventChoice — события внутри 
     category: 'mandatory' as const,
     coinAmount: -10,
   };
-  const spendWant = { id: 'buy', label: 'Купить', category: 'optional' as const, coinAmount: -15 };
+  const spendWant = {
+    id: 'buy',
+    label: 'Купить',
+    category: 'optional' as const,
+    coinAmount: -15,
+  };
   const reward = { id: 'gift', label: 'Подарок', category: null, coinAmount: 20 };
 
-  it('трата — из бюджета приключения в факт «нужно» или «хочу», кошелёк не трогается', async () => {
+  it('трата — из бюджета смены в факт «нужно» или «хочу», кошелёк не трогается', async () => {
     seedActiveAdventure({ budget: 100 });
     seedWallet(50);
 
@@ -561,7 +429,7 @@ describe('adventureStore.applyLessonEventChoice — события внутри 
     });
   });
 
-  it('без активного приключения ничего не меняет', async () => {
+  it('без активной смены ничего не меняет', async () => {
     expect(await useAdventureStore.getState().applyLessonEventChoice('bus', spendNeed)).toBe(false);
   });
 });

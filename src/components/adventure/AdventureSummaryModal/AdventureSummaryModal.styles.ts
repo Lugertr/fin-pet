@@ -1,9 +1,11 @@
 // src/components/adventure/AdventureSummaryModal/AdventureSummaryModal.styles.ts
-// Экран итогов приключения (макет «Итоги работы»).
+// Экран итогов приключения (макет «Итоги работы»). Карточки «План и факт» и
+// «Перенос в копилку» — в своих компонентах (AdventurePlanFactCard,
+// AdventureAmountCard).
 
 import type { Theme } from '@/theme';
 import { withAlpha } from '@/theme/colorUtils';
-import { fontSizes, fontWeights, radius, shadows, spacing, touchTarget } from '@/theme/tokens';
+import { fontSizes, fontWeights, radius, spacing, touchTarget } from '@/theme/tokens';
 import { StyleSheet } from 'react-native';
 
 export function createAdventureSummaryModalStyles({ theme }: { theme: Theme }) {
@@ -35,21 +37,32 @@ export function createAdventureSummaryModalStyles({ theme }: { theme: Theme }) {
       gap: spacing.sm,
       overflow: 'hidden',
     },
+    // Декоративный светлый круг на фоне, как в макете.
+    heroCircle: {
+      position: 'absolute',
+      top: -spacing.lg,
+      left: '38%',
+      borderRadius: radius.full,
+      backgroundColor: withAlpha(theme.surface, 0.4),
+    },
     heroText: {
       flex: 1,
       gap: spacing.xs,
     },
     heroChip: {
       alignSelf: 'flex-start',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
       backgroundColor: theme.surface,
       borderRadius: radius.full,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: 2,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
     },
     heroChipText: {
       color: theme.textPrimary,
-      fontWeight: fontWeights.semibold,
-      fontSize: fontSizes.sm,
+      fontWeight: fontWeights.bold,
+      fontSize: fontSizes.md,
     },
     heroTitle: {
       color: theme.textPrimary,
@@ -62,7 +75,7 @@ export function createAdventureSummaryModalStyles({ theme }: { theme: Theme }) {
     },
     note: {
       color: theme.textSecondary,
-      fontSize: fontSizes.sm,
+      fontSize: fontSizes.md,
       textAlign: 'center',
     },
 
@@ -77,6 +90,9 @@ export function createAdventureSummaryModalStyles({ theme }: { theme: Theme }) {
       borderWidth: 1,
       borderColor: withAlpha(theme.primary, 0.3),
     },
+    levelUpBody: {
+      flex: 1,
+    },
     levelUpTitle: {
       color: theme.textPrimary,
       fontWeight: fontWeights.bold,
@@ -84,147 +100,7 @@ export function createAdventureSummaryModalStyles({ theme }: { theme: Theme }) {
     },
     levelUpText: {
       color: theme.textSecondary,
-      fontSize: fontSizes.sm,
-      marginTop: 2,
-    },
-
-    // ── План и факт ──
-    card: {
-      backgroundColor: theme.surface,
-      borderRadius: radius.xxl,
-      padding: spacing.lg,
-      gap: spacing.md,
-      ...shadows.sm,
-    },
-    cardHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: spacing.sm,
-    },
-    cardTitle: {
-      color: theme.textPrimary,
-      fontWeight: fontWeights.bold,
-      fontSize: fontSizes.xl,
-    },
-    cardSubtitle: {
-      color: theme.textSecondary,
-      fontSize: fontSizes.sm,
-      marginTop: -spacing.sm,
-    },
-    tag: {
-      backgroundColor: theme.surfaceLight,
-      borderRadius: radius.full,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: 2,
-    },
-    tagText: {
-      color: theme.textSecondary,
-      fontSize: fontSizes.xs,
-    },
-    planRow: {
-      gap: spacing.xs,
-    },
-    planRowHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-    },
-    dot: {
-      width: 10,
-      height: 10,
-      borderRadius: radius.full,
-    },
-    dotSmall: {
-      width: 8,
-      height: 8,
-      borderRadius: radius.full,
-    },
-    planLabel: {
-      flex: 1,
-      color: theme.textPrimary,
-      fontWeight: fontWeights.semibold,
-      fontSize: fontSizes.lg,
-    },
-    planValues: {
-      color: theme.textSecondary,
-      fontSize: fontSizes.sm,
-    },
-    planFact: {
-      color: theme.textPrimary,
-      fontWeight: fontWeights.bold,
-    },
-    track: {
-      height: 8,
-      borderRadius: radius.full,
-      backgroundColor: theme.surfaceLight,
-      overflow: 'hidden',
-    },
-    fill: {
-      height: '100%',
-      borderRadius: radius.full,
-    },
-    splitRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: spacing.lg,
-    },
-    splitItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.xs,
-    },
-    splitText: {
-      color: theme.textSecondary,
-      fontSize: fontSizes.sm,
-    },
-    statusText: {
-      color: theme.textSecondary,
-      fontWeight: fontWeights.semibold,
-      fontSize: fontSizes.sm,
-    },
-
-    // ── Перенос в банк / кошелёк ──
-    transferCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.md,
-      padding: spacing.lg,
-      borderRadius: radius.xxl,
-      backgroundColor: withAlpha(theme.primary, 0.06),
-    },
-    transferIcon: {
-      width: 48,
-      height: 48,
-      borderRadius: radius.lg,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    transferTitleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      flexWrap: 'wrap',
-      gap: spacing.sm,
-    },
-    transferTitle: {
-      color: theme.textPrimary,
-      fontWeight: fontWeights.bold,
-      fontSize: fontSizes.lg,
-    },
-    amountChip: {
-      backgroundColor: withAlpha(theme.coins, 0.25),
-      borderRadius: radius.sm,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: 2,
-    },
-    amountChipText: {
-      color: theme.textPrimary,
-      fontWeight: fontWeights.bold,
       fontSize: fontSizes.md,
-    },
-    transferText: {
-      color: theme.textSecondary,
-      fontSize: fontSizes.sm,
       marginTop: 2,
     },
 

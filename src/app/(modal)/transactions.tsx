@@ -31,7 +31,7 @@ const TYPE_LABELS: Record<string, string> = {
   gift_reward: 'Монеты из подарка',
   level_up: 'Новый уровень',
   minigame_reward: 'Аркада',
-  adventure_payout: 'Итоги приключения',
+  adventure_payout: 'Итоги работы',
 };
 
 export default function TransactionsScreen() {
@@ -74,7 +74,7 @@ export default function TransactionsScreen() {
               Операций пока нет
             </Text>
             <Text style={[styles.emptyText, { fontSize: scaledFont('md') }]}>
-              Пройди урок или начни приключение — здесь появятся первые монеты
+              Пройди урок или начни работу — здесь появятся первые монеты
             </Text>
           </View>
         ) : (

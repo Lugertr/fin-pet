@@ -55,8 +55,7 @@ export function StartStage({
 
             <View style={styles.startBadge}>
               <Text style={[styles.startBadgeText, { fontSize: scaledFont('sm') }]}>
-                {branchName} • {session.countsAsQuest ? 'Задание приключения' : 'Тренировка'} •{' '}
-                {ARCADE_ENERGY_COST}⚡
+                {branchName} • Тренировка • {ARCADE_ENERGY_COST}⚡
               </Text>
             </View>
 

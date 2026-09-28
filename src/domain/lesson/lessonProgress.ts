@@ -102,6 +102,12 @@ export function completedNodeCount(plan: LessonPlan, state: LessonProgressState)
   return plan.nodes.filter((node) => isNodeComplete(plan, state, node.index)).length;
 }
 
+/** Доля пройденного урока (узлы трека) — 1, если урок завершён. Для выплаты
+ * за смену, закончившуюся раньше урока. */
+export function lessonProgressRatio(plan: LessonPlan, state: LessonProgressState): number {
+  return completedNodeCount(plan, state) / totalNodeCount(plan);
+}
+
 /**
  * Можно ли открыть узел с трека: пройденные — чтобы перечитать и перепройти,
  * и текущий. Будущие закрыты.

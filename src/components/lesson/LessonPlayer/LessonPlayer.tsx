@@ -8,8 +8,11 @@
 //
 // Урок, пройденный раньше, открывается обзором: ситуацию и теорию можно
 // перечитать, тест и мини-игру — перепройти (лучшая попытка; без ошибок во
-// всём уроке — звезда), награды за повтор нет (§9.7). Награда за первое
-// прохождение пока прежняя (lessonRewards.ts); вариант B — этап 5.
+// всём уроке — звезда), награды за повтор нет (§9.7). Тап по пройденному этапу
+// на треке смены открывает обзор одного этапа (focusNode) — так же.
+// Урок смены: события платит бюджет смены, ошибка стоит энергии, урок пройден
+// — смена завершается (итоги на хабе). Награда за первое прохождение пока
+// прежняя (lessonRewards.ts); вариант B — этап 5.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -118,11 +121,14 @@ function readingCards(node: PlanNode) {
 
 export function LessonPlayer({
   lesson,
+  focusNode,
   onExit,
   onRequestExit,
   onExitGuardChange,
 }: {
   lesson: Lesson;
+  /** Открыт с трека смены пройденный этап — только он: перечитать и перепройти. */
+  focusNode?: number;
   onExit: () => void;
   /** Выход посреди урока — через подтверждение (модалка паузы экрана). */
   onRequestExit: () => void;
@@ -133,24 +139,24 @@ export function LessonPlayer({
   const plan = useMemo(() => planForLesson(lesson, isDemo), [lesson, isDemo]);
   const saveLessonState = useLessonsStore((s) => s.saveLessonState);
   const finishLesson = useLessonsStore((s) => s.finishLesson);
-  // Урок той же ветки, что и активное приключение, — задание приключения:
-  // +10% монет, ускорение таймера, события платит бюджет приключения, ошибка
-  // стоит энергии. Повтор пройденного урока заданием не считается (§9.7).
-  const isActiveBranch = useAdventureStore((s) => s.isActiveBranch(lesson.branch_id));
+  // Урок смены: +10% монет, события платит бюджет смены, ошибка стоит
+  // энергии, урок пройден — смена завершается. Повтор пройденного урока
+  // уроком смены не считается (§9.7).
+  const isShiftLesson = useAdventureStore((s) => s.isShiftLesson(lesson.id, lesson.branch_id));
   const adventureBudget = useAdventureStore((s) =>
     s.currentAdventure?.status === 'active' ? s.currentAdventure.budget : null
   );
   const applyLessonEventChoice = useAdventureStore((s) => s.applyLessonEventChoice);
-  const registerQuestCompletion = useAdventureStore((s) => s.registerQuestCompletion);
+  const completeAdventure = useAdventureStore((s) => s.completeAdventure);
   const currentMood = usePetStore((s) => s.currentMood);
   const laptopCoinBonusPercent = useShopStore((s) => s.getTotalCoinBonusPercent());
 
   const [start] = useState(() => {
     const stored =
       useLessonsStore.getState().lessonStates[lesson.id] ?? createLessonProgress(lesson.id);
-    if (stored.completedAt) {
+    if (stored.completedAt || focusNode !== undefined) {
       return {
-        isReplay: true,
+        isReplay: Boolean(stored.completedAt),
         state: stored,
         segment: { kind: 'overview' } as Segment,
         dirty: false,
@@ -160,7 +166,9 @@ export function LessonPlayer({
     return { isReplay: false, ...entry, dirty: entry.state !== stored };
   });
   const { isReplay } = start;
-  const isAdventureQuest = !isReplay && isActiveBranch;
+  // Перечитать/перепройти (обзор) — сегменты возвращают к обзору, без наград.
+  const isRevisit = isReplay || focusNode !== undefined;
+  const isAdventureQuest = !isReplay && isShiftLesson;
 
   const [progress, setProgress] = useState(start.state);
   const progressRef = useRef(start.state);
@@ -177,7 +185,7 @@ export function LessonPlayer({
 
   const guarded =
     segment.kind === 'reading' || segment.kind === 'activity' || segment.kind === 'conclusion';
-  const needsExitConfirm = guarded && !isReplay;
+  const needsExitConfirm = guarded && !isRevisit;
   useEffect(() => {
     onExitGuardChange(needsExitConfirm);
   }, [needsExitConfirm, onExitGuardChange]);
@@ -202,7 +210,7 @@ export function LessonPlayer({
 
   /** Сегмент пройден: дальше по уроку или — при повторе — назад к обзору. */
   const afterSegment = (next: LessonProgressState) => {
-    if (isReplay) {
+    if (isRevisit) {
       const result = finishLesson(plan, next);
       progressRef.current = result.state;
       setProgress(result.state);
@@ -248,14 +256,15 @@ export function LessonPlayer({
   };
 
   const handleConclusionDone = () => {
-    if (isReplay) {
+    if (isRevisit) {
       show({ kind: 'overview' });
       return;
     }
     const result = finishLesson(plan, progressRef.current);
     progressRef.current = result.state;
     setProgress(result.state);
-    if (result.firstCompletion && isAdventureQuest) void registerQuestCompletion();
+    // Урок смены пройден — смена завершается (полная доля), итоги — на хабе.
+    if (result.firstCompletion && isAdventureQuest) void completeAdventure();
     const multiplier = 1 + (isAdventureQuest ? 0.1 : 0) + laptopCoinBonusPercent / 100;
     const coins = result.firstCompletion ? Math.round(lessonCompletionCoins(plan) * multiplier) : 0;
     show({
@@ -316,6 +325,7 @@ export function LessonPlayer({
         return (
           <LessonOverview
             plan={plan}
+            nodeIndex={focusNode}
             progress={progress}
             eventFor={pickedEvent}
             onOpenReading={(node) => show({ kind: 'reading', node })}

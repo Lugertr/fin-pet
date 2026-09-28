@@ -5,8 +5,7 @@
 import {
   AdventureRecord,
   actualSpend,
-  adventureProgressRatio,
-  applyTimeAdjustment,
+  canAfford,
   computeAdventurePayout,
   clampAllocationAmount,
   isPlanBonusEligible,
@@ -23,19 +22,15 @@ function makeAdventure(overrides: Partial<AdventureRecord> = {}): AdventureRecor
     adventureNumber: 1,
     status: 'active',
     branchId: 1,
+    lessonId: 1,
     projectedIncome: 100,
     budget: 100,
     plan: { mandatory: 40, optional: 30, savings: 30 },
     fact: { mandatory: 0, optional: 0, savings: 0 },
     startedAt: new Date(0).toISOString(),
-    plannedEndAt: new Date(8 * 60 * 60 * 1000).toISOString(),
+    plannedEndAt: new Date(24 * 60 * 60 * 1000).toISOString(),
     completedAt: null,
-    timeAdjustmentMs: 0,
-    questsCompleted: 0,
     xpAwarded: null,
-    pendingEventTemplateId: null,
-    pendingEventRolledAt: null,
-    nextEventCheckAt: null,
     ...overrides,
   };
 }
@@ -95,7 +90,7 @@ describe('isPlanBonusEligible (план vs факт)', () => {
   });
 });
 
-describe('remainingMs / isTimeUp / applyTimeAdjustment', () => {
+describe('remainingMs / isTimeUp (смена — 24 часа)', () => {
   it('remainingMs не уходит в отрицательное значение после дедлайна', () => {
     const adventure = makeAdventure({ plannedEndAt: new Date(1000).toISOString() });
     expect(remainingMs(adventure, 5000)).toBe(0);
@@ -110,79 +105,6 @@ describe('remainingMs / isTimeUp / applyTimeAdjustment', () => {
     const adventure = makeAdventure({ plannedEndAt: new Date(1000).toISOString() });
     expect(isTimeUp(adventure, 1000)).toBe(true);
     expect(isTimeUp(adventure, 999)).toBe(false);
-  });
-
-  it('applyTimeAdjustment ускоряет (отрицательная дельта) в пределах пола', () => {
-    const currentEnd = new Date(100_000).toISOString();
-    const next = applyTimeAdjustment(currentEnd, -50_000, 0, 10_000);
-    // 100000 - 50000 = 50000, что больше пола (0 + 10000) -> применяется полностью
-    expect(new Date(next).getTime()).toBe(50_000);
-  });
-
-  it('applyTimeAdjustment не даёt таймеру уйти ниже минимального остатка', () => {
-    const currentEnd = new Date(20_000).toISOString();
-    // Огромное ускорение увело бы в прошлое — должно упереться в пол (now + min)
-    const next = applyTimeAdjustment(currentEnd, -1_000_000, 0, 15_000);
-    expect(new Date(next).getTime()).toBe(15_000);
-  });
-
-  it('applyTimeAdjustment не «оживляет» приключение, у которого время уже вышло', () => {
-    const currentEnd = new Date(10_000).toISOString();
-    // Задание после дедлайна: раньше конец сдвигался на now + пол = 65000.
-    expect(applyTimeAdjustment(currentEnd, -50_000, 50_000, 15_000)).toBe(currentEnd);
-    expect(applyTimeAdjustment(currentEnd, 60_000, 50_000, 15_000)).toBe(currentEnd);
-  });
-
-  it('applyTimeAdjustment: ускорение при остатке меньше пола не продлевает таймер', () => {
-    // Осталось 10000 при поле 15000 — раньше конец уезжал на now + 15000.
-    const currentEnd = new Date(10_000).toISOString();
-    const next = applyTimeAdjustment(currentEnd, -45_000, 0, 15_000);
-    expect(new Date(next).getTime()).toBe(10_000);
-  });
-
-  it('applyTimeAdjustment: задержка (положительная дельта) применяется целиком', () => {
-    const currentEnd = new Date(100_000).toISOString();
-    const next = applyTimeAdjustment(currentEnd, 20_000, 0, 15_000);
-    expect(new Date(next).getTime()).toBe(120_000);
-  });
-});
-
-describe('adventureProgressRatio (доля награды при досрочном завершении)', () => {
-  it('равен 0 в момент старта', () => {
-    const adventure = makeAdventure({
-      startedAt: new Date(0).toISOString(),
-      plannedEndAt: new Date(8 * 60 * 60 * 1000).toISOString(),
-    });
-    expect(adventureProgressRatio(adventure, 0)).toBe(0);
-  });
-
-  it('растёт линейно с прошедшим временем', () => {
-    const adventure = makeAdventure({
-      startedAt: new Date(0).toISOString(),
-      plannedEndAt: new Date(8 * 60 * 60 * 1000).toISOString(),
-    });
-    expect(adventureProgressRatio(adventure, 4 * 60 * 60 * 1000)).toBeCloseTo(0.5);
-  });
-
-  it('равен ровно 1, когда время вышло (обычное завершение — полная награда)', () => {
-    const adventure = makeAdventure({
-      startedAt: new Date(0).toISOString(),
-      plannedEndAt: new Date(8 * 60 * 60 * 1000).toISOString(),
-    });
-    expect(adventureProgressRatio(adventure, 8 * 60 * 60 * 1000)).toBe(1);
-  });
-
-  it('не превышает 1, даже если nowMs позже plannedEndAt', () => {
-    const adventure = makeAdventure({
-      startedAt: new Date(0).toISOString(),
-      plannedEndAt: new Date(8 * 60 * 60 * 1000).toISOString(),
-    });
-    expect(adventureProgressRatio(adventure, 999 * 60 * 60 * 1000)).toBe(1);
-  });
-
-  it('равен 1, если приключение ещё не начато (нет startedAt/plannedEndAt)', () => {
-    const adventure = makeAdventure({ startedAt: null, plannedEndAt: null });
-    expect(adventureProgressRatio(adventure, Date.now())).toBe(1);
   });
 });
 
@@ -223,5 +145,17 @@ describe('plannedSpend / actualSpend (план «Потратить» — одн
   it('старый план надо+хочу считается той же суммой', () => {
     const adventure = makeAdventure({ plan: { mandatory: 40, optional: 30, savings: 30 } });
     expect(plannedSpend(adventure)).toBe(70);
+  });
+});
+
+describe('canAfford (§12.3 — без частичной оплаты)', () => {
+  it('трата доступна, только если бюджета хватает целиком', () => {
+    expect(canAfford(-20, 20)).toBe(true);
+    expect(canAfford(-20, 19)).toBe(false);
+  });
+
+  it('бесплатный вариант и пополнение доступны всегда', () => {
+    expect(canAfford(0, 0)).toBe(true);
+    expect(canAfford(15, 0)).toBe(true);
   });
 });

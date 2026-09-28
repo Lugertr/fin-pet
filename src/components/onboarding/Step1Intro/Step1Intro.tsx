@@ -125,7 +125,7 @@ export function Step1Intro({
       </TouchableOpacity>
       {demo && (
         <Text style={[styles.introDemoHint, { fontSize: scaledFont('md') }]}>
-          Всё ускорено для показа: события сразу, короткие раунды, новый уровень за приключение.
+          Всё ускорено для показа: короткие уроки и раунды, новый уровень за каждую смену.
         </Text>
       )}
     </Animated.View>
