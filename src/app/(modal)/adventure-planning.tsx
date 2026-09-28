@@ -35,7 +35,7 @@ import { useAdventureStore } from '@/lib/stores/adventureStore';
 import { usePetStore } from '@/lib/stores/petStore';
 import { useUserStore } from '@/lib/stores/userStore';
 import { Alert } from '@/lib/utils/alert';
-import { formatCoins } from '@/lib/utils/formatters';
+import { formatCoins, formatPrice } from '@/lib/utils/formatters';
 import { createAdventurePlanningStyles } from '@/styles/screens/modal/_adventure-planning.styles';
 import { useResponsive, useTheme } from '@/theme';
 import { withAlpha } from '@/theme/colorUtils';
@@ -354,7 +354,7 @@ export default function AdventurePlanningScreen() {
                 </TouchableOpacity>
               </View>
               <Text style={[styles.walletCaption, { fontSize: scaledFont('sm') }]}>
-                В кошельке {wallet} C. Что не потратишь — вернётся после смены.
+                В кошельке {formatPrice(wallet)}. Что не потратишь — вернётся после смены.
               </Text>
             </View>
           </Card>
