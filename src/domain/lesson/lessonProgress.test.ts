@@ -6,6 +6,7 @@ import { NodeLessonContent } from '@/domain/content/LessonContent';
 import { LessonPlan, buildLessonPlan } from './LessonPlan';
 import {
   LessonProgressState,
+  alignProgressWithStructure,
   completedNodeCount,
   createLessonProgress,
   currentPosition,
@@ -219,5 +220,49 @@ describe('перепрохождение и «идеально»', () => {
       firstCompletion: false,
       state: { completedAt: null },
     });
+  });
+});
+
+describe('alignProgressWithStructure — контент урока поменялся', () => {
+  const started: LessonProgressState = {
+    ...createLessonProgress(7),
+    readNodes: [0],
+    results: { '0.0': { completed: true, perfect: true, attempts: 1 } },
+    eventPicks: { '0.1': 'x' },
+    structureKey: 'test,event|test',
+  };
+
+  it('та же структура — то же состояние', () => {
+    expect(alignProgressWithStructure(started, 'test,event|test')).toBe(started);
+  });
+
+  it('другая структура — позиция с начала, отпечаток новый', () => {
+    const aligned = alignProgressWithStructure(started, 'minigame:quiz,event|test');
+    expect(aligned).toMatchObject({
+      readNodes: [],
+      results: {},
+      eventPicks: {},
+      structureKey: 'minigame:quiz,event|test',
+    });
+  });
+
+  it('отпечаток неизвестен (запись до миграции v12) — тоже с начала', () => {
+    const aligned = alignProgressWithStructure(
+      { ...started, structureKey: null },
+      'test,event|test'
+    );
+    expect(aligned.results).toEqual({});
+    expect(aligned.structureKey).toBe('test,event|test');
+  });
+
+  it('завершение и звезда не отнимаются', () => {
+    const done = {
+      ...started,
+      completedAt: '2026-09-20T10:00:00.000Z',
+      perfectAt: '2026-09-21T10:00:00.000Z',
+    };
+    const aligned = alignProgressWithStructure(done, 'test|test');
+    expect(aligned.completedAt).toBe(done.completedAt);
+    expect(hasStar(aligned)).toBe(true);
   });
 });

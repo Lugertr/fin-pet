@@ -5,7 +5,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LessonProgressState, createLessonProgress } from '@/domain/lesson/lessonProgress';
-import { planForLesson } from '@/domain/lesson/LessonPlan';
+import { lessonStructureKey, planForLesson } from '@/domain/lesson/LessonPlan';
 import { convertLegacyTotalXp } from '@/domain/player/PlayerLevel';
 import { LEGACY_LESSONS_STORE_KEY } from '@/lib/lessons/importLegacyLessonProgress';
 import { useUserStore } from '@/lib/stores/userStore';
@@ -33,6 +33,8 @@ jest.mock('@/data/local/repositories', () => ({
 }));
 
 const PROFILE = 'profile-1';
+const keyOf = (lessonId: number) =>
+  lessonStructureKey(planForLesson(LESSONS.find((l) => l.id === lessonId)!));
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 beforeEach(async () => {
@@ -94,8 +96,51 @@ describe('useLessonsStore — прогресс в SQLite', () => {
     };
     useLessonsStore.getState().saveLessonState(saved);
     await flush();
-    expect(mockRows.get(`${PROFILE}:${saved.lessonId}`)).toEqual(saved);
+    // Сохраняется с отпечатком структуры урока (для выравнивания после правок контента).
+    expect(mockRows.get(`${PROFILE}:${saved.lessonId}`)).toEqual({
+      ...saved,
+      structureKey: keyOf(saved.lessonId),
+    });
     expect(useLessonsStore.getState().progress[saved.lessonId]?.status).toBe('in_progress');
+  });
+
+  it('структура урока та же — позиция в уроке после перезапуска на месте', async () => {
+    const lessonId = LESSONS[1].id;
+    mockRows.set(`${PROFILE}:${lessonId}`, {
+      ...createLessonProgress(lessonId),
+      readNodes: [0],
+      structureKey: keyOf(lessonId),
+    });
+
+    await useLessonsStore.getState().load(PROFILE);
+
+    expect(useLessonsStore.getState().lessonStates[lessonId].readNodes).toEqual([0]);
+  });
+
+  it('контент урока поменялся — позиция с начала, завершение и звезда остаются', async () => {
+    const lessonId = LESSONS[1].id;
+    mockRows.set(`${PROFILE}:${lessonId}`, {
+      ...createLessonProgress(lessonId),
+      readNodes: [0],
+      results: { '0.0': { completed: true, perfect: true, attempts: 1 } },
+      completedAt: '2026-09-20T10:00:00.000Z',
+      perfectAt: '2026-09-20T10:00:00.000Z',
+      structureKey: 'test|test',
+    });
+
+    await useLessonsStore.getState().load(PROFILE);
+    await flush();
+
+    const state = useLessonsStore.getState().lessonStates[lessonId];
+    expect(state).toMatchObject({
+      readNodes: [],
+      results: {},
+      completedAt: '2026-09-20T10:00:00.000Z',
+      perfectAt: '2026-09-20T10:00:00.000Z',
+      structureKey: keyOf(lessonId),
+    });
+    // Выровненное сразу сохранено.
+    expect(mockRows.get(`${PROFILE}:${lessonId}`)?.structureKey).toBe(keyOf(lessonId));
   });
 
   it('опыт сохраняется', async () => {

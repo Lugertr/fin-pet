@@ -11,6 +11,7 @@ interface LessonProgressRow {
   event_picks: string;
   completed_at: string | null;
   perfect_at: string | null;
+  structure_key: string | null;
 }
 
 /** Битый JSON (не должен случаться) не роняет загрузку — урок просто начнётся с начала. */
@@ -30,6 +31,7 @@ function rowToState(row: LessonProgressRow): LessonProgressState {
     eventPicks: parseJson(row.event_picks, {}),
     completedAt: row.completed_at,
     perfectAt: row.perfect_at,
+    structureKey: row.structure_key ?? null,
   };
 }
 
@@ -49,14 +51,16 @@ export class SqliteLessonProgressRepository implements LessonProgressRepository 
     const db = await this.getDb();
     await db.runAsync(
       `INSERT INTO lesson_progress
-        (profile_id, lesson_id, read_nodes, results, event_picks, completed_at, perfect_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        (profile_id, lesson_id, read_nodes, results, event_picks, completed_at, perfect_at,
+         structure_key, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT (profile_id, lesson_id) DO UPDATE SET
         read_nodes = excluded.read_nodes,
         results = excluded.results,
         event_picks = excluded.event_picks,
         completed_at = excluded.completed_at,
         perfect_at = excluded.perfect_at,
+        structure_key = excluded.structure_key,
         updated_at = excluded.updated_at`,
       [
         profileId,
@@ -66,6 +70,7 @@ export class SqliteLessonProgressRepository implements LessonProgressRepository 
         JSON.stringify(state.eventPicks),
         state.completedAt,
         state.perfectAt,
+        state.structureKey,
         new Date().toISOString(),
       ]
     );

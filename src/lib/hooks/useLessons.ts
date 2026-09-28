@@ -24,9 +24,10 @@ import {
   pickLookToGrant,
 } from '@/domain/player/PlayerLevel';
 import { getLessonProgressRepository } from '@/data/local/repositories';
-import { LessonPlan } from '@/domain/lesson/LessonPlan';
+import { LessonPlan, lessonStructureKey, planForLesson } from '@/domain/lesson/LessonPlan';
 import {
   LessonProgressState,
+  alignProgressWithStructure,
   createLessonProgress,
   settleLesson,
 } from '@/domain/lesson/lessonProgress';
@@ -153,6 +154,31 @@ export const LESSONS: Lesson[] = contentRepository.getLessonsSync();
 export const FIVE_LETTERS_WORDS: FiveLettersWordContent[] =
   contentRepository.getFiveLettersWordsSync();
 
+const structureKeys = new Map<number, string>();
+
+/** Отпечаток структуры урока в текущем контенте (LessonPlan.lessonStructureKey); null — урока нет. */
+function structureKeyFor(lessonId: number): string | null {
+  const cached = structureKeys.get(lessonId);
+  if (cached !== undefined) return cached;
+  const lesson = LESSONS.find((l) => l.id === lessonId);
+  if (!lesson) return null;
+  const key = lessonStructureKey(planForLesson(lesson));
+  structureKeys.set(lessonId, key);
+  return key;
+}
+
+/**
+ * Сохраняемое состояние помечается структурой урока. Новое (без отпечатка)
+ * записано плеером по текущему контенту — просто помечается; с другим
+ * отпечатком — выравнивается (не должно случаться после load).
+ */
+function stampStructure(state: LessonProgressState): LessonProgressState {
+  const key = structureKeyFor(state.lessonId);
+  if (key === null || state.structureKey === key) return state;
+  if (state.structureKey === null) return { ...state, structureKey: key };
+  return alignProgressWithStructure(state, key);
+}
+
 /** Статус урока в прежнем виде — для экранов, которые ещё не перешли на узлы. */
 function toLegacyProgress(
   states: Record<number, LessonProgressState>
@@ -268,10 +294,25 @@ export const useLessonsStore = create<LessonsState>()((set, get) => {
         console.warn('[Lessons] Не удалось перенести старый прогресс уроков:', error);
       }
       try {
-        const [states, totalXp] = await Promise.all([
+        const [stored, totalXp] = await Promise.all([
           repository.getAllForProfile(profileId),
           repository.getTotalXp(profileId),
         ]);
+        // Контент урока поменялся (или отпечаток неизвестен — запись до
+        // миграции v12) — позиция в уроке с начала, завершение и звезда
+        // остаются (alignProgressWithStructure). Выровненное сразу сохраняется.
+        const states = stored.map((state) => {
+          const key = structureKeyFor(state.lessonId);
+          const aligned = key === null ? state : alignProgressWithStructure(state, key);
+          if (aligned !== state) {
+            repository
+              .save(profileId, aligned)
+              .catch((error) =>
+                console.warn('[Lessons] Не удалось обновить прогресс урока:', error)
+              );
+          }
+          return aligned;
+        });
         setLessonStates(Object.fromEntries(states.map((state) => [state.lessonId, state])));
         set({ totalXp, loadStatus: 'loaded' });
       } catch (error) {
@@ -281,8 +322,9 @@ export const useLessonsStore = create<LessonsState>()((set, get) => {
     },
 
     saveLessonState: (state) => {
-      setLessonStates({ ...get().lessonStates, [state.lessonId]: state });
-      persistLessonState(state);
+      const stamped = stampStructure(state);
+      setLessonStates({ ...get().lessonStates, [stamped.lessonId]: stamped });
+      persistLessonState(stamped);
     },
 
     finishLesson: (plan, state, options = {}) => {

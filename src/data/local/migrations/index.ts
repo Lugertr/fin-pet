@@ -232,4 +232,27 @@ export const MIGRATIONS: Migration[] = [
       WHERE total_xp > 0;
     `,
   },
+  {
+    version: 12,
+    // Все уроки — в формате этапов (этап 6, 28.09.2026), и контент уроков ещё
+    // будут править. Прогресс хранится по номерам «этап.действие», поэтому к
+    // нему пишется отпечаток структуры урока (LessonPlan.lessonStructureKey):
+    // не совпал с контентом — позиция в уроке начинается заново, завершение и
+    // звезда остаются (useLessons.load). Уроки 1–3 были в формате этапов и до
+    // этой миграции — их прогресс помечается их тогдашней структурой, чтобы
+    // не сбросить позицию; у остальных отпечаток неизвестен (NULL) — они
+    // переведены в этапы только сейчас.
+    sql: `
+      ALTER TABLE lesson_progress ADD COLUMN structure_key TEXT;
+      UPDATE lesson_progress
+        SET structure_key = 'test,event|minigame:five_letters,test|event,minigame:tinder_swipe'
+        WHERE lesson_id = 1;
+      UPDATE lesson_progress
+        SET structure_key = 'minigame:quiz,event|test|minigame:tinder_swipe,event'
+        WHERE lesson_id = 2;
+      UPDATE lesson_progress
+        SET structure_key = 'test,event|minigame:tinder_swipe|test'
+        WHERE lesson_id = 3;
+    `,
+  },
 ];

@@ -18,6 +18,7 @@ import {
   fiveLettersWordFor,
   isNodeLesson,
   lessonQuestionPools,
+  lessonStructureKey,
   planForLesson,
   planFromLegacyLesson,
   validateNodeLesson,
@@ -86,6 +87,24 @@ describe('buildLessonPlan', () => {
     expect(plan.nodes[1].situation).toBeNull();
     expect(plan.nodes[2].activities.map((a) => a.id)).toEqual(['2.0', '2.1']);
     expect(plan.conclusion?.title).toBe('Итог');
+  });
+
+  it('отпечаток структуры — типы действий по этапам; тексты на него не влияют', () => {
+    const plan = buildLessonPlan(lesson());
+    const key = lessonStructureKey(plan);
+    expect(key.split('|')).toHaveLength(plan.nodes.length);
+    expect(key.split('|')[0]).toBe(
+      plan.nodes[0].activities
+        .map(({ content }) =>
+          content.type === 'minigame' ? `minigame:${content.minigame_type}` : content.type
+        )
+        .join(',')
+    );
+    const renamed = lesson();
+    renamed.nodes[0].cards = [{ title: 'Другое', text: 'Другой текст' }];
+    expect(lessonStructureKey(buildLessonPlan(renamed))).toBe(key);
+    // Демо-план — те же номера действий у оставшихся этапов.
+    expect(key.startsWith(lessonStructureKey(buildLessonPlan(lesson(), true)))).toBe(true);
   });
 
   it('тип узла на треке — по первому действию', () => {
@@ -319,10 +338,20 @@ describe('fiveLettersWordFor — слово для «5 букв»', () => {
 describe('content/lessons.json', () => {
   const lessons = lessonsJson as unknown as AnyLessonContent[];
 
-  it('пилот ветки «Бюджет» — все три урока в формате узлов', () => {
-    const budget = lessons.filter((l) => l.branch_id === 1);
-    expect(budget.length).toBe(3);
-    expect(budget.every(isNodeLesson)).toBe(true);
+  it('все уроки — в формате этапов (узлов)', () => {
+    expect(lessons.length).toBeGreaterThan(0);
+    expect(lessons.filter((l) => !isNodeLesson(l)).map((l) => l.id)).toEqual([]);
+  });
+
+  it('в каждой теме уроки пронумерованы по порядку, без пропусков и повторов', () => {
+    const branchIds = [...new Set(lessons.map((l) => l.branch_id))];
+    for (const branchId of branchIds) {
+      const order = lessons
+        .filter((l) => l.branch_id === branchId)
+        .map((l) => l.order_index)
+        .sort((a, b) => a - b);
+      expect(order).toEqual(order.map((_, i) => i + 1));
+    }
   });
 
   it('слова «5 букв», заданные в уроках, есть в общем банке', () => {

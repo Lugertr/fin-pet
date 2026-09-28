@@ -36,6 +36,12 @@ export interface LessonProgressState {
   completedAt: string | null;
   /** Первый раз урок стал идеальным — звезда. */
   perfectAt: string | null;
+  /**
+   * Отпечаток структуры урока, по которой записан прогресс
+   * (LessonPlan.lessonStructureKey); null — неизвестен (новое состояние или
+   * запись до миграции v12).
+   */
+  structureKey: string | null;
 }
 
 export type LessonPosition =
@@ -54,7 +60,23 @@ export function createLessonProgress(lessonId: number): LessonProgressState {
     eventPicks: {},
     completedAt: null,
     perfectAt: null,
+    structureKey: null,
   };
+}
+
+/**
+ * Прогресс записан по другой структуре урока (контент поменялся) — позиция
+ * внутри урока начинается заново: прочитанное, результаты и выпавшие события
+ * сбрасываются, иначе старые номера «этап.действие» засчитали бы другие
+ * действия. Завершение урока и звезда сохраняются (§4.5, §8: заработанное не
+ * отнимается). Совпадает — то же состояние.
+ */
+export function alignProgressWithStructure(
+  state: LessonProgressState,
+  structureKey: string
+): LessonProgressState {
+  if (state.structureKey === structureKey) return state;
+  return { ...state, readNodes: [], results: {}, eventPicks: {}, structureKey };
 }
 
 function hasReading(node: PlanNode): boolean {

@@ -169,6 +169,27 @@ export function planForLesson(lesson: AnyLessonContent, demo = false): LessonPla
   return isNodeLesson(lesson) ? buildLessonPlan(lesson, demo) : planFromLegacyLesson(lesson, demo);
 }
 
+/**
+ * Отпечаток структуры урока — типы действий по этапам, например
+ * «test,event|minigame:quiz|test». Прогресс урока хранится по номерам
+ * «этап.действие»: если структура в контенте поменялась, старые номера
+ * указывают на другие действия, и такой прогресс выравнивается
+ * (lessonProgress.alignProgressWithStructure). Тексты карточек и вопросов на
+ * отпечаток не влияют — правка текста прогресс не сбрасывает. Считается по
+ * полному плану (не демо): номера действий у демо-плана те же.
+ */
+export function lessonStructureKey(plan: LessonPlan): string {
+  return plan.nodes
+    .map((node) =>
+      node.activities
+        .map(({ content }) =>
+          content.type === 'minigame' ? `minigame:${content.minigame_type}` : content.type
+        )
+        .join(',')
+    )
+    .join('|');
+}
+
 // ── Правила состава урока (проверяются тестом контента) ──
 
 function isBlank(text: string | undefined): boolean {

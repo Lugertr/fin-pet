@@ -9,6 +9,7 @@ import {
   ArcadeSwipeCardsContent,
   BranchContent,
   FiveLettersWordContent,
+  AnyLessonContent,
   LessonContent,
   QuestionContent,
 } from '@/domain/content/LessonContent';
@@ -133,7 +134,7 @@ describe('buildBranchGameSession', () => {
 
 describe('контент Аркады', () => {
   const realSources: BranchArcadeSources = {
-    lessons: lessonsJson as LessonContent[],
+    lessons: lessonsJson as unknown as AnyLessonContent[],
     swipeCards: arcadeSwipeCardsJson as ArcadeSwipeCardsContent[],
     words: fiveLettersWordsJson as FiveLettersWordContent[],
   };
