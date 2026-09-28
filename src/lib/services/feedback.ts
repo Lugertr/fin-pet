@@ -7,7 +7,7 @@ import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
 
 export type SoundType =
-  'correct' | 'wrong' | 'coin' | 'levelUp' | 'click' | 'daily' | 'error' | 'success';
+  'correct' | 'wrong' | 'coin' | 'levelUp' | 'click' | 'daily' | 'error' | 'success' | 'cardFlip';
 
 export type HapticType =
   'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error' | 'selection';
@@ -25,6 +25,8 @@ const SOUND_MAP: Record<SoundType, AudioSource> = {
   daily: require('../../../assets/sounds/daily.mp3'),
   error: require('../../../assets/sounds/error.mp3'),
   success: require('../../../assets/sounds/success.mp3'),
+  // Свайп карточки в «Свайпах» (TinderSwipeGame).
+  cardFlip: require('../../../assets/sounds/card_flip.mp3'),
 };
 
 export type FeedbackPreset =

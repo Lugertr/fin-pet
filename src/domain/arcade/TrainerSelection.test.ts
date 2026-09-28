@@ -13,7 +13,7 @@ import {
   LessonContent,
   QuestionContent,
 } from '@/domain/content/LessonContent';
-import { lessonQuestionPools } from '@/domain/lesson/LessonPlan';
+import { lessonQuestionPools, swipeQuestionErrors } from '@/domain/lesson/LessonPlan';
 import {
   BranchArcadeSources,
   buildBranchGameSession,
@@ -166,6 +166,13 @@ describe('контент Аркады', () => {
         expect(lessonIds.has(card.id)).toBe(false);
       }
     }
+  });
+
+  it('карточка свайпа — вопрос «да / нет» с вариантами [нет, да]', () => {
+    const errors = realSources.swipeCards.flatMap((set) =>
+      swipeQuestionErrors(`тема ${set.branch_id}`, set.cards)
+    );
+    expect(errors).toEqual([]);
   });
 });
 

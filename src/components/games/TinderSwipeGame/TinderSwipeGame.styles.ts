@@ -163,6 +163,18 @@ export function createTinderSwipeGameStyles({ theme }: TinderSwipeGameStylesPara
       gap: spacing.xxxl,
       marginBottom: spacing.lg,
     },
+    // Колонка кнопки: кружок ✗ / ✓ и под ним — что значит этот ответ.
+    buttonColumn: {
+      alignItems: 'center',
+      width: 120,
+      gap: spacing.xs,
+    },
+    buttonCaption: {
+      color: theme.textSecondary,
+      fontSize: fontSizes.sm,
+      fontWeight: fontWeights.semibold,
+      textAlign: 'center',
+    },
     swipeButtonOuter: {
       width: 64,
       height: 64,

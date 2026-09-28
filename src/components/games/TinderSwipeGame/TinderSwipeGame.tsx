@@ -1,11 +1,12 @@
 // src/components/games/TinderSwipeGame/TinderSwipeGame.tsx
 // Мини-игра в стиле Tinder/Reigns — свайпы для оценки финансовых ситуаций.
 //
-// «Безопасно»/«Рискованно» не закреплены жёстко за правой/левой стороной —
-// какой из options[0]/options[1] считается безопасным, определяет
-// correct_answer конкретного вопроса (см. content/lessons.json), поэтому
-// цвет и подпись угловых плашек и подсветка при свайпе считаются от этого
-// один раз на вопрос (leftIsSafe), а не хардкодятся по стороне.
+// Карточка — вопрос «да / нет»: влево (✗) — «нет», options[0]; вправо (✓) —
+// «да», options[1] (решение пользователя 28.09.2026; правило контента
+// проверяет LessonPlan.validateNodeLesson и тест карточек Аркады). Стороны,
+// значки и цвета постоянные и не зависят от правильного ответа — раньше ✓ и
+// «безопасно» ставились на верный вариант, и ответ был виден заранее.
+// Верно ли — видно только после свайпа. Под кнопками — что значит ответ.
 
 import { Ionicons } from '@expo/vector-icons';
 import { useRef, useState } from 'react';
@@ -54,7 +55,7 @@ export function TinderSwipeGame({
 }: TinderSwipeGameProps) {
   const { theme } = useTheme();
   const { width } = useResponsive();
-  const { trigger, triggerHaptic } = useFeedback();
+  const { trigger, playSound, triggerHaptic } = useFeedback();
 
   const [isAnimating, setIsAnimating] = useState(false);
   const [answeredOption, setAnsweredOption] = useState<string | null>(null);
@@ -72,9 +73,8 @@ export function TinderSwipeGame({
   const likeOpacity = useSharedValue(0);
   const nopeOpacity = useSharedValue(0);
 
-  const leftOption = options[0] || 'Отказаться';
-  const rightOption = options[1] || 'Согласиться';
-  const leftIsSafe = leftOption === correctAnswer;
+  const noOption = options[0] || 'Нет';
+  const yesOption = options[1] || 'Да';
 
   const resetCard = () => {
     translateX.value = withSpring(0);
@@ -97,12 +97,13 @@ export function TinderSwipeGame({
     isProcessingRef.current = true;
     setIsAnimating(true);
 
-    const chosenOption = direction === 'left' ? leftOption : rightOption;
+    const chosenOption = direction === 'left' ? noOption : yesOption;
     const isCorrect = chosenOption === correctAnswer;
     setAnsweredOption(chosenOption);
 
-    // ЗВУК + HAPTIC вызываются ТОЛЬКО здесь
-    trigger(isCorrect ? 'correctAnswer' : 'wrongAnswer');
+    // Звук свайпа — сразу, «верно / неверно» (звук + haptic) — когда карточка
+    // улетела, чтобы звуки не накладывались.
+    playSound('cardFlip');
 
     // Анимируем вылет карточки
     const flyX = direction === 'left' ? -width : width;
@@ -110,6 +111,7 @@ export function TinderSwipeGame({
     rotate.value = withTiming(direction === 'left' ? -30 : 30, { duration: 300 });
 
     setTimeout(() => {
+      trigger(isCorrect ? 'correctAnswer' : 'wrongAnswer');
       onAnswer(chosenOption, isCorrect);
       setTimeout(() => {
         resetCard();
@@ -200,7 +202,7 @@ export function TinderSwipeGame({
               { color: isAnsweredCorrect ? theme.success : theme.error },
             ]}
           >
-            {isAnsweredCorrect ? 'Безопасно' : 'Рискованно'}
+            {isAnsweredCorrect ? 'Верно' : 'Не совсем'}
             {explanation ? `: ${explanation}` : '!'}
           </Text>
         </View>
@@ -216,39 +218,16 @@ export function TinderSwipeGame({
         <GestureDetector gesture={panGesture}>
           <Animated.View style={[styles.card, animatedCardStyle]}>
             <View style={styles.cardInner}>
-              {/* Угловые плашки: какая сторона безопасна/рискованна — не
-                  привязаны к стороне жёстко, см. leftIsSafe выше. */}
+              {/* Угловые плашки — постоянные: влево «нет», вправо «да». */}
               <View
-                style={[
-                  styles.cornerPill,
-                  styles.cornerPillLeft,
-                  { borderColor: leftIsSafe ? theme.success : theme.error },
-                ]}
+                style={[styles.cornerPill, styles.cornerPillLeft, { borderColor: theme.error }]}
               >
-                <Text
-                  style={[
-                    styles.cornerPillText,
-                    { color: leftIsSafe ? theme.success : theme.error },
-                  ]}
-                >
-                  ← {leftIsSafe ? 'безопасно' : 'рискованно'}
-                </Text>
+                <Text style={[styles.cornerPillText, { color: theme.error }]}>← Нет</Text>
               </View>
               <View
-                style={[
-                  styles.cornerPill,
-                  styles.cornerPillRight,
-                  { borderColor: leftIsSafe ? theme.error : theme.success },
-                ]}
+                style={[styles.cornerPill, styles.cornerPillRight, { borderColor: theme.success }]}
               >
-                <Text
-                  style={[
-                    styles.cornerPillText,
-                    { color: leftIsSafe ? theme.error : theme.success },
-                  ]}
-                >
-                  {leftIsSafe ? 'рискованно' : 'безопасно'} →
-                </Text>
+                <Text style={[styles.cornerPillText, { color: theme.success }]}>Да →</Text>
               </View>
 
               <View style={styles.situationIconContainer}>
@@ -259,81 +238,53 @@ export function TinderSwipeGame({
 
               <Text style={styles.questionText}>{question}</Text>
 
-              {/* Индикатор при свайпе вправо */}
+              {/* Индикатор при свайпе вправо — «да» */}
               <Animated.View style={[styles.likeBadge, animatedLikeStyle]}>
-                <Text
-                  style={[
-                    styles.swipeFeedbackText,
-                    { color: leftIsSafe ? theme.error : theme.success },
-                  ]}
-                >
-                  {leftIsSafe ? '⚠️ Рискованно' : '✅ Безопасно'}
-                </Text>
+                <Text style={[styles.swipeFeedbackText, { color: theme.success }]}>✓ Да</Text>
               </Animated.View>
 
-              {/* Индикатор при свайпе влево */}
+              {/* Индикатор при свайпе влево — «нет» */}
               <Animated.View style={[styles.nopeBadge, animatedNopeStyle]}>
-                <Text
-                  style={[
-                    styles.swipeFeedbackText,
-                    { color: leftIsSafe ? theme.success : theme.error },
-                  ]}
-                >
-                  {leftIsSafe ? '✅ Безопасно' : '⚠️ Рискованно'}
-                </Text>
+                <Text style={[styles.swipeFeedbackText, { color: theme.error }]}>✗ Нет</Text>
               </Animated.View>
             </View>
           </Animated.View>
         </GestureDetector>
       </View>
 
-      {/* Кнопки свайпа */}
+      {/* Кнопки свайпа: ✗ — «нет» (options[0]), ✓ — «да» (options[1]); под
+          кнопкой — что значит этот ответ. */}
       <View style={styles.buttonsContainer}>
-        <TouchableOpacity
-          onPress={() => handleButtonSwipe('left')}
-          disabled={disabled || isAnimating}
-          activeOpacity={0.7}
-          style={[
-            styles.swipeButtonOuter,
-            { backgroundColor: withAlpha(leftIsSafe ? theme.success : theme.error, 0.2) },
-          ]}
-        >
-          <View
-            style={[
-              styles.swipeButtonInner,
-              { borderColor: leftIsSafe ? theme.success : theme.error },
-            ]}
-          >
-            <Ionicons
-              name={leftIsSafe ? 'checkmark' : 'close'}
-              size={32}
-              color={leftIsSafe ? theme.success : theme.error}
-            />
+        {(
+          [
+            { direction: 'left', icon: 'close', color: theme.error, label: noOption, word: 'Нет' },
+            {
+              direction: 'right',
+              icon: 'checkmark',
+              color: theme.success,
+              label: yesOption,
+              word: 'Да',
+            },
+          ] as const
+        ).map((button) => (
+          <View key={button.direction} style={styles.buttonColumn}>
+            <TouchableOpacity
+              onPress={() => handleButtonSwipe(button.direction)}
+              disabled={disabled || isAnimating}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`${button.word}: ${button.label}`}
+              style={[styles.swipeButtonOuter, { backgroundColor: withAlpha(button.color, 0.2) }]}
+            >
+              <View style={[styles.swipeButtonInner, { borderColor: button.color }]}>
+                <Ionicons name={button.icon} size={32} color={button.color} />
+              </View>
+            </TouchableOpacity>
+            <Text style={styles.buttonCaption} numberOfLines={2}>
+              {button.label}
+            </Text>
           </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => handleButtonSwipe('right')}
-          disabled={disabled || isAnimating}
-          activeOpacity={0.7}
-          style={[
-            styles.swipeButtonOuter,
-            { backgroundColor: withAlpha(leftIsSafe ? theme.error : theme.success, 0.2) },
-          ]}
-        >
-          <View
-            style={[
-              styles.swipeButtonInner,
-              { borderColor: leftIsSafe ? theme.error : theme.success },
-            ]}
-          >
-            <Ionicons
-              name={leftIsSafe ? 'close' : 'checkmark'}
-              size={32}
-              color={leftIsSafe ? theme.error : theme.success}
-            />
-          </View>
-        </TouchableOpacity>
+        ))}
       </View>
 
       {/* Прогресс + подсказка */}

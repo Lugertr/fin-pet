@@ -260,6 +260,38 @@ describe('validateNodeLesson', () => {
     );
   });
 
+  it('свайп — вопрос «да / нет»: два варианта, текст с «?»', () => {
+    const swipes = (questions: QuestionContent[]): LessonActivityContent => ({
+      type: 'minigame',
+      minigame_type: 'tinder_swipe',
+      questions,
+    });
+    const good = question({
+      question_text: 'Купить?',
+      options: ['Нет', 'Да'],
+      correct_answer: 'Нет',
+    });
+    const noQuestion = question({
+      question_text: 'Купи',
+      options: ['Нет', 'Да'],
+      correct_answer: 'Нет',
+    });
+    const threeOptions = question({
+      question_text: 'Купить?',
+      options: ['Нет', 'Да', 'Может'],
+      correct_answer: 'Нет',
+    });
+    const base = lesson();
+    const withSwipes = (q: QuestionContent[]) =>
+      validateNodeLesson({
+        ...base,
+        nodes: [base.nodes[0], { ...base.nodes[1], activities: [swipes(q)] }, base.nodes[2]],
+      });
+    expect(withSwipes([good])).toEqual([]);
+    expect(withSwipes([noQuestion]).join()).toContain('«да / нет»');
+    expect(withSwipes([threeOptions]).join()).toContain('«да / нет»');
+  });
+
   it('неизвестная мини-игра', () => {
     const errors = validateNodeLesson(
       lesson({

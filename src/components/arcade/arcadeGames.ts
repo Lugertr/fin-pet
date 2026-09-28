@@ -31,7 +31,7 @@ export const ARCADE_GAME_META: Record<
   tinder_swipe: {
     title: 'Свайпы',
     icon: 'swap-horizontal',
-    description: 'Реши, как поступить: смахни карточку влево или вправо',
+    description: 'Ответь «да» или «нет»: смахни карточку вправо или влево',
     unitLabel: 'Ситуация',
     countLabel: 'Ситуаций',
     help: 'game_swipes',

@@ -210,13 +210,27 @@ function questionErrors(where: string, questions: QuestionContent[]): string[] {
 }
 
 /**
+ * «Свайпы» — вопрос «да / нет»: ровно 2 варианта [ответ «нет» (влево ✗),
+ * ответ «да» (вправо ✓)], текст заканчивается «?». Стороны в игре
+ * постоянные, поэтому порядок вариантов важен (TinderSwipeGame).
+ */
+export function swipeQuestionErrors(where: string, questions: QuestionContent[]): string[] {
+  return questions.flatMap((q) =>
+    q.options.length === 2 && q.question_text.trim().endsWith('?')
+      ? []
+      : [`${where}: свайп ${q.id} — вопрос «да / нет» с вариантами [нет, да]`]
+  );
+}
+
+/**
  * Ошибки состава урока из узлов; пустой список — урок корректен.
  * - есть ситуация и заключение, хотя бы один узел;
  * - каждый узел начинается с карточек и содержит хотя бы одно действие;
  * - первый узел — по ситуации: тест или мини-игра и событие;
  * - два события подряд нельзя (по всей цепочке действий урока);
  * - вопросы с вариантами и верным ответом, id вопросов в уроке не повторяются;
- * - мини-игра известного типа (quiz и tinder_swipe — с вопросами);
+ * - мини-игра известного типа (quiz и tinder_swipe — с вопросами; свайп —
+ *   вопрос «да / нет» с вариантами [нет, да]);
  * - событие: 2–3 варианта с разными id, есть бесплатный, трата — с корзиной
  *   (нужное / желаемое), суммы целые (§7.6).
  */
@@ -273,6 +287,9 @@ export function validateNodeLesson(lesson: NodeLessonContent): string[] {
           errors.push(`${activityAt}: неизвестная мини-игра ${activity.minigame_type}`);
         } else if (activity.minigame_type !== 'five_letters') {
           errors.push(...questionErrors(activityAt, activity.questions ?? []));
+          if (activity.minigame_type === 'tinder_swipe') {
+            errors.push(...swipeQuestionErrors(activityAt, activity.questions ?? []));
+          }
         } else if (activity.word !== undefined && !/^[А-ЯЁ]{5}$/.test(activity.word)) {
           errors.push(`${activityAt}: слово «5 букв» — ровно 5 заглавных русских букв`);
         }
