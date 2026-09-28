@@ -57,6 +57,11 @@ export interface ArcadeSwipeCardsContent {
   cards: QuestionContent[];
 }
 
+/**
+ * Урок в прежнем формате: теория → мини-игра → тест. Пока весь контент не
+ * переведён в узлы (NodeLessonContent), такие уроки проигрываются через
+ * адаптер planFromLegacyLesson (domain/lesson/LessonPlan.ts).
+ */
 export interface LessonContent {
   id: number;
   branch_id: number;
@@ -67,6 +72,83 @@ export interface LessonContent {
   theory_cards: TheoryCardContent[];
   test_questions: QuestionContent[];
 }
+
+// ── Урок из узлов (решение пользователя 28.09.2026) ──
+// Ситуация по теме → узлы-блоки → заключение. Каждый узел начинается с
+// карточек (у первого — ещё и с ситуации), дальше действия: тест, мини-игра,
+// событие. Каждый узел — точка прогресс-трека смены; последний узел трека —
+// завершение урока с заключением. Правила состава — validateNodeLesson.
+
+/** Вводная ситуация урока — показывается в начале первого узла. */
+export interface LessonSituationContent {
+  title: string;
+  /** Поддерживает **term** (lib/utils/richText.ts), как карточки теории. */
+  text: string;
+}
+
+/** Заключение — финальный узел урока. */
+export interface LessonConclusionContent {
+  title: string;
+  text: string;
+}
+
+export interface LessonEventOptionContent {
+  id: string;
+  label: string;
+  /** mandatory — трата на нужное, optional — на желаемое, null — без траты. */
+  category: 'mandatory' | 'optional' | null;
+  /** Целые монеты бюджета смены: отрицательное — трата, положительное — пополнение. */
+  coinAmount: number;
+}
+
+/** Событие внутри урока — выбор, связанный с ситуацией урока; не привязано ко времени. */
+export interface LessonEventContent {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  options: LessonEventOptionContent[];
+}
+
+export interface LessonTestActivityContent {
+  type: 'test';
+  questions: QuestionContent[];
+}
+
+export interface LessonMinigameActivityContent {
+  type: 'minigame';
+  minigame_type: MinigameType;
+  /** quiz / tinder_swipe — вопросы игры; five_letters — не нужны (слово из общего банка). */
+  questions?: QuestionContent[];
+}
+
+export interface LessonEventActivityContent {
+  type: 'event';
+  /** «Случайное событие»: из пула выпадает одно, выбор запоминается в прогрессе. */
+  pool: LessonEventContent[];
+}
+
+export type LessonActivityContent =
+  LessonTestActivityContent | LessonMinigameActivityContent | LessonEventActivityContent;
+
+export interface LessonNodeContent {
+  /** Блок чтения узла — всегда первым, его можно перечитать. */
+  cards: TheoryCardContent[];
+  activities: LessonActivityContent[];
+}
+
+export interface NodeLessonContent {
+  id: number;
+  branch_id: number;
+  title: string;
+  order_index: number;
+  situation: LessonSituationContent;
+  nodes: LessonNodeContent[];
+  conclusion: LessonConclusionContent;
+}
+
+/** Урок в любом из форматов — как он лежит в content/lessons.json на время перехода. */
+export type AnyLessonContent = LessonContent | NodeLessonContent;
 
 export interface BranchContent {
   id: number;

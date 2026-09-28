@@ -1,0 +1,204 @@
+// domain/lesson/lessonProgress.test.ts
+// Прогресс урока из узлов (28.09.2026): порядок «чтение → действия», трек
+// «N из M», продолжение с того же места, перепрохождение и «идеально».
+
+import { NodeLessonContent } from '@/domain/content/LessonContent';
+import { LessonPlan, buildLessonPlan } from './LessonPlan';
+import {
+  LessonProgressState,
+  completedNodeCount,
+  createLessonProgress,
+  currentPosition,
+  hasStar,
+  isLessonPerfect,
+  isNodeUnlocked,
+  markReadingDone,
+  pickEvent,
+  recordActivityResult,
+  settleLesson,
+  totalNodeCount,
+} from './lessonProgress';
+
+const card = { title: 'Бюджет', text: 'Бюджет — это план.' };
+const question = {
+  id: 1,
+  question_text: 'Что такое бюджет?',
+  options: ['План', 'Копилка'],
+  correct_answer: 'План',
+  question_type: 'test' as const,
+};
+const cinema = {
+  id: 'cinema',
+  title: 'Кино',
+  description: 'Друг зовёт в кино.',
+  icon: '🎬',
+  options: [
+    { id: 'go', label: 'Пойти', category: 'optional' as const, coinAmount: -20 },
+    { id: 'skip', label: 'Не идти', category: null, coinAmount: 0 },
+  ],
+};
+const fair = { ...cinema, id: 'fair', title: 'Ярмарка' };
+
+const LESSON: NodeLessonContent = {
+  id: 7,
+  branch_id: 1,
+  title: 'Урок',
+  order_index: 1,
+  situation: { title: 'Ситуация', text: 'Тебе дали 100 монет.' },
+  nodes: [
+    {
+      cards: [card],
+      activities: [
+        { type: 'test', questions: [question] },
+        { type: 'event', pool: [cinema, fair] },
+      ],
+    },
+    { cards: [card], activities: [{ type: 'minigame', minigame_type: 'five_letters' }] },
+  ],
+  conclusion: { title: 'Итог', text: 'Молодец!' },
+};
+
+const plan: LessonPlan = buildLessonPlan(LESSON);
+const [testActivity, eventActivity] = plan.nodes[0].activities;
+const [gameActivity] = plan.nodes[1].activities;
+
+/** Проходит весь урок; perfectTest — без ошибок ли тест. */
+function playThrough(perfectTest: boolean): LessonProgressState {
+  let state = createLessonProgress(LESSON.id);
+  state = markReadingDone(state, 0);
+  state = recordActivityResult(state, testActivity, { perfect: perfectTest });
+  state = recordActivityResult(state, eventActivity, { perfect: true, optionId: 'skip' });
+  state = markReadingDone(state, 1);
+  state = recordActivityResult(state, gameActivity, { perfect: true });
+  return state;
+}
+
+describe('currentPosition — порядок внутри узла', () => {
+  it('сначала блок чтения, потом действия по порядку, потом заключение', () => {
+    let state = createLessonProgress(LESSON.id);
+    expect(currentPosition(plan, state)).toMatchObject({ kind: 'reading', node: { index: 0 } });
+
+    state = markReadingDone(state, 0);
+    expect(currentPosition(plan, state)).toMatchObject({
+      kind: 'activity',
+      activity: { id: '0.0' },
+    });
+
+    state = recordActivityResult(state, testActivity, { perfect: true });
+    expect(currentPosition(plan, state)).toMatchObject({
+      kind: 'activity',
+      activity: { id: '0.1' },
+    });
+
+    state = recordActivityResult(state, eventActivity, { perfect: true, optionId: 'go' });
+    expect(currentPosition(plan, state)).toMatchObject({ kind: 'reading', node: { index: 1 } });
+
+    state = markReadingDone(state, 1);
+    state = recordActivityResult(state, gameActivity, { perfect: false });
+    expect(currentPosition(plan, state)).toEqual({ kind: 'final' });
+
+    state = settleLesson(plan, state, '2026-09-28T10:00:00.000Z').state;
+    expect(currentPosition(plan, state)).toEqual({ kind: 'done' });
+  });
+
+  it('продолжение с того же места — позиция считается только по сохранённому состоянию', () => {
+    let state = markReadingDone(createLessonProgress(LESSON.id), 0);
+    state = recordActivityResult(state, testActivity, { perfect: true });
+    const restored: LessonProgressState = JSON.parse(JSON.stringify(state));
+    expect(currentPosition(plan, restored)).toMatchObject({
+      kind: 'activity',
+      activity: { id: '0.1' },
+    });
+  });
+});
+
+describe('трек «N из M»', () => {
+  it('узлы урока плюс финальный узел', () => {
+    expect(totalNodeCount(plan)).toBe(3);
+    let state = createLessonProgress(LESSON.id);
+    expect(completedNodeCount(plan, state)).toBe(0);
+
+    state = playThrough(true);
+    expect(completedNodeCount(plan, state)).toBe(2);
+    state = settleLesson(plan, state, '2026-09-28T10:00:00.000Z').state;
+    expect(completedNodeCount(plan, state)).toBe(3);
+  });
+
+  it('открыть можно пройденные узлы и текущий, будущие — нет', () => {
+    const state = markReadingDone(createLessonProgress(LESSON.id), 0);
+    expect(isNodeUnlocked(plan, state, 0)).toBe(true);
+    expect(isNodeUnlocked(plan, state, 1)).toBe(false);
+    expect(isNodeUnlocked(plan, playThrough(true), 1)).toBe(true);
+  });
+});
+
+describe('события внутри урока', () => {
+  it('выпавшее событие запоминается и не меняется после перезапуска', () => {
+    const first = pickEvent(createLessonProgress(LESSON.id), eventActivity, () => 0.99);
+    expect(first.event?.id).toBe('fair');
+    const again = pickEvent(first.state, eventActivity, () => 0);
+    expect(again.event?.id).toBe('fair');
+  });
+
+  it('решённое событие повторно не перезаписывается', () => {
+    let state = recordActivityResult(createLessonProgress(LESSON.id), eventActivity, {
+      perfect: true,
+      optionId: 'go',
+    });
+    state = recordActivityResult(state, eventActivity, { perfect: true, optionId: 'skip' });
+    expect(state.results['0.1']).toMatchObject({ optionId: 'go', attempts: 1 });
+  });
+
+  it('не событие — ничего не выбирается', () => {
+    expect(pickEvent(createLessonProgress(LESSON.id), testActivity).event).toBeNull();
+  });
+});
+
+describe('перепрохождение и «идеально»', () => {
+  it('засчитывается лучшая попытка, счётчик попыток растёт', () => {
+    let state = recordActivityResult(createLessonProgress(LESSON.id), testActivity, {
+      perfect: false,
+    });
+    state = recordActivityResult(state, testActivity, { perfect: true });
+    state = recordActivityResult(state, testActivity, { perfect: false });
+    expect(state.results['0.0']).toMatchObject({ perfect: true, attempts: 3 });
+  });
+
+  it('события на «идеально» не влияют', () => {
+    expect(isLessonPerfect(plan, playThrough(true))).toBe(true);
+    expect(isLessonPerfect(plan, playThrough(false))).toBe(false);
+  });
+
+  it('первое завершение с ошибками: награда за прохождение, звезды нет', () => {
+    const { state, firstCompletion, firstPerfect } = settleLesson(
+      plan,
+      playThrough(false),
+      '2026-09-28T10:00:00.000Z'
+    );
+    expect(firstCompletion).toBe(true);
+    expect(firstPerfect).toBe(false);
+    expect(hasStar(state)).toBe(false);
+  });
+
+  it('перепройти неидеальный тест — звезда один раз, повторно — ничего', () => {
+    let state = settleLesson(plan, playThrough(false), '2026-09-28T10:00:00.000Z').state;
+
+    state = recordActivityResult(state, testActivity, { perfect: true });
+    const retry = settleLesson(plan, state, '2026-09-29T10:00:00.000Z');
+    expect(retry.firstCompletion).toBe(false);
+    expect(retry.firstPerfect).toBe(true);
+    expect(hasStar(retry.state)).toBe(true);
+
+    const again = settleLesson(plan, retry.state, '2026-09-30T10:00:00.000Z');
+    expect(again.firstPerfect).toBe(false);
+    expect(again.state.perfectAt).toBe('2026-09-29T10:00:00.000Z');
+  });
+
+  it('не всё пройдено — урок не завершается', () => {
+    const partial = markReadingDone(createLessonProgress(LESSON.id), 0);
+    expect(settleLesson(plan, partial, '2026-09-28T10:00:00.000Z')).toMatchObject({
+      firstCompletion: false,
+      state: { completedAt: null },
+    });
+  });
+});

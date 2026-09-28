@@ -5,7 +5,10 @@ import {
   LessonContent,
   QuestionContent,
 } from '@/domain/content/LessonContent';
+import { TEST_PASS_THRESHOLD } from './LessonPlan';
 import { LessonStep } from './LessonStep';
+
+export { TEST_PASS_THRESHOLD };
 
 // §9.3 — награда (1-й раз) по типу шага
 export const LESSON_STEP_REWARDS = {
@@ -13,8 +16,6 @@ export const LESSON_STEP_REWARDS = {
   minigame: 25, // середина диапазона 20–30 монет
   test: 50,
 } as const;
-
-export const TEST_PASS_THRESHOLD = 0.7; // §9.5
 
 /**
  * Демо-режим (§18, решение пользователя 28.09.2026): весь сценарий — за 1–2
