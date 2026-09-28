@@ -8,7 +8,7 @@
 import {
   ArcadeSwipeCardsContent,
   FiveLettersWordContent,
-  AnyLessonContent,
+  LessonContent,
   QuestionContent,
 } from '@/domain/content/LessonContent';
 import { lessonQuestionPools } from '@/domain/lesson/LessonPlan';
@@ -33,7 +33,7 @@ export interface TrainerSession {
 
 /** Весь контент темы, из которого собираются раунды. */
 export interface BranchArcadeSources {
-  lessons: AnyLessonContent[];
+  lessons: LessonContent[];
   swipeCards: ArcadeSwipeCardsContent[];
   words: FiveLettersWordContent[];
 }

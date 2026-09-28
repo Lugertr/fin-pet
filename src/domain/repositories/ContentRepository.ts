@@ -9,7 +9,7 @@ import {
   ArcadeSwipeCardsContent,
   BranchContent,
   FiveLettersWordContent,
-  AnyLessonContent,
+  LessonContent,
 } from '@/domain/content/LessonContent';
 import { ItemContent } from '@/domain/content/ItemContent';
 import {
@@ -20,7 +20,7 @@ import {
 
 export interface ContentRepository {
   getBranches(): Promise<BranchContent[]>;
-  getLessons(): Promise<AnyLessonContent[]>;
+  getLessons(): Promise<LessonContent[]>;
   getItems(): Promise<ItemContent[]>;
   getAchievements(): Promise<AchievementDefinition[]>;
   getAiStubContent(): Promise<AiStubContent>;

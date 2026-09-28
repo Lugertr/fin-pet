@@ -144,7 +144,7 @@ export function LessonOverview({
             </View>
           ))}
 
-        {plan.conclusion && nodeIndex === undefined && (
+        {nodeIndex === undefined && (
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { fontSize: scaledFont('md') }]}>Финал</Text>
             {renderRow('conclusion', 'flag-outline', plan.conclusion.title, null, {

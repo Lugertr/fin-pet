@@ -5,14 +5,14 @@
 // ветки. Нераспознанный вопрос -> нейтральный fallback (§16.4), без
 // выдумывания фактов.
 
-import { AnyLessonContent } from '@/domain/content/LessonContent';
+import { LessonContent } from '@/domain/content/LessonContent';
 import { AiAnswer, AiAssistant, AiStubResponseEntry } from './AiAssistant';
 
 export class StubAiAssistant implements AiAssistant {
   constructor(
     private readonly responses: AiStubResponseEntry[],
     private readonly fallback: string,
-    private readonly lessons: AnyLessonContent[]
+    private readonly lessons: LessonContent[]
   ) {}
 
   async ask(question: string): Promise<AiAnswer> {

@@ -15,7 +15,7 @@ import {
   ArcadeSwipeCardsContent,
   BranchContent,
   FiveLettersWordContent,
-  AnyLessonContent,
+  LessonContent,
 } from '@/domain/content/LessonContent';
 import { ItemContent } from '@/domain/content/ItemContent';
 import {
@@ -36,7 +36,7 @@ import lessonsJson from '../../../content/lessons.json';
 import screenHelpJson from '../../../content/screen_help.json';
 
 const BRANCHES_CONTENT = branchesJson as BranchContent[];
-const LESSONS_CONTENT = lessonsJson as unknown as AnyLessonContent[];
+const LESSONS_CONTENT = lessonsJson as unknown as LessonContent[];
 const ITEMS_CONTENT = itemsJson as ItemContent[];
 const ACHIEVEMENTS_CONTENT = achievementsJson as AchievementDefinition[];
 const AI_STUB_CONTENT = aiStubResponsesJson as AiStubContent;
@@ -51,7 +51,7 @@ export class LocalJsonContentRepository implements ContentRepository {
     return this.getBranchesSync();
   }
 
-  async getLessons(): Promise<AnyLessonContent[]> {
+  async getLessons(): Promise<LessonContent[]> {
     return this.getLessonsSync();
   }
 
@@ -96,7 +96,7 @@ export class LocalJsonContentRepository implements ContentRepository {
     return BRANCHES_CONTENT;
   }
 
-  getLessonsSync(): AnyLessonContent[] {
+  getLessonsSync(): LessonContent[] {
     return LESSONS_CONTENT;
   }
 

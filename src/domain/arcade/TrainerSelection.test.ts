@@ -9,7 +9,6 @@ import {
   ArcadeSwipeCardsContent,
   BranchContent,
   FiveLettersWordContent,
-  AnyLessonContent,
   LessonContent,
   QuestionContent,
 } from '@/domain/content/LessonContent';
@@ -35,6 +34,7 @@ function question(id: number, type: 'minigame' | 'test' = 'minigame'): QuestionC
   };
 }
 
+/** Урок из одного этапа: мини-игра (с вопросами) и тест, если есть вопросы теста. */
 function lesson(
   id: number,
   branchId: number,
@@ -42,15 +42,23 @@ function lesson(
   questions: QuestionContent[],
   tests: QuestionContent[]
 ): LessonContent {
+  const text = { title: `Урок ${id}`, text: 'Текст' };
   return {
     id,
     branch_id: branchId,
     title: `Урок ${id}`,
     order_index: id,
-    minigame_type: minigameType,
-    questions,
-    theory_cards: [],
-    test_questions: tests,
+    situation: text,
+    nodes: [
+      {
+        cards: [text],
+        activities: [
+          { type: 'minigame', minigame_type: minigameType, questions },
+          ...(tests.length > 0 ? [{ type: 'test' as const, questions: tests }] : []),
+        ],
+      },
+    ],
+    conclusion: text,
   };
 }
 
@@ -134,7 +142,7 @@ describe('buildBranchGameSession', () => {
 
 describe('контент Аркады', () => {
   const realSources: BranchArcadeSources = {
-    lessons: lessonsJson as unknown as AnyLessonContent[],
+    lessons: lessonsJson as unknown as LessonContent[],
     swipeCards: arcadeSwipeCardsJson as ArcadeSwipeCardsContent[],
     words: fiveLettersWordsJson as FiveLettersWordContent[],
   };

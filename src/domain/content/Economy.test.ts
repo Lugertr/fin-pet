@@ -10,8 +10,7 @@ import itemsJson from '../../../content/items.json';
 import lessonsJson from '../../../content/lessons.json';
 import { AchievementDefinition } from '@/domain/achievement/Achievement';
 import { ItemContent } from '@/domain/content/ItemContent';
-import { AnyLessonContent } from '@/domain/content/LessonContent';
-import { isNodeLesson } from '@/domain/lesson/LessonPlan';
+import { LessonContent } from '@/domain/content/LessonContent';
 import {
   LESSON_PERFECT_BONUS,
   LESSON_STEP_REWARDS,
@@ -21,7 +20,7 @@ import { QUIZ_TRAINER_QUESTION_COUNT } from '@/domain/arcade/TrainerSelection';
 import { ARCADE_COINS_PER_CORRECT, ARCADE_ENERGY_COST } from '@/constants/gameplay';
 
 const ITEMS = itemsJson as ItemContent[];
-const LESSONS = lessonsJson as unknown as AnyLessonContent[];
+const LESSONS = lessonsJson as unknown as LessonContent[];
 
 /** Бюджет смены (ADVENTURE_BASE_INCOME) + бонус за план. */
 const SHIFT_BUDGET_WITH_PLAN_BONUS = 100 + 10;
@@ -38,7 +37,7 @@ const QUEST_COIN_MULTIPLIER = 1 + SHIFT_LESSON_COIN_BONUS_PERCENT / 100;
 function perfectShiftMaxIncome(): number {
   const eventRewards = Math.max(
     0,
-    ...LESSONS.filter(isNodeLesson).map((lesson) =>
+    ...LESSONS.map((lesson) =>
       lesson.nodes
         .flatMap((node) => node.activities)
         .reduce(

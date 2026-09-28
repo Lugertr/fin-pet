@@ -59,22 +59,6 @@ export interface ArcadeSwipeCardsContent {
   cards: QuestionContent[];
 }
 
-/**
- * Урок в прежнем формате: теория → мини-игра → тест. Пока весь контент не
- * переведён в узлы (NodeLessonContent), такие уроки проигрываются через
- * адаптер planFromLegacyLesson (domain/lesson/LessonPlan.ts).
- */
-export interface LessonContent {
-  id: number;
-  branch_id: number;
-  title: string;
-  order_index: number;
-  minigame_type: MinigameType;
-  questions: QuestionContent[];
-  theory_cards: TheoryCardContent[];
-  test_questions: QuestionContent[];
-}
-
 // ── Урок из узлов (решение пользователя 28.09.2026) ──
 // Ситуация по теме → узлы-блоки → заключение. Каждый узел начинается с
 // карточек (у первого — ещё и с ситуации), дальше действия: тест, мини-игра,
@@ -142,7 +126,8 @@ export interface LessonNodeContent {
   activities: LessonActivityContent[];
 }
 
-export interface NodeLessonContent {
+/** Урок — как он лежит в content/lessons.json (формат — README, «Формат урока»). */
+export interface LessonContent {
   id: number;
   branch_id: number;
   title: string;
@@ -151,9 +136,6 @@ export interface NodeLessonContent {
   nodes: LessonNodeContent[];
   conclusion: LessonConclusionContent;
 }
-
-/** Урок в любом из форматов — как он лежит в content/lessons.json на время перехода. */
-export type AnyLessonContent = LessonContent | NodeLessonContent;
 
 export interface BranchContent {
   id: number;

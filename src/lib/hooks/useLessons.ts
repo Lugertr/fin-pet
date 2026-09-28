@@ -11,7 +11,7 @@
 
 import { getLocalContentRepository } from '@/data/content';
 import {
-  AnyLessonContent,
+  LessonContent,
   BranchContent,
   FiveLettersWordContent,
   QuestionContent,
@@ -106,8 +106,8 @@ function reportBranchProgress(
 
 // Содержимое веток/уроков живёт в content/*.json (§25 ТЗ), не здесь —
 // см. LocalJsonContentRepository. Типы переиспользуют форму контента.
-/** Урок любого формата: из узлов или старый (идёт через адаптер, см. LessonPlan.ts). */
-export type Lesson = AnyLessonContent;
+/** Урок из этапов (формат — domain/content/LessonContent.ts, README «Формат урока»). */
+export type Lesson = LessonContent;
 export type Question = QuestionContent;
 export type Branch = BranchContent;
 

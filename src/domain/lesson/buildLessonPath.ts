@@ -3,7 +3,7 @@
 // (звезда, пройден, начат, следующий, закрыт). Уроки принимаются уже
 // отфильтрованными по нужной ветке.
 
-import { AnyLessonContent } from '@/domain/content/LessonContent';
+import { LessonContent } from '@/domain/content/LessonContent';
 import { planForLesson } from './LessonPlan';
 import { LessonPathNode, LessonPathStatus } from './LessonPathNode';
 import {
@@ -16,7 +16,7 @@ import {
 } from './lessonProgress';
 
 export function buildLessonPath(
-  lessons: AnyLessonContent[],
+  lessons: LessonContent[],
   states: Record<number, LessonProgressState>,
   /** Демо-режим — укороченный урок, этапов на треке меньше (как в смене). */
   demo = false

@@ -2,8 +2,8 @@
 // Прогресс урока из узлов (28.09.2026): порядок «чтение → действия», трек
 // «N из M», продолжение с того же места, перепрохождение и «идеально».
 
-import { NodeLessonContent } from '@/domain/content/LessonContent';
-import { LessonPlan, buildLessonPlan } from './LessonPlan';
+import { LessonContent } from '@/domain/content/LessonContent';
+import { LessonPlan, planForLesson } from './LessonPlan';
 import {
   LessonProgressState,
   alignProgressWithStructure,
@@ -40,7 +40,7 @@ const cinema = {
 };
 const fair = { ...cinema, id: 'fair', title: 'Ярмарка' };
 
-const LESSON: NodeLessonContent = {
+const LESSON: LessonContent = {
   id: 7,
   branch_id: 1,
   title: 'Урок',
@@ -59,7 +59,7 @@ const LESSON: NodeLessonContent = {
   conclusion: { title: 'Итог', text: 'Молодец!' },
 };
 
-const plan: LessonPlan = buildLessonPlan(LESSON);
+const plan: LessonPlan = planForLesson(LESSON);
 const [testActivity, eventActivity] = plan.nodes[0].activities;
 const [gameActivity] = plan.nodes[1].activities;
 

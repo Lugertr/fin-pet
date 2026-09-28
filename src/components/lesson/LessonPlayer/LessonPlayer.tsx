@@ -4,7 +4,6 @@
 // порядку (тест, мини-игра, событие) → следующий узел → заключение → награда.
 // После каждого сегмента прогресс сохраняется (useLessonsStore → SQLite), и
 // урок продолжается с того же места — в том числе в следующую смену.
-// Уроки старого формата идут тем же плеером через адаптер (planForLesson).
 //
 // Урок, пройденный раньше, открывается обзором: ситуацию и теорию можно
 // перечитать, тест и мини-игру — перепройти (лучшая попытка). Награда —
@@ -66,12 +65,6 @@ const MINIGAME_HELP: Record<string, ScreenHelpId> = {
   quiz: 'game_quiz',
   tinder_swipe: 'game_swipes',
   five_letters: 'game_five_letters',
-};
-
-/** Заключение уроков старого формата (у них своего нет). */
-const LEGACY_CONCLUSION = {
-  title: 'Урок пройден',
-  text: 'Все этапы урока позади — забирай награду!',
 };
 
 type Segment =
@@ -370,7 +363,7 @@ export function LessonPlayer({
         return (
           <TheoryStep
             key={segmentKey}
-            cards={[{ ...(plan.conclusion ?? LEGACY_CONCLUSION), kind: 'conclusion' }]}
+            cards={[{ ...plan.conclusion, kind: 'conclusion' }]}
             onDone={handleConclusionDone}
           />
         );

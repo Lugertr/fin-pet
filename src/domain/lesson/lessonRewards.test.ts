@@ -4,7 +4,7 @@
 // уровня игрока), монеты только целые.
 
 import lessonsJson from '../../../content/lessons.json';
-import { AnyLessonContent } from '@/domain/content/LessonContent';
+import { LessonContent } from '@/domain/content/LessonContent';
 import { XP_PER_LEVEL, computeLevel } from '@/domain/player/PlayerLevel';
 import { planForLesson } from './LessonPlan';
 import {
@@ -14,7 +14,7 @@ import {
   lessonXp,
 } from './lessonRewards';
 
-const LESSONS = lessonsJson as unknown as AnyLessonContent[];
+const LESSONS = lessonsJson as unknown as LessonContent[];
 const BRANCH_IDS = [...new Set(LESSONS.map((l) => l.branch_id))];
 
 describe('lessonXp — опыт темы делится между её уроками', () => {

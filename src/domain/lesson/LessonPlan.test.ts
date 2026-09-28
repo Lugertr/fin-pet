@@ -1,26 +1,21 @@
 // domain/lesson/LessonPlan.test.ts
-// Урок из узлов (28.09.2026): план для плеера, адаптер старых уроков и
-// правила состава — в том числе на всём content/lessons.json.
+// Урок из узлов (28.09.2026): план для плеера и правила состава — в том
+// числе на всём content/lessons.json.
 
 import fiveLettersWordsJson from '../../../content/five_letters_words.json';
 import lessonsJson from '../../../content/lessons.json';
 import {
-  AnyLessonContent,
+  LessonContent,
   FiveLettersWordContent,
   LessonActivityContent,
-  LessonContent,
-  NodeLessonContent,
   QuestionContent,
 } from '@/domain/content/LessonContent';
 import {
   DEMO_NODE_LESSON_LIMITS,
-  buildLessonPlan,
+  planForLesson,
   fiveLettersWordFor,
-  isNodeLesson,
   lessonQuestionPools,
   lessonStructureKey,
-  planForLesson,
-  planFromLegacyLesson,
   validateNodeLesson,
 } from './LessonPlan';
 
@@ -62,7 +57,7 @@ function event(): LessonActivityContent {
 
 const card = { title: 'Бюджет', text: 'Бюджет — это план.' };
 
-function lesson(overrides: Partial<NodeLessonContent> = {}): NodeLessonContent {
+function lesson(overrides: Partial<LessonContent> = {}): LessonContent {
   return {
     id: 100,
     branch_id: 1,
@@ -79,9 +74,9 @@ function lesson(overrides: Partial<NodeLessonContent> = {}): NodeLessonContent {
   };
 }
 
-describe('buildLessonPlan', () => {
+describe('planForLesson', () => {
   it('узлы с id действий «узел.действие», ситуация только у первого узла', () => {
-    const plan = buildLessonPlan(lesson());
+    const plan = planForLesson(lesson());
     expect(plan.nodes).toHaveLength(3);
     expect(plan.nodes[0].situation?.title).toBe('Карманные деньги');
     expect(plan.nodes[1].situation).toBeNull();
@@ -90,7 +85,7 @@ describe('buildLessonPlan', () => {
   });
 
   it('отпечаток структуры — типы действий по этапам; тексты на него не влияют', () => {
-    const plan = buildLessonPlan(lesson());
+    const plan = planForLesson(lesson());
     const key = lessonStructureKey(plan);
     expect(key.split('|')).toHaveLength(plan.nodes.length);
     expect(key.split('|')[0]).toBe(
@@ -102,56 +97,23 @@ describe('buildLessonPlan', () => {
     );
     const renamed = lesson();
     renamed.nodes[0].cards = [{ title: 'Другое', text: 'Другой текст' }];
-    expect(lessonStructureKey(buildLessonPlan(renamed))).toBe(key);
+    expect(lessonStructureKey(planForLesson(renamed))).toBe(key);
     // Демо-план — те же номера действий у оставшихся этапов.
-    expect(key.startsWith(lessonStructureKey(buildLessonPlan(lesson(), true)))).toBe(true);
+    expect(key.startsWith(lessonStructureKey(planForLesson(lesson(), true)))).toBe(true);
   });
 
   it('тип узла на треке — по первому действию', () => {
-    expect(buildLessonPlan(lesson()).nodes.map((n) => n.kind)).toEqual([
-      'test',
-      'minigame',
-      'event',
-    ]);
+    expect(planForLesson(lesson()).nodes.map((n) => n.kind)).toEqual(['test', 'minigame', 'event']);
   });
 
   it('демо: первые узлы, по одной карточке, короткие тесты', () => {
-    const plan = buildLessonPlan(lesson(), true);
+    const plan = planForLesson(lesson(), true);
     expect(plan.nodes).toHaveLength(DEMO_NODE_LESSON_LIMITS.nodes);
     expect(plan.nodes[0].cards).toHaveLength(DEMO_NODE_LESSON_LIMITS.cardsPerNode);
     const firstTest = plan.nodes[0].activities[0].content;
     expect(firstTest.type === 'test' && firstTest.questions).toHaveLength(
       DEMO_NODE_LESSON_LIMITS.testQuestions
     );
-  });
-});
-
-describe('planFromLegacyLesson — старые уроки на время перевода', () => {
-  const legacy: LessonContent = {
-    id: 1,
-    branch_id: 1,
-    title: 'Старый урок',
-    order_index: 1,
-    minigame_type: 'tinder_swipe',
-    questions: [question({ question_type: 'minigame' })],
-    theory_cards: [card, card, card, card],
-    test_questions: [question(), question()],
-  };
-
-  it('мини-игра с первой половиной карточек, тест — со второй', () => {
-    const plan = planFromLegacyLesson(legacy);
-    expect(plan.nodes.map((n) => [n.cards.length, n.kind])).toEqual([
-      [2, 'minigame'],
-      [2, 'test'],
-    ]);
-    expect(plan.nodes[0].situation).toBeNull();
-    expect(plan.conclusion).toBeNull();
-  });
-
-  it('без мини-игры — один узел с тестом', () => {
-    const plan = planFromLegacyLesson({ ...legacy, minigame_type: 'quiz', questions: [] });
-    expect(plan.nodes).toHaveLength(1);
-    expect(plan.nodes[0].kind).toBe('test');
   });
 });
 
@@ -368,11 +330,13 @@ describe('fiveLettersWordFor — слово для «5 букв»', () => {
 });
 
 describe('content/lessons.json', () => {
-  const lessons = lessonsJson as unknown as AnyLessonContent[];
+  const lessons = lessonsJson as unknown as LessonContent[];
 
-  it('все уроки — в формате этапов (узлов)', () => {
+  it('все уроки — в формате этапов: ситуация, этапы, заключение', () => {
     expect(lessons.length).toBeGreaterThan(0);
-    expect(lessons.filter((l) => !isNodeLesson(l)).map((l) => l.id)).toEqual([]);
+    // Урок прежнего формата (theory_cards / test_questions) этапов не имеет.
+    const withoutNodes = lessons.filter((l) => !Array.isArray(l.nodes)).map((l) => l.id);
+    expect(withoutNodes).toEqual([]);
   });
 
   it('в каждой теме уроки пронумерованы по порядку, без пропусков и повторов', () => {
@@ -389,7 +353,6 @@ describe('content/lessons.json', () => {
   it('слова «5 букв», заданные в уроках, есть в общем банке', () => {
     const bank = new Set((fiveLettersWordsJson as FiveLettersWordContent[]).map((w) => w.word));
     const words = lessons
-      .filter(isNodeLesson)
       .flatMap((l) => l.nodes.flatMap((n) => n.activities))
       .flatMap((a) => (a.type === 'minigame' && a.word ? [a.word] : []));
     for (const word of words) expect(bank.has(word)).toBe(true);
@@ -403,12 +366,12 @@ describe('content/lessons.json', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('уроки из узлов соблюдают правила состава', () => {
-    const errors = lessons.filter(isNodeLesson).flatMap(validateNodeLesson);
+  it('уроки соблюдают правила состава', () => {
+    const errors = lessons.flatMap(validateNodeLesson);
     expect(errors).toEqual([]);
   });
 
-  it('у каждого урока (и старого, через адаптер) есть узлы с действиями', () => {
+  it('у каждого урока есть этапы с действиями', () => {
     for (const item of lessons) {
       const plan = planForLesson(item);
       expect(plan.nodes.length).toBeGreaterThan(0);

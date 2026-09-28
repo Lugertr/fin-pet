@@ -6,18 +6,16 @@
 // завершение урока с заключением.
 //
 // Здесь — чистые функции над контентом: план урока для плеера
-// (buildLessonPlan), адаптер уроков старого формата на время перевода
-// контента (planFromLegacyLesson) и правила состава урока
-// (validateNodeLesson), которые проверяет тест контента.
+// (planForLesson) и правила состава урока (validateNodeLesson), которые
+// проверяет тест контента. Уроков старого формата (теория → мини-игра →
+// тест) больше нет — весь контент в этапах (этап 6, 28.09.2026).
 
 import {
-  AnyLessonContent,
+  LessonContent,
   FiveLettersWordContent,
   LessonActivityContent,
   LessonConclusionContent,
-  LessonContent,
   LessonSituationContent,
-  NodeLessonContent,
   QuestionContent,
   TheoryCardContent,
 } from '@/domain/content/LessonContent';
@@ -37,12 +35,6 @@ export const DEMO_NODE_LESSON_LIMITS = {
   testQuestions: 2,
 } as const;
 
-/** Прежний укороченный урок (теория и тест) — для уроков старого формата в демо. */
-const DEMO_LEGACY_LIMITS = {
-  theoryCards: 2,
-  testQuestions: 2,
-} as const;
-
 /** Тип узла на треке — по его первому действию. */
 export type LessonNodeKind = LessonActivityContent['type'];
 
@@ -55,7 +47,7 @@ export interface PlanActivity {
 
 export interface PlanNode {
   index: number;
-  /** Ситуация урока — только у первого узла (у старых уроков её нет). */
+  /** Ситуация урока — только у первого узла. */
   situation: LessonSituationContent | null;
   cards: TheoryCardContent[];
   activities: PlanActivity[];
@@ -67,12 +59,8 @@ export interface LessonPlan {
   branchId: number;
   title: string;
   nodes: PlanNode[];
-  /** null — урок старого формата: заключение общее, его подставляет плеер. */
-  conclusion: LessonConclusionContent | null;
-}
-
-export function isNodeLesson(lesson: AnyLessonContent): lesson is NodeLessonContent {
-  return 'nodes' in lesson;
+  /** Заключение — финальный этап трека. */
+  conclusion: LessonConclusionContent;
 }
 
 export function activityId(nodeIndex: number, activityIndex: number): string {
@@ -106,7 +94,8 @@ function trimForDemo(activity: LessonActivityContent): LessonActivityContent {
   };
 }
 
-export function buildLessonPlan(lesson: NodeLessonContent, demo = false): LessonPlan {
+/** План урока для плеера и трека смены; demo — укороченный урок (§18). */
+export function planForLesson(lesson: LessonContent, demo = false): LessonPlan {
   const nodes = demo ? lesson.nodes.slice(0, DEMO_NODE_LESSON_LIMITS.nodes) : lesson.nodes;
   return {
     lessonId: lesson.id,
@@ -122,51 +111,6 @@ export function buildLessonPlan(lesson: NodeLessonContent, demo = false): Lesson
     ),
     conclusion: lesson.conclusion,
   };
-}
-
-/**
- * Урок старого формата (теория → мини-игра → тест) как узлы — пока контент
- * переводится (этапы 3 и 6): первая половина карточек + мини-игра, затем
- * остальные карточки + тест; без мини-игры — один узел. Ситуации, событий и
- * заключения у таких уроков нет.
- */
-export function planFromLegacyLesson(lesson: LessonContent, demo = false): LessonPlan {
-  const cards = demo
-    ? lesson.theory_cards.slice(0, DEMO_LEGACY_LIMITS.theoryCards)
-    : lesson.theory_cards;
-  const testQuestions = demo
-    ? lesson.test_questions.slice(0, DEMO_LEGACY_LIMITS.testQuestions)
-    : lesson.test_questions;
-  const test: LessonActivityContent = { type: 'test', questions: testQuestions };
-
-  const minigameQuestions = lesson.questions.filter((q) => q.question_type === 'minigame');
-  const minigame: LessonActivityContent | null =
-    lesson.minigame_type === 'five_letters'
-      ? { type: 'minigame', minigame_type: 'five_letters' }
-      : minigameQuestions.length > 0
-        ? { type: 'minigame', minigame_type: lesson.minigame_type, questions: minigameQuestions }
-        : null;
-
-  const half = Math.ceil(cards.length / 2);
-  const nodes = minigame
-    ? [
-        makeNode(0, null, cards.slice(0, half), [minigame]),
-        makeNode(1, null, cards.slice(half), [test]),
-      ]
-    : [makeNode(0, null, cards, [test])];
-
-  return {
-    lessonId: lesson.id,
-    branchId: lesson.branch_id,
-    title: lesson.title,
-    nodes,
-    conclusion: null,
-  };
-}
-
-/** План урока любого формата (узлы — как есть, старый — через адаптер). */
-export function planForLesson(lesson: AnyLessonContent, demo = false): LessonPlan {
-  return isNodeLesson(lesson) ? buildLessonPlan(lesson, demo) : planFromLegacyLesson(lesson, demo);
 }
 
 /**
@@ -234,7 +178,7 @@ export function swipeQuestionErrors(where: string, questions: QuestionContent[])
  * - событие: 2–3 варианта с разными id, есть бесплатный, трата — с корзиной
  *   (нужное / желаемое), суммы целые (§7.6).
  */
-export function validateNodeLesson(lesson: NodeLessonContent): string[] {
+export function validateNodeLesson(lesson: LessonContent): string[] {
   const errors: string[] = [];
   const at = `урок ${lesson.id}`;
 
@@ -329,18 +273,11 @@ export function validateNodeLesson(lesson: NodeLessonContent): string[] {
 
 // ── Вопросы и слова уроков для игр ──
 
-/** Вопросы урока любого формата по играм — для Аркады по теме. */
-export function lessonQuestionPools(lesson: AnyLessonContent): {
+/** Вопросы урока по играм — для Аркады по теме. */
+export function lessonQuestionPools(lesson: LessonContent): {
   quiz: QuestionContent[];
   swipes: QuestionContent[];
 } {
-  if (!isNodeLesson(lesson)) {
-    const minigame = lesson.questions.filter((q) => q.question_type === 'minigame');
-    return {
-      quiz: [...(lesson.minigame_type === 'quiz' ? minigame : []), ...lesson.test_questions],
-      swipes: lesson.minigame_type === 'tinder_swipe' ? minigame : [],
-    };
-  }
   const activities = lesson.nodes.flatMap((node) => node.activities);
   const quiz: QuestionContent[] = [];
   const swipes: QuestionContent[] = [];
