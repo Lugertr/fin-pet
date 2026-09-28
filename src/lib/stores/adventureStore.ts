@@ -83,7 +83,10 @@ export interface AdventureCompletionSummary {
 interface AdventureState {
   currentAdventure: AdventureRecord | null;
   isLoading: boolean;
-  /** Итоги последней завершённой смены — показываются модалкой на хабе, пока их не закроют. */
+  /**
+   * Итоги последней завершённой смены — показываются модалкой на хабе, пока
+   * их не закроют; хранятся и в SQLite (pending_summary), переживают перезапуск.
+   */
   lastCompletionSummary: AdventureCompletionSummary | null;
 
   /** Загружает текущую незавершённую смену профиля, ничего не создавая. */
@@ -117,7 +120,7 @@ interface AdventureState {
   completeAdventure: () => Promise<AdventureCompletionSummary | null>;
   /** 24 часа вышли — завершает смену (итоги — в lastCompletionSummary для показа на хабе). */
   completeIfExpired: () => Promise<AdventureCompletionSummary | null>;
-  /** Модалку итогов на хабе закрыли. */
+  /** Модалку итогов на хабе закрыли — итоги больше не показываются и после перезапуска. */
   dismissCompletionSummary: () => void;
   /** Тема активной смены — бейдж и подсветка на вкладке «Уроки». */
   isActiveBranch: (branchId: number) => boolean;
@@ -145,6 +148,52 @@ async function withCompletionLock(
     return await run();
   } finally {
     completionInFlight = false;
+  }
+}
+
+/** Итоги без самой смены — то, что хранится к смене до показа (pending_summary). */
+type StoredSummary = Omit<AdventureCompletionSummary, 'adventure'>;
+
+export function serializeCompletionSummary(summary: AdventureCompletionSummary): string {
+  const stored: StoredSummary = {
+    bonusAwarded: summary.bonusAwarded,
+    toBank: summary.toBank,
+    bankBonus: summary.bankBonus,
+    toWallet: summary.toWallet,
+    completionRatio: summary.completionRatio,
+    autoCompleted: summary.autoCompleted,
+    lesson: summary.lesson,
+  };
+  return JSON.stringify(stored);
+}
+
+/** Итоги из хранилища; битые данные — null (окно просто не покажется). */
+export function parseCompletionSummary(
+  adventure: AdventureRecord,
+  json: string
+): AdventureCompletionSummary | null {
+  try {
+    const stored = JSON.parse(json) as Partial<StoredSummary>;
+    const numbers = [
+      stored.bonusAwarded,
+      stored.toBank,
+      stored.bankBonus,
+      stored.toWallet,
+      stored.completionRatio,
+    ];
+    if (!numbers.every((n) => typeof n === 'number' && Number.isFinite(n))) return null;
+    return {
+      adventure,
+      bonusAwarded: stored.bonusAwarded!,
+      toBank: stored.toBank!,
+      bankBonus: stored.bankBonus!,
+      toWallet: stored.toWallet!,
+      completionRatio: stored.completionRatio!,
+      autoCompleted: stored.autoCompleted === true,
+      lesson: stored.lesson ?? null,
+    };
+  } catch {
+    return null;
   }
 }
 
@@ -259,6 +308,11 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
       lesson,
     };
     set({ currentAdventure: null, lastCompletionSummary: summary });
+    // Итоги — к смене, пока окно не закрыто: закрыл приложение сразу после
+    // урока — хаб покажет их после перезапуска (§4.5).
+    getAdventureRepository()
+      .setPendingSummary(currentAdventure.id, serializeCompletionSummary(summary))
+      .catch((error) => console.warn('[AdventureStore] Не удалось сохранить итоги смены:', error));
 
     return summary;
   };
@@ -271,8 +325,15 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
     loadCurrent: async (profileId) => {
       set({ isLoading: true });
       try {
-        const current = await getAdventureRepository().getCurrent(profileId);
+        const repo = getAdventureRepository();
+        const current = await repo.getCurrent(profileId);
         set({ currentAdventure: current, isLoading: false });
+        // Непоказанные итоги прошлой смены (приложение закрыли до окна итогов).
+        if (!get().lastCompletionSummary) {
+          const pending = await repo.getPendingSummary(profileId);
+          const summary = pending && parseCompletionSummary(pending.adventure, pending.summaryJson);
+          if (summary && !get().lastCompletionSummary) set({ lastCompletionSummary: summary });
+        }
       } catch (error) {
         console.error('[AdventureStore] Не удалось загрузить смену:', error);
         set({ isLoading: false });
@@ -445,7 +506,17 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
         return finalizeAdventure(true);
       }),
 
-    dismissCompletionSummary: () => set({ lastCompletionSummary: null }),
+    dismissCompletionSummary: () => {
+      const summary = get().lastCompletionSummary;
+      set({ lastCompletionSummary: null });
+      if (summary) {
+        getAdventureRepository()
+          .setPendingSummary(summary.adventure.id, null)
+          .catch((error) =>
+            console.warn('[AdventureStore] Не удалось закрыть итоги смены:', error)
+          );
+      }
+    },
 
     isActiveBranch: (branchId) => {
       const { currentAdventure } = get();

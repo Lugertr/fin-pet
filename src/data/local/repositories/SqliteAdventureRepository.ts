@@ -23,6 +23,7 @@ interface AdventureRow {
   planned_end_at: string | null;
   completed_at: string | null;
   xp_awarded: number | null;
+  pending_summary?: string | null;
 }
 
 function rowToAdventure(row: AdventureRow): AdventureRecord {
@@ -185,6 +186,25 @@ export class SqliteAdventureRepository implements AdventureRepository {
       "UPDATE adventures SET status = 'completed', completed_at = ?, xp_awarded = ? WHERE id = ?",
       [completedAt, xpAwarded, id]
     );
+  }
+
+  async setPendingSummary(id: number, summaryJson: string | null): Promise<void> {
+    const db = await this.getDb();
+    await db.runAsync('UPDATE adventures SET pending_summary = ? WHERE id = ?', [summaryJson, id]);
+  }
+
+  async getPendingSummary(
+    profileId: string
+  ): Promise<{ adventure: AdventureRecord; summaryJson: string } | null> {
+    const db = await this.getDb();
+    const row = await db.getFirstAsync<AdventureRow>(
+      `SELECT * FROM adventures
+       WHERE profile_id = ? AND status = 'completed' AND pending_summary IS NOT NULL
+       ORDER BY adventure_number DESC LIMIT 1`,
+      [profileId]
+    );
+    if (!row?.pending_summary) return null;
+    return { adventure: rowToAdventure(row), summaryJson: row.pending_summary };
   }
 
   async deleteAllForProfile(profileId: string): Promise<void> {

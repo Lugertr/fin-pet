@@ -33,6 +33,15 @@ export interface AdventureRepository {
   /** Сколько событий ребёнок решил сам за всё время (без снятых по истечении времени) — «Решений принято». */
   countResolvedEvents(profileId: string): Promise<number>;
   complete(id: number, completedAt: string, xpAwarded: number): Promise<void>;
+  /**
+   * Итоги завершённой смены, ещё не показанные ребёнку (JSON от
+   * adventureStore); null — окно итогов закрыто.
+   */
+  setPendingSummary(id: number, summaryJson: string | null): Promise<void>;
+  /** Последняя завершённая смена профиля с непоказанными итогами. */
+  getPendingSummary(
+    profileId: string
+  ): Promise<{ adventure: AdventureRecord; summaryJson: string } | null>;
   /** §17.2 «Сброс профиля» — следующая смена снова начнётся с №1. */
   deleteAllForProfile(profileId: string): Promise<void>;
 }
