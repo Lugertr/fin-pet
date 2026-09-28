@@ -6,6 +6,7 @@
 import { useEffect, useState } from 'react';
 import { describeDatabaseError } from '@/data/local/database';
 import { getPetRepository, getProfileRepository } from '@/data/local/repositories';
+import { useLessonsStore } from '@/lib/hooks/useLessons';
 import { STARTER_FURNITURE_ITEM_IDS, SHOP_CATALOG, useShopStore } from '@/lib/hooks/useShop';
 import { usePetStore } from '@/lib/stores/petStore';
 import { usePreferencesStore } from '@/lib/stores/preferencesStore';
@@ -78,6 +79,8 @@ export function useAppBootstrap() {
           usePetStore.getState().setEquippedSkinVariant(profile.appearance.colorVariant);
           backfillMissingStarterFurniture();
           resetLockedRoomSkin();
+          // Учебный прогресс и опыт — из SQLite (миграция v9), до показа экранов.
+          await useLessonsStore.getState().load(profile.id);
           useUserStore.getState().setOnboarded(true);
         }
       } catch (error) {

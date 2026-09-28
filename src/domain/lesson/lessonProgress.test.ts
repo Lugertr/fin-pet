@@ -132,6 +132,25 @@ describe('трек «N из M»', () => {
   });
 });
 
+describe('урок, пройденный до перехода на узлы (перенесён из старого прогресса)', () => {
+  const imported: LessonProgressState = {
+    ...createLessonProgress(LESSON.id),
+    completedAt: '2026-09-20T10:00:00.000Z',
+  };
+
+  it('завершён целиком: позиция «done», трек заполнен, узлы открыты', () => {
+    expect(currentPosition(plan, imported)).toEqual({ kind: 'done' });
+    expect(completedNodeCount(plan, imported)).toBe(totalNodeCount(plan));
+    expect(isNodeUnlocked(plan, imported, 1)).toBe(true);
+  });
+
+  it('звезды нет — её дают, только когда все тесты и игры пройдены без ошибок', () => {
+    expect(hasStar(imported)).toBe(false);
+    const retried = recordActivityResult(imported, testActivity, { perfect: true });
+    expect(settleLesson(plan, retried, '2026-09-28T10:00:00.000Z').firstPerfect).toBe(false);
+  });
+});
+
 describe('события внутри урока', () => {
   it('выпавшее событие запоминается и не меняется после перезапуска', () => {
     const first = pickEvent(createLessonProgress(LESSON.id), eventActivity, () => 0.99);

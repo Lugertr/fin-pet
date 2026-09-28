@@ -32,7 +32,7 @@ import {
   selectEventPool,
 } from '@/domain/adventure/AdventureEvent';
 import { xpToNextLevel } from '@/domain/player/PlayerLevel';
-import { LevelUpResult, useLessonsStore } from '@/lib/hooks/useLessons';
+import { LevelUpResult, useLessonsStore, waitForLessonsLoaded } from '@/lib/hooks/useLessons';
 import { create } from 'zustand';
 import { useShopStore } from '@/lib/hooks/useShop';
 import { usePetStore } from './petStore';
@@ -654,11 +654,11 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
         const adventure = get().currentAdventure;
         if (!adventure || !isTimeUp(adventure, Date.now())) return null;
 
-        // На холодном старте (приложение открыли спустя часы) сторы с опытом/
-        // инвентарём могут ещё восстанавливаться из AsyncStorage — начисление
-        // до конца гидратации было бы затёрто (см. waitForHydration).
+        // На холодном старте (приложение открыли спустя часы) опыт ещё может
+        // читаться из SQLite, а инвентарь — восстанавливаться из AsyncStorage:
+        // начисление до конца загрузки было бы затёрто.
         await Promise.all([
-          waitForHydration(useLessonsStore),
+          waitForLessonsLoaded(),
           waitForHydration(useShopStore),
           waitForHydration(usePreferencesStore),
         ]);

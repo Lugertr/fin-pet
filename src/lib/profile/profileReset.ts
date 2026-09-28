@@ -9,6 +9,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   getAdventureRepository,
+  getLessonProgressRepository,
   getPetRepository,
   getProfileRepository,
   getSavingsRepository,
@@ -16,6 +17,7 @@ import {
 } from '@/data/local/repositories';
 import { STARTING_SAVINGS_BALANCE, STARTING_WALLET_BALANCE } from '@/domain/profile/Profile';
 import { useDailyStore } from '@/lib/hooks/useDaily';
+import { LEGACY_LESSONS_STORE_KEY } from '@/lib/lessons/importLegacyLessonProgress';
 import { useLessonsStore } from '@/lib/hooks/useLessons';
 import { STARTER_FURNITURE_ITEM_IDS, useShopStore } from '@/lib/hooks/useShop';
 import { clearPin } from '@/lib/security/parentalPin';
@@ -44,6 +46,11 @@ export async function resetProfileToInitialState(): Promise<void> {
   await getTransactionRepository().clearForProfile(profileId);
   await getProfileRepository().updateBalance(profileId, STARTING_WALLET_BALANCE);
   await getAdventureRepository().deleteAllForProfile(profileId);
+  // Учебный прогресс и опыт (SQLite, v9); старый ключ AsyncStorage — чтобы
+  // его однократный перенос не вернул прогресс после сброса.
+  await getLessonProgressRepository().deleteAllForProfile(profileId);
+  await getLessonProgressRepository().saveTotalXp(profileId, 0);
+  await AsyncStorage.removeItem(LEGACY_LESSONS_STORE_KEY);
 
   const pet = await getPetRepository().getByProfileId(profileId);
   if (pet) {
@@ -69,7 +76,7 @@ export async function resetProfileToInitialState(): Promise<void> {
     });
   }
 
-  // AsyncStorage-сторы прогресса/экономики — назад к исходному состоянию.
+  // Сторы прогресса/экономики в памяти (и их AsyncStorage) — назад к исходному состоянию.
   // preferencesStore НЕ трогаем — имя питомца/вид/приоритетные ветки это
   // личность профиля, а не прогресс, «сброс» их не подразумевает.
   // PIN родительского раздела (SecureStore) — по той же причине НЕ сбрасываем:

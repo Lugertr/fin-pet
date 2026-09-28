@@ -178,4 +178,28 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE adventures ADD COLUMN budget INTEGER NOT NULL DEFAULT 0;
     `,
   },
+  {
+    version: 9,
+    // Учебный прогресс в SQLite (решение пользователя 28.09.2026; раньше —
+    // AsyncStorage, на вебе это localStorage). Урок из узлов продолжается с
+    // того же места в следующую смену: lesson_progress хранит состояние
+    // domain/lesson/lessonProgress.ts — прочитанные узлы, результаты действий
+    // и выпавшие события (JSON), первое завершение и первую звезду. Опыт
+    // игрока — profiles.total_xp. Старый прогресс переносится один раз
+    // (lib/lessons/importLegacyLessonProgress.ts).
+    sql: `
+      CREATE TABLE IF NOT EXISTS lesson_progress (
+        profile_id TEXT NOT NULL REFERENCES profiles(id),
+        lesson_id INTEGER NOT NULL,
+        read_nodes TEXT NOT NULL DEFAULT '[]',
+        results TEXT NOT NULL DEFAULT '{}',
+        event_picks TEXT NOT NULL DEFAULT '{}',
+        completed_at TEXT,
+        perfect_at TEXT,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (profile_id, lesson_id)
+      );
+      ALTER TABLE profiles ADD COLUMN total_xp INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
 ];

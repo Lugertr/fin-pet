@@ -2,6 +2,11 @@
 // Хук для работы с уроками: ветки, прогресс, мини-игры.
 // Бонус +10% коинов за приоритетную ветку применяется в StepRunner
 // (см. src/components/lesson/StepRunner/StepRunner.tsx), не здесь.
+//
+// Учебный прогресс — в SQLite (миграция v9, решение пользователя 28.09.2026):
+// состояние каждого урока из узлов (domain/lesson/lessonProgress.ts) и опыт
+// игрока. Стор — кэш в памяти: грузится load() при старте и после онбординга,
+// каждое изменение сразу пишется в SQLite.
 
 import { getLocalContentRepository } from '@/data/content';
 import {
@@ -17,9 +22,10 @@ import {
   LOOK_REWARD_LEVELS,
   pickLookToGrant,
 } from '@/domain/player/PlayerLevel';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getLessonProgressRepository } from '@/data/local/repositories';
+import { LessonProgressState, createLessonProgress } from '@/domain/lesson/lessonProgress';
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
+import { importLegacyLessonProgress } from '../lessons/importLegacyLessonProgress';
 import { useAchievementsStore } from '../stores/achievementsStore';
 import { usePetStore } from '../stores/petStore';
 import { usePreferencesStore } from '../stores/preferencesStore';
@@ -118,12 +124,60 @@ export const LESSONS: Lesson[] = contentRepository.getLessonsSync();
 export const FIVE_LETTERS_WORDS: FiveLettersWordContent[] =
   contentRepository.getFiveLettersWordsSync();
 
+/** Статус урока в прежнем виде — для экранов, которые ещё не перешли на узлы. */
+function toLegacyProgress(
+  states: Record<number, LessonProgressState>
+): Record<number, LessonProgress> {
+  const progress: Record<number, LessonProgress> = {};
+  for (const state of Object.values(states)) {
+    progress[state.lessonId] = {
+      lesson_id: state.lessonId,
+      // Строка урока появляется при первом открытии — значит, он начат.
+      status: state.completedAt ? 'completed' : 'in_progress',
+      score: 0,
+      completed_at: state.completedAt,
+    };
+  }
+  return progress;
+}
+
+/** Профиль, чей прогресс сейчас в сторе, — туда и пишем. */
+function currentProfileId(): string | null {
+  return useUserStore.getState().user?.id ?? null;
+}
+
+function persistLessonState(state: LessonProgressState): void {
+  const profileId = currentProfileId();
+  if (!profileId) return;
+  getLessonProgressRepository()
+    .save(profileId, state)
+    .catch((error) => console.warn('[Lessons] Не удалось сохранить прогресс урока:', error));
+}
+
+function persistTotalXp(totalXp: number): void {
+  const profileId = currentProfileId();
+  if (!profileId) return;
+  getLessonProgressRepository()
+    .saveTotalXp(profileId, totalXp)
+    .catch((error) => console.warn('[Lessons] Не удалось сохранить опыт:', error));
+}
+
+type LoadStatus = 'idle' | 'loading' | 'loaded';
+
 interface LessonsState {
+  /** Состояние уроков из узлов по id урока — источник истины (SQLite). */
+  lessonStates: Record<number, LessonProgressState>;
+  /** Производное от lessonStates: статус урока в прежнем виде. */
   progress: { [lessonId: number]: LessonProgress };
-  completedBranches: number[];
   totalXp: number;
+  /** 'loading' — прогресс профиля читается из SQLite (см. waitForLessonsLoaded). */
+  loadStatus: LoadStatus;
 
   // Actions
+  /** Читает прогресс профиля из SQLite (и один раз переносит старый из AsyncStorage). */
+  load: (profileId: string) => Promise<void>;
+  /** Сохраняет состояние урока из узлов (плеер урока, этап 3). */
+  saveLessonState: (state: LessonProgressState) => void;
   startLesson: (lessonId: number) => Lesson;
   /**
    * Для уроков с полной композицией шагов (buildLessonSteps): награды уже выданы
@@ -142,122 +196,143 @@ interface LessonsState {
    * случился (для UI-карточки на экране итогов приключения), иначе null.
    */
   addXp: (amount: number) => LevelUpResult | null;
-  /** §17.2 «Сброс профиля» — прогресс уроков к исходному состоянию. */
+  /** §17.2 «Сброс профиля» — прогресс уроков к исходному состоянию в памяти (SQLite чистит profileReset). */
   resetProgress: () => void;
 }
 
-export const useLessonsStore = create<LessonsState>()(
-  persist(
-    (set, get) => ({
-      progress: {},
-      completedBranches: [],
-      totalXp: 0,
+export const useLessonsStore = create<LessonsState>()((set, get) => {
+  const setLessonStates = (lessonStates: Record<number, LessonProgressState>) =>
+    set({ lessonStates, progress: toLegacyProgress(lessonStates) });
 
-      startLesson: (lessonId) => {
-        const lesson = LESSONS.find((l) => l.id === lessonId);
-        if (!lesson) throw new Error('Урок не найден');
+  const isCompleted = (lessonId: number) => Boolean(get().lessonStates[lessonId]?.completedAt);
 
-        const { progress } = get();
-        if (!progress[lessonId]) {
-          set({
-            progress: {
-              ...progress,
-              [lessonId]: {
-                lesson_id: lessonId,
-                status: 'in_progress',
-                score: 0,
-                completed_at: null,
-              },
-            },
-          });
-        }
+  return {
+    lessonStates: {},
+    progress: {},
+    totalXp: 0,
+    loadStatus: 'idle',
 
-        return lesson;
-      },
+    load: async (profileId) => {
+      set({ loadStatus: 'loading' });
+      const repository = getLessonProgressRepository();
+      try {
+        await importLegacyLessonProgress(profileId, repository);
+      } catch (error) {
+        console.warn('[Lessons] Не удалось перенести старый прогресс уроков:', error);
+      }
+      try {
+        const [states, totalXp] = await Promise.all([
+          repository.getAllForProfile(profileId),
+          repository.getTotalXp(profileId),
+        ]);
+        setLessonStates(Object.fromEntries(states.map((state) => [state.lessonId, state])));
+        set({ totalXp, loadStatus: 'loaded' });
+      } catch (error) {
+        console.error('[Lessons] Не удалось загрузить прогресс уроков:', error);
+        set({ loadStatus: 'loaded' });
+      }
+    },
 
-      markLessonCompleted: (lessonId) => {
-        const { progress } = get();
-        // §9: пройденный урок доступен для повтора без награды (монеты за
-        // повтор не начисляет RewardStep). Подарков за уроки нет — только за
-        // 7 дней подряд (решение пользователя 27.09.2026).
-        if (progress[lessonId]?.status === 'completed') return;
+    saveLessonState: (state) => {
+      setLessonStates({ ...get().lessonStates, [state.lessonId]: state });
+      persistLessonState(state);
+    },
 
-        const lesson = LESSONS.find((l) => l.id === lessonId);
+    startLesson: (lessonId) => {
+      const lesson = LESSONS.find((l) => l.id === lessonId);
+      if (!lesson) throw new Error('Урок не найден');
 
-        const nextProgress = {
-          ...progress,
-          [lessonId]: {
-            lesson_id: lessonId,
-            status: 'completed' as const,
-            score: progress[lessonId]?.score || 0,
-            completed_at: new Date().toISOString(),
-          },
-        };
-        set({ progress: nextProgress });
-        // Опыт за уроки не начисляется — только за завершение приключения
-        // (решение пользователя 27.09.2026, см. adventureStore ADVENTURE_XP).
+      if (!get().lessonStates[lessonId]) get().saveLessonState(createLessonProgress(lessonId));
+      return lesson;
+    },
 
-        if (lesson) reportBranchProgress(lesson.branch_id, get().getBranchProgress);
+    markLessonCompleted: (lessonId) => {
+      // §9: пройденный урок доступен для повтора без награды (монеты за
+      // повтор не начисляет RewardStep). Подарков за уроки нет — только за
+      // 7 дней подряд (решение пользователя 27.09.2026).
+      const existing = get().lessonStates[lessonId];
+      if (existing?.completedAt) return;
 
-        const completedCount = Object.values(nextProgress).filter(
-          (p) => p.status === 'completed'
-        ).length;
-        useAchievementsStore.getState().recordLessonsCompleted(completedCount);
-      },
+      get().saveLessonState({
+        ...(existing ?? createLessonProgress(lessonId)),
+        completedAt: new Date().toISOString(),
+      });
+      // Опыт за уроки не начисляется — только за завершение приключения
+      // (решение пользователя 27.09.2026, см. adventureStore ADVENTURE_XP).
 
-      isLessonAvailable: (lessonId) => {
-        const lesson = LESSONS.find((l) => l.id === lessonId);
-        if (!lesson) return false;
+      const lesson = LESSONS.find((l) => l.id === lessonId);
+      if (lesson) reportBranchProgress(lesson.branch_id, get().getBranchProgress);
 
-        // §18.2 демо-режим: задания доступны сразу все, без порядка прохождения
-        if (useUserStore.getState().user?.is_demo) return true;
+      const completedCount = Object.values(get().lessonStates).filter(
+        (state) => state.completedAt
+      ).length;
+      useAchievementsStore.getState().recordLessonsCompleted(completedCount);
+    },
 
-        const { progress } = get();
-        const lessonsInBranch = LESSONS.filter((l) => l.branch_id === lesson.branch_id).sort(
-          (a, b) => a.order_index - b.order_index
-        );
+    isLessonAvailable: (lessonId) => {
+      const lesson = LESSONS.find((l) => l.id === lessonId);
+      if (!lesson) return false;
 
-        const currentIndex = lessonsInBranch.findIndex((l) => l.id === lessonId);
-        if (currentIndex === 0) return true;
+      // §18.2 демо-режим: задания доступны сразу все, без порядка прохождения
+      if (useUserStore.getState().user?.is_demo) return true;
 
-        const prevLesson = lessonsInBranch[currentIndex - 1];
-        return progress[prevLesson.id]?.status === 'completed';
-      },
+      const lessonsInBranch = LESSONS.filter((l) => l.branch_id === lesson.branch_id).sort(
+        (a, b) => a.order_index - b.order_index
+      );
 
-      getBranchProgress: (branchId) => {
-        const { progress } = get();
-        const lessonsInBranch = LESSONS.filter((l) => l.branch_id === branchId);
-        const completed = lessonsInBranch.filter(
-          (l) => progress[l.id]?.status === 'completed'
-        ).length;
-        return { completed, total: lessonsInBranch.length };
-      },
+      const currentIndex = lessonsInBranch.findIndex((l) => l.id === lessonId);
+      if (currentIndex === 0) return true;
 
-      getNextLessonInBranch: (branchId) => {
-        const { progress } = get();
-        const lessonsInBranch = LESSONS.filter((l) => l.branch_id === branchId).sort(
-          (a, b) => a.order_index - b.order_index
-        );
-        return lessonsInBranch.find((l) => progress[l.id]?.status !== 'completed') ?? null;
-      },
+      return isCompleted(lessonsInBranch[currentIndex - 1].id);
+    },
 
-      addXp: (amount) => {
-        const prevLevel = computeLevel(get().totalXp).level;
-        const nextTotalXp = get().totalXp + amount;
-        const nextLevel = computeLevel(nextTotalXp).level;
+    getBranchProgress: (branchId) => {
+      const lessonsInBranch = LESSONS.filter((l) => l.branch_id === branchId);
+      const completed = lessonsInBranch.filter((l) => isCompleted(l.id)).length;
+      return { completed, total: lessonsInBranch.length };
+    },
 
-        set({ totalXp: nextTotalXp });
+    getNextLessonInBranch: (branchId) => {
+      const lessonsInBranch = LESSONS.filter((l) => l.branch_id === branchId).sort(
+        (a, b) => a.order_index - b.order_index
+      );
+      return lessonsInBranch.find((l) => !isCompleted(l.id)) ?? null;
+    },
 
-        if (nextLevel <= prevLevel) return null;
-        const granted = grantLevelUpRewards(prevLevel, nextLevel);
-        return { from: prevLevel, to: nextLevel, ...granted };
-      },
+    addXp: (amount) => {
+      const prevLevel = computeLevel(get().totalXp).level;
+      const nextTotalXp = get().totalXp + amount;
+      const nextLevel = computeLevel(nextTotalXp).level;
 
-      resetProgress: () => set({ progress: {}, completedBranches: [], totalXp: 0 }),
-    }),
-    {
-      name: 'finsputnik-lessons-store',
-      storage: createJSONStorage(() => AsyncStorage),
-    }
-  )
-);
+      set({ totalXp: nextTotalXp });
+      persistTotalXp(nextTotalXp);
+
+      if (nextLevel <= prevLevel) return null;
+      const granted = grantLevelUpRewards(prevLevel, nextLevel);
+      return { from: prevLevel, to: nextLevel, ...granted };
+    },
+
+    resetProgress: () => set({ lessonStates: {}, progress: {}, totalXp: 0 }),
+  };
+});
+
+/**
+ * Дождаться, пока прогресс профиля дочитается из SQLite (если он сейчас
+ * читается): начисление опыта до этого было бы затёрто загрузкой. Не дольше
+ * timeoutMs — ошибка чтения не должна подвесить вызывающего.
+ */
+export function waitForLessonsLoaded(timeoutMs = 3_000): Promise<void> {
+  if (useLessonsStore.getState().loadStatus !== 'loading') return Promise.resolve();
+  return new Promise((resolve) => {
+    const unsubscribe = useLessonsStore.subscribe((state) => {
+      if (state.loadStatus === 'loading') return;
+      clearTimeout(timeout);
+      unsubscribe();
+      resolve();
+    });
+    const timeout = setTimeout(() => {
+      unsubscribe();
+      resolve();
+    }, timeoutMs);
+  });
+}

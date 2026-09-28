@@ -102,9 +102,11 @@ export class SqliteProfileRepository implements ProfileRepository {
     // того, как этот метод был написан (Этап 0) — каскад не был обновлён вместе
     // с ними; полное удаление профиля (§17.2) требует чистки всех таблиц.
     // periods/pet_progress дропнуты миграцией v7 (заменены adventures/уровнями),
-    // adventure_event_log — дочерняя к adventures, чистится первой (FK).
+    // adventure_event_log — дочерняя к adventures, чистится первой (FK);
+    // lesson_progress (v9) — дочерняя к profiles.
     await db.execAsync(
-      `DELETE FROM adventure_event_log;
+      `DELETE FROM lesson_progress;
+       DELETE FROM adventure_event_log;
        DELETE FROM adventures;
        DELETE FROM savings_transactions;
        DELETE FROM savings;

@@ -47,6 +47,7 @@ import {
 import { PetRecord } from '@/domain/repositories/PetRepository';
 import { BASE_SAVINGS_BONUS_RATE, SavingsRecord } from '@/domain/savings/Savings';
 import { useFeedback } from '@/lib/hooks/useFeedback';
+import { useLessonsStore } from '@/lib/hooks/useLessons';
 import { STARTER_FURNITURE_ITEM_IDS, useShopStore } from '@/lib/hooks/useShop';
 import { getSkinsForPetType } from '@/lib/pet/petSkin';
 import { getFirstGoalOptions } from '@/lib/savings/goalOptions';
@@ -213,6 +214,9 @@ export default function OnboardingScreen() {
 
       setPetType(petType);
       setPetName(petNameLocal.trim());
+      // Учебный прогресс нового профиля (пустой) — дальше каждое изменение
+      // уроков пишется в SQLite для этого профиля.
+      await useLessonsStore.getState().load(userId);
       completeOnboarding();
 
       router.replace('/(tabs)' as never);

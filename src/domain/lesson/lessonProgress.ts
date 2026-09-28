@@ -69,19 +69,25 @@ function isActivityDone(state: LessonProgressState, activity: PlanActivity): boo
   return state.results[activity.id]?.completed ?? false;
 }
 
-/** Где ребёнок сейчас: первый узел с непрочитанным блоком или непройденным действием. */
+/**
+ * Где ребёнок сейчас: первый узел с непрочитанным блоком или непройденным
+ * действием. Завершённый урок — всегда «done», даже без результатов по узлам
+ * (пройден до перехода на узлы и перенесён из старого прогресса).
+ */
 export function currentPosition(plan: LessonPlan, state: LessonProgressState): LessonPosition {
+  if (state.completedAt) return { kind: 'done' };
   for (const node of plan.nodes) {
     if (!isReadingDone(state, node)) return { kind: 'reading', node };
     const next = node.activities.find((activity) => !isActivityDone(state, activity));
     if (next) return { kind: 'activity', node, activity: next };
   }
-  return state.completedAt ? { kind: 'done' } : { kind: 'final' };
+  return { kind: 'final' };
 }
 
 export function isNodeComplete(plan: LessonPlan, state: LessonProgressState, nodeIndex: number) {
   const node = plan.nodes[nodeIndex];
   if (!node) return false;
+  if (state.completedAt) return true;
   return isReadingDone(state, node) && node.activities.every((a) => isActivityDone(state, a));
 }
 
@@ -92,8 +98,8 @@ export function totalNodeCount(plan: LessonPlan): number {
 
 /** Пройдено узлов трека — «Работа: 2 из 5». */
 export function completedNodeCount(plan: LessonPlan, state: LessonProgressState): number {
-  const done = plan.nodes.filter((node) => isNodeComplete(plan, state, node.index)).length;
-  return done + (state.completedAt ? 1 : 0);
+  if (state.completedAt) return totalNodeCount(plan);
+  return plan.nodes.filter((node) => isNodeComplete(plan, state, node.index)).length;
 }
 
 /**
