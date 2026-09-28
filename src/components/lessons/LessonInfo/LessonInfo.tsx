@@ -1,24 +1,24 @@
 // src/components/lessons/LessonInfo/LessonInfo.tsx
-// Информация об уроке рядом с кружком на дереве уроков
+// Информация об уроке рядом с кружком на дереве уроков: название и
+// состояние — «★ Идеально», «✓ Пройдено», «Начат · 1/4» (продолжится в
+// смене; значок «play» у кружка), «Следующий» или число этапов у закрытого.
+// Этапы — по тому же плану, что и трек смены (в демо урок короче).
 
 import { View } from 'react-native';
 import { Text } from '@/components/ui/Text';
 
-import { isNodeLesson } from '@/domain/lesson/LessonPlan';
-import { Lesson } from '@/lib/hooks/useLessons';
+import { LessonPathNode } from '@/domain/lesson/LessonPathNode';
 import { pluralize } from '@/lib/utils/formatters';
 import { useResponsive, useTheme } from '@/theme';
 import { fontWeights } from '@/theme/tokens';
 
 export function LessonInfo({
-  lesson,
-  isCompleted,
+  item,
   isPriority,
   align,
   maxWidth,
 }: {
-  lesson: Lesson;
-  isCompleted: boolean;
+  item: LessonPathNode;
   isPriority: boolean;
   align: 'left' | 'right';
   /** Считается в LessonPath от реально доступной ширины колонки. */
@@ -26,6 +26,8 @@ export function LessonInfo({
 }) {
   const { theme } = useTheme();
   const { scaledFont } = useResponsive();
+  const isDone = item.status === 'perfect' || item.status === 'completed';
+  const isCurrent = item.status === 'started' || item.status === 'next';
 
   return (
     <View style={{ maxWidth }}>
@@ -40,7 +42,7 @@ export function LessonInfo({
         adjustsFontSizeToFit
         minimumFontScale={0.7}
       >
-        {lesson.title}
+        {item.lesson.title}
       </Text>
       <View
         style={{
@@ -53,15 +55,15 @@ export function LessonInfo({
       >
         <Text
           style={{
-            color: isCompleted ? theme.success : theme.textMuted,
+            color: isDone ? theme.success : isCurrent ? theme.primary : theme.textMuted,
             fontSize: scaledFont('xxs'),
             textTransform: 'uppercase',
             fontWeight: fontWeights.semibold,
           }}
         >
-          {isCompleted ? '✓ Пройдено' : lessonKindLabel(lesson)}
+          {lessonStatusLabel(item)}
         </Text>
-        {isPriority && !isCompleted && (
+        {isPriority && !isDone && (
           <Text
             style={{
               color: theme.success,
@@ -77,13 +79,18 @@ export function LessonInfo({
   );
 }
 
-/** Подпись урока: у урока из узлов — сколько в нём этапов (как на треке смены). */
-function lessonKindLabel(lesson: Lesson): string {
-  if (isNodeLesson(lesson)) {
-    const stages = lesson.nodes.length + 1;
-    return `${stages} ${pluralize(stages, 'этап', 'этапа', 'этапов')}`;
+/** Подпись состояния урока — и под кружком, и для экранного диктора. */
+export function lessonStatusLabel(item: LessonPathNode): string {
+  switch (item.status) {
+    case 'perfect':
+      return '★ Идеально';
+    case 'completed':
+      return '✓ Пройдено';
+    case 'started':
+      return `Начат · ${item.nodesDone}/${item.nodesTotal}`;
+    case 'next':
+      return 'Следующий';
+    case 'locked':
+      return `${item.nodesTotal} ${pluralize(item.nodesTotal, 'этап', 'этапа', 'этапов')}`;
   }
-  if (lesson.minigame_type === 'quiz') return 'Викторина';
-  if (lesson.minigame_type === 'five_letters') return '5 букв';
-  return 'Мини-игра';
 }

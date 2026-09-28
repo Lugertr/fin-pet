@@ -8,8 +8,10 @@
 // матрицей и лентой и сжималась до узкой полосы — прогресс почти не был виден.
 //
 // Компоненты дерева живут в src/components/lessons/ — этот файл отвечает
-// только за раскладку экрана. Аркада открывается из приключения (кнопка рядом
-// с «Выполнить задание» → (modal)/arcade-lobby).
+// только за раскладку экрана. На дорожке у урока видно состояние: звезда
+// (пройден без ошибок), пройден, начат («Начат · N/M», продолжится в смене),
+// следующий (с него начнётся смена по теме) или закрыт.
+// Аркада — кнопкой на хабе ((modal)/arcade-lobby).
 
 import { LinearGradient } from 'expo-linear-gradient';
 import { useMemo, useRef, useState } from 'react';
@@ -35,6 +37,7 @@ import {
 import { AppHeaderStats, useAppHeaderPadding } from '@/components/shared';
 import { Card, SectionTitle } from '@/components/ui';
 import { buildLessonPath } from '@/domain/lesson/buildLessonPath';
+import { hasStar } from '@/domain/lesson/lessonProgress';
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { openLessonOrExplain } from '@/lib/lessons/openLesson';
 import { BRANCHES, LESSONS, useLessonsStore } from '@/lib/hooks/useLessons';
@@ -52,7 +55,7 @@ export default function LessonsScreen() {
   const { width, scaledFont } = useResponsive();
   const headerPadding = useAppHeaderPadding();
   const { triggerHaptic } = useFeedback();
-  const progress = useLessonsStore((s) => s.progress);
+  const lessonStates = useLessonsStore((s) => s.lessonStates);
   // Прогресс тем — массивы чисел, useShallow сравнивает их поэлементно:
   // перерисовка только когда реально пройден урок.
   const completedByBranch = useLessonsStore(
@@ -68,6 +71,7 @@ export default function LessonsScreen() {
   );
   const currentMood = usePetStore((s) => s.currentMood);
   const user = useUserStore((s) => s.user);
+  const isDemo = user?.is_demo ?? false;
 
   const styles = createLessonsStyles({ theme });
 
@@ -121,12 +125,17 @@ export default function LessonsScreen() {
     value: totalByBranch[i] > 0 ? Math.round((completedByBranch[i] / totalByBranch[i]) * 100) : 0,
   }));
 
-  const pathItems = useMemo(() => {
-    const lessonsInBranch = LESSONS.filter((l) => l.branch_id === selectedBranch.id).sort(
-      (a, b) => a.order_index - b.order_index
-    );
-    return buildLessonPath(lessonsInBranch);
-  }, [selectedBranch.id]);
+  const pathItems = useMemo(
+    () =>
+      buildLessonPath(
+        LESSONS.filter((l) => l.branch_id === selectedBranch.id),
+        lessonStates,
+        isDemo
+      ),
+    [selectedBranch.id, lessonStates, isDemo]
+  );
+  const branchStars = pathItems.filter((item) => item.status === 'perfect').length;
+  const starsTotal = Object.values(lessonStates).filter(hasStar).length;
 
   return (
     <View style={styles.container}>
@@ -150,8 +159,8 @@ export default function LessonsScreen() {
             <SpiderChart data={competenceData} color={theme.primary} />
             <View style={styles.summaryBlock}>
               <Text style={[styles.summaryText, { fontSize: scaledFont('md') }]}>
-                Уроков: {lessonsCompleted} из {lessonsTotal} · Тем: {branchesDone} из{' '}
-                {BRANCHES.length}
+                Уроков: {lessonsCompleted} из {lessonsTotal} · ★ {starsTotal} · Тем: {branchesDone}{' '}
+                из {BRANCHES.length}
               </Text>
               <View
                 style={styles.overallTrack}
@@ -186,12 +195,12 @@ export default function LessonsScreen() {
           branchName={selectedBranch.name}
           completed={selectedCompleted}
           total={selectedTotal}
+          stars={branchStars}
         />
 
         {/* 3 — дорожка уроков: изогнутая SVG-линия + узлы уроков */}
         <LessonPath
           items={pathItems}
-          progress={progress}
           branchColor={BRANCH_GRADIENTS[selectedBranch.id]?.[0] || theme.primary}
           isPriority={selectedBranch.id === adventureBranchId}
           containerWidth={width}

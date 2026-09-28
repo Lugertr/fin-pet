@@ -5,31 +5,41 @@
 // подпись выходит за его границы абсолютным позиционированием, не влияя на
 // центрирование кружка в LessonPath.
 //
-// Тап никогда не отключается на уровне кнопки (нет disabled): на вкладке
-// «Уроки» непройденный урок выглядит заблокированным, но тап по нему должен
-// сработать и показать алерт «пройти можно в приключении» — если бы кнопка
-// была disabled, onPress вообще не вызвался бы. Решение «перейти или
-// показать алерт» принимает вызывающий код (см. lessons.tsx onPressLesson).
+// Состояние урока (domain/lesson/LessonPathNode.ts) различается не только
+// цветом (§23): пройден без ошибок — звезда, пройден — галочка, начатый и
+// следующий — кольцо цвета темы с «play», закрытый — замок; плюс подпись.
+//
+// Тап никогда не отключается на уровне кнопки (нет disabled): непройденный
+// урок на вкладке «Уроки» не открывается, но тап по нему должен сработать и
+// объяснить, где его пройти, — если бы кнопка была disabled, onPress вообще
+// не вызвался бы. Решение «перейти или объяснить» принимает вызывающий код
+// (см. lessons.tsx onPressLesson).
 
 import { Ionicons } from '@expo/vector-icons';
 import { View, TouchableOpacity } from 'react-native';
 
-import { Lesson } from '@/lib/hooks/useLessons';
+import { LessonPathNode } from '@/domain/lesson/LessonPathNode';
 import { useResponsive, useTheme } from '@/theme';
 import { spacing } from '@/theme/tokens';
-import { LessonInfo } from '../LessonInfo';
+import { LessonInfo, lessonStatusLabel } from '../LessonInfo';
+
+const ICONS = {
+  perfect: 'star',
+  completed: 'checkmark',
+  started: 'play',
+  next: 'play',
+  locked: 'lock-closed',
+} as const;
 
 export function LessonNode({
-  lesson,
-  isCompleted,
+  item,
   branchColor,
   isPriority,
   infoAlign,
   labelMaxWidth,
   onPress,
 }: {
-  lesson: Lesson;
-  isCompleted: boolean;
+  item: LessonPathNode;
   branchColor: string;
   isPriority: boolean;
   infoAlign: 'left' | 'right';
@@ -42,32 +52,36 @@ export function LessonNode({
   const { scale } = useResponsive();
 
   const circleSize = scale(60);
+  const { status } = item;
+  const isDone = status === 'perfect' || status === 'completed';
+  const isCurrent = status === 'started' || status === 'next';
 
   return (
     <View style={{ width: circleSize, height: circleSize }}>
       <TouchableOpacity
         onPress={onPress}
         activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel={`${item.lesson.title}: ${lessonStatusLabel(item)}`}
         style={{
           width: circleSize,
           height: circleSize,
           borderRadius: circleSize / 2,
           alignItems: 'center',
           justifyContent: 'center',
-          // На вкладке «Уроки» пройти можно только уже пройденный урок (см.
-          // lessons.tsx onPressLesson), поэтому у узла ровно два вида: пройден
-          // (цвет ветки) или заблокирован (theme.border — раньше был
-          // surfaceLight, почти сливавшийся со светлым фоном экрана, §1 бага).
-          // Никакого доп. затемнения (opacity) поверх — оно бы снова снизило
-          // контраст, а иконка замка и так однозначно показывает состояние.
-          backgroundColor: isCompleted ? branchColor : theme.border,
+          // Пройден — цвет темы; текущий (начат или следующий) — кольцо цвета
+          // темы; закрыт — theme.border (контрастен на светлом фоне, без
+          // доп. затемнения — иконка замка и так показывает состояние).
+          backgroundColor: isDone ? branchColor : isCurrent ? theme.surface : theme.border,
+          borderWidth: isCurrent ? scale(3) : 0,
+          borderColor: branchColor,
         }}
       >
-        {isCompleted ? (
-          <Ionicons name="checkmark" size={scale(28)} color={theme.onGradient} />
-        ) : (
-          <Ionicons name="lock-closed" size={scale(20)} color={theme.textMuted} />
-        )}
+        <Ionicons
+          name={ICONS[status]}
+          size={scale(status === 'locked' ? 20 : 28)}
+          color={isDone ? theme.onGradient : isCurrent ? branchColor : theme.textMuted}
+        />
       </TouchableOpacity>
 
       <View
@@ -82,8 +96,7 @@ export function LessonNode({
         }}
       >
         <LessonInfo
-          lesson={lesson}
-          isCompleted={isCompleted}
+          item={item}
           isPriority={isPriority}
           align={infoAlign}
           maxWidth={labelMaxWidth}

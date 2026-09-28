@@ -8,7 +8,8 @@
 
 import { router } from 'expo-router';
 
-import { useLessonsStore } from '@/lib/hooks/useLessons';
+import { isLessonStarted } from '@/domain/lesson/lessonProgress';
+import { LESSONS, useLessonsStore } from '@/lib/hooks/useLessons';
 import { useAdventureStore } from '@/lib/stores/adventureStore';
 import { useUserStore } from '@/lib/stores/userStore';
 import { Alert } from '@/lib/utils/alert';
@@ -26,11 +27,17 @@ export function openLessonOrExplain(lessonId: number): boolean {
   }
 
   const adventureActive = useAdventureStore.getState().currentAdventure?.status === 'active';
+  const where = adventureActive
+    ? 'жми «Начать задание» на экране работы.'
+    : 'нажми «Начать работу» на хабе.';
+  // Начатый урок продолжится в смене с того же этапа (отметка «продолжить» на дорожке).
+  const started = isLessonStarted(useLessonsStore.getState().lessonStates[lessonId]);
+  const title = LESSONS.find((l) => l.id === lessonId)?.title;
   Alert.alert(
-    'Новые уроки — в работе',
-    adventureActive
-      ? 'Новые уроки проходятся в смене: жми «Начать задание» на экране работы.'
-      : 'Новые уроки проходятся в смене — нажми «Начать работу» на хабе.'
+    started ? 'Урок уже начат' : 'Новые уроки — в работе',
+    started
+      ? `Урок «${title}» продолжится в смене с того же места — ${where}`
+      : `Новые уроки проходятся в смене — ${where}`
   );
   return false;
 }

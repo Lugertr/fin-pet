@@ -4,8 +4,9 @@
 
 import { createLessonProgress } from '@/domain/lesson/lessonProgress';
 import { LESSONS, useLessonsStore } from '@/lib/hooks/useLessons';
+import { useAlertStore } from '@/lib/stores/alertStore';
 import { useUserStore } from '@/lib/stores/userStore';
-import { canOpenLessonDirectly } from './openLesson';
+import { canOpenLessonDirectly, openLessonOrExplain } from './openLesson';
 
 function seedUser(isDemo: boolean): void {
   useUserStore.getState().setUser({
@@ -41,5 +42,25 @@ describe('canOpenLessonDirectly', () => {
   it('в демо-режиме открывается любой урок (§18.2 «задания доступны сразу все»)', () => {
     seedUser(true);
     expect(canOpenLessonDirectly(lessonId)).toBe(true);
+  });
+});
+
+describe('openLessonOrExplain — объяснение вместо открытия', () => {
+  const lesson = LESSONS[0];
+
+  it('новый урок — где проходятся новые уроки', () => {
+    seedUser(false);
+    expect(openLessonOrExplain(lesson.id)).toBe(false);
+    expect(useAlertStore.getState().title).toBe('Новые уроки — в работе');
+  });
+
+  it('начатый урок — что он продолжится в смене с того же места', () => {
+    seedUser(false);
+    useLessonsStore
+      .getState()
+      .saveLessonState({ ...createLessonProgress(lesson.id), readNodes: [0] });
+    expect(openLessonOrExplain(lesson.id)).toBe(false);
+    expect(useAlertStore.getState().title).toBe('Урок уже начат');
+    expect(useAlertStore.getState().message).toContain(`«${lesson.title}»`);
   });
 });

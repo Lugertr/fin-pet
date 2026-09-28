@@ -244,6 +244,12 @@ export function settleLesson(
   };
 }
 
+/** Урок начат, но не завершён: есть прочитанный этап или результат действия. */
+export function isLessonStarted(state: LessonProgressState | undefined): boolean {
+  if (!state || state.completedAt) return false;
+  return state.readNodes.length > 0 || Object.keys(state.results).length > 0;
+}
+
 /** Звезда урока — он хоть раз пройден идеально. */
 export function hasStar(state: LessonProgressState | undefined): boolean {
   return Boolean(state?.perfectAt);

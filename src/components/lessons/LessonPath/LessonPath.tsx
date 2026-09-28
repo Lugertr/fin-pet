@@ -19,7 +19,7 @@ import { Text } from '@/components/ui/Text';
 import Svg, { Path } from 'react-native-svg';
 
 import { LessonPathNode } from '@/domain/lesson/LessonPathNode';
-import { Lesson, LessonProgress } from '@/lib/hooks/useLessons';
+import { Lesson } from '@/lib/hooks/useLessons';
 import { useResponsive, useTheme } from '@/theme';
 import { spacing } from '@/theme/tokens';
 import { LessonNode } from '../LessonNode';
@@ -35,7 +35,6 @@ function itemKey(item: LessonPathNode): string {
 
 export function LessonPath({
   items,
-  progress,
   branchColor,
   isPriority,
   onPressLesson,
@@ -43,7 +42,6 @@ export function LessonPath({
   containerWidth,
 }: {
   items: LessonPathNode[];
-  progress: Record<number, LessonProgress>;
   branchColor: string;
   isPriority: boolean;
   onPressLesson: (lesson: Lesson) => void;
@@ -114,20 +112,15 @@ export function LessonPath({
             top: cy - circleSize / 2,
           };
 
-          const lesson = item.lesson;
-          const lessonProgress = progress[lesson.id];
-          const isCompleted = lessonProgress?.status === 'completed';
-
           return (
             <View key={itemKey(item)} style={[styles.nodeSlot, slotStyle]}>
               <LessonNode
-                lesson={lesson}
-                isCompleted={isCompleted}
+                item={item}
                 branchColor={branchColor}
                 isPriority={isPriority}
                 infoAlign={i % 2 === 0 ? 'right' : 'left'}
                 labelMaxWidth={labelMaxWidth}
-                onPress={() => onPressLesson(lesson)}
+                onPress={() => onPressLesson(item.lesson)}
               />
             </View>
           );

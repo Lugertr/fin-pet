@@ -4,4 +4,21 @@
 
 import { AnyLessonContent } from '@/domain/content/LessonContent';
 
-export type LessonPathNode = { type: 'lesson'; lesson: AnyLessonContent };
+/**
+ * Состояние урока на дорожке:
+ * - perfect — пройден без ошибок (звезда);
+ * - completed — пройден;
+ * - started — начат («Начат · 1/4»), продолжится в смене с того же этапа;
+ * - next — следующий непройденный урок темы: с него начнётся смена по теме;
+ * - locked — дальше по порядку.
+ */
+export type LessonPathStatus = 'perfect' | 'completed' | 'started' | 'next' | 'locked';
+
+export interface LessonPathNode {
+  type: 'lesson';
+  lesson: AnyLessonContent;
+  status: LessonPathStatus;
+  /** Этапы трека («этап 2 из 4»): пройдено и всего, с финальным. */
+  nodesDone: number;
+  nodesTotal: number;
+}

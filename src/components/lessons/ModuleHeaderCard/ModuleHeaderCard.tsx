@@ -1,6 +1,7 @@
 // src/components/lessons/ModuleHeaderCard/ModuleHeaderCard.tsx
 // Карточка модуля (выбранной ветки) под вкладками: номер+название, дробь
-// прогресса, белый прогресс-бар на акцентном градиенте (theme.gradients.accent).
+// прогресса и звёзды темы (уроки без ошибок), белый прогресс-бар на
+// акцентном градиенте (theme.gradients.accent).
 
 import { LinearGradient } from 'expo-linear-gradient';
 import { View } from 'react-native';
@@ -14,11 +15,14 @@ export function ModuleHeaderCard({
   branchName,
   completed,
   total,
+  stars,
 }: {
   moduleNumber: number;
   branchName: string;
   completed: number;
   total: number;
+  /** Уроков темы, пройденных без ошибок. */
+  stars: number;
 }) {
   const { theme } = useTheme();
   const { scaledFont } = useResponsive();
@@ -41,6 +45,12 @@ export function ModuleHeaderCard({
           <Text style={[styles.progressLabel, { fontSize: scaledFont('sm') }]}>Прогресс</Text>
           <Text style={[styles.progressFraction, { fontSize: scaledFont('sm') }]}>
             {completed}/{total}
+          </Text>
+          <Text
+            style={[styles.progressFraction, { fontSize: scaledFont('sm') }]}
+            accessibilityLabel={`Звёзд: ${stars} из ${total}`}
+          >
+            · ★ {stars}
           </Text>
         </View>
       </View>

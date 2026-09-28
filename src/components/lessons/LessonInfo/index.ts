@@ -1,1 +1,1 @@
-export { LessonInfo } from './LessonInfo';
+export { LessonInfo, lessonStatusLabel } from './LessonInfo';
