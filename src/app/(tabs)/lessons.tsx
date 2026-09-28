@@ -9,7 +9,7 @@
 //
 // Компоненты дерева живут в src/components/lessons/ — этот файл отвечает
 // только за раскладку экрана. На дорожке у урока видно состояние: звезда
-// (пройден без ошибок), пройден, начат («Начат · N/M», продолжится в смене),
+// (пройден без ошибок), пройден, начат («Начат · N/M», продолжится с того же этапа),
 // следующий (с него начнётся смена по теме) или закрыт.
 // Аркада — кнопкой на хабе ((modal)/arcade-lobby).
 
@@ -204,8 +204,9 @@ export default function LessonsScreen() {
           branchColor={BRANCH_GRADIENTS[selectedBranch.id]?.[0] || theme.primary}
           isPriority={selectedBranch.id === adventureBranchId}
           containerWidth={width}
-          // Пройденный — повтор без награды, в демо — любой, иначе объяснение
-          // (единое правило с ИИ-помощником, см. lib/lessons/openLesson.ts).
+          // Пройденный, начатый или следующий по порядку — открывается (и вне
+          // смены), в демо — любой, закрытый — объяснение (единое правило с
+          // ИИ-помощником, см. lib/lessons/openLesson.ts).
           onPressLesson={(lesson) => {
             if (openLessonOrExplain(lesson.id)) triggerHaptic('medium');
           }}

@@ -13,7 +13,9 @@
 // награды (§9.7). Тап по пройденному этапу на треке смены открывает обзор
 // одного этапа (focusNode) — так же.
 // Урок смены: +10% монет, события платит бюджет смены, ошибка стоит энергии,
-// урок пройден — смена завершается (итоги на хабе).
+// проходится по этапам — одно «Начать задание» на экране работы — один этап
+// (после него — «Этап пройден» и назад к работе), урок пройден — смена
+// завершается (итоги на хабе). Вне смены урок идёт целиком.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -52,6 +54,7 @@ import { useUserStore } from '@/lib/stores/userStore';
 import { Alert } from '@/lib/utils/alert';
 import { formatPrice } from '@/lib/utils/formatters';
 import { CompleteStage } from '../CompleteStage';
+import { StageDoneStep } from '../StageDoneStep';
 import { LessonEventStep } from '../LessonEventStep';
 import { LessonOverview } from '../LessonOverview';
 import { LessonStepHeader } from '../LessonStepHeader';
@@ -65,6 +68,13 @@ const MINIGAME_HELP: Record<string, ScreenHelpId> = {
   quiz: 'game_quiz',
   tinder_swipe: 'game_swipes',
   five_letters: 'game_five_letters',
+};
+
+/** Что дальше после этапа урока смены — по типу следующего этапа на треке. */
+const NEXT_STAGE_LABELS: Record<PlanNode['kind'], string> = {
+  test: 'тест',
+  minigame: 'мини-игра',
+  event: 'событие',
 };
 
 type Segment =
@@ -88,7 +98,9 @@ type Segment =
       hasStar: boolean;
       isShift: boolean;
     }
-  | { kind: 'complete'; coins: number; isReplay: boolean; isShift: boolean };
+  | { kind: 'complete'; coins: number; isReplay: boolean; isShift: boolean }
+  /** Урок смены: этап трека пройден — назад к работе, следующий этап — оттуда. */
+  | { kind: 'stageDone'; nodesDone: number; nodesTotal: number; nextLabel: string };
 
 /** Сегмент действия: событие выпадает из пула один раз и запоминается в прогрессе. */
 function activitySegment(
@@ -130,6 +142,7 @@ export function LessonPlayer({
   lesson,
   focusNode,
   onExit,
+  onBackToWork,
   onRequestExit,
   onExitGuardChange,
 }: {
@@ -137,6 +150,8 @@ export function LessonPlayer({
   /** Открыт с трека смены пройденный этап — только он: перечитать и перепройти. */
   focusNode?: number;
   onExit: () => void;
+  /** Этап урока смены пройден — на экран работы. */
+  onBackToWork: () => void;
   /** Выход посреди урока — через подтверждение (модалка паузы экрана). */
   onRequestExit: () => void;
   /** Нужно ли подтверждение выхода сейчас (для аппаратной кнопки «назад»). */
@@ -220,7 +235,7 @@ export function LessonPlayer({
    * у незавершённого урока (этап с трека смены) завершение — только через
    * заключение, с экраном награды.
    */
-  const afterSegment = (next: LessonProgressState) => {
+  const afterSegment = (next: LessonProgressState, finishedNodeIndex: number) => {
     if (isRevisit) {
       if (next.completedAt) {
         const result = finishLesson(plan, next);
@@ -236,7 +251,25 @@ export function LessonPlayer({
       show({ kind: 'overview' });
       return;
     }
-    const entry = segmentAt(plan, currentPosition(plan, next), next);
+    const position = currentPosition(plan, next);
+    // Урок смены — по этапам: этап закончен — назад к работе (решение 28.09).
+    const stageFinished =
+      position.kind === 'final' ||
+      ((position.kind === 'reading' || position.kind === 'activity') &&
+        position.node.index !== finishedNodeIndex);
+    if (isAdventureQuest && stageFinished) {
+      show({
+        kind: 'stageDone',
+        nodesDone: completedNodeCount(plan, next),
+        nodesTotal: totalNodeCount(plan),
+        nextLabel:
+          position.kind === 'reading' || position.kind === 'activity'
+            ? NEXT_STAGE_LABELS[position.node.kind]
+            : 'завершение урока',
+      });
+      return;
+    }
+    const entry = segmentAt(plan, position, next);
     if (entry.state !== next) commit(entry.state);
     show(entry.segment);
   };
@@ -244,7 +277,7 @@ export function LessonPlayer({
   const handleReadingDone = (node: PlanNode) => {
     const next = markReadingDone(progressRef.current, node.index);
     if (next !== progressRef.current) commit(next);
-    afterSegment(next);
+    afterSegment(next, node.index);
   };
 
   const handleActivityDone = (activity: PlanActivity) => {
@@ -252,7 +285,7 @@ export function LessonPlayer({
       perfect: wrongAnswers === 0,
     });
     commit(next);
-    afterSegment(next);
+    afterSegment(next, activity.nodeIndex);
   };
 
   const handleEventChoice = async (
@@ -265,7 +298,7 @@ export function LessonPlayer({
     if (isAdventureQuest) await applyLessonEventChoice(event.id, option);
     const next = recordActivityResult(progressRef.current, activity, { perfect: true, optionId });
     commit(next);
-    afterSegment(next);
+    afterSegment(next, activity.nodeIndex);
   };
 
   const handleConclusionDone = () => {
@@ -382,6 +415,15 @@ export function LessonPlayer({
                 isShift: segment.isShift,
               })
             }
+          />
+        );
+      case 'stageDone':
+        return (
+          <StageDoneStep
+            nodesDone={segment.nodesDone}
+            nodesTotal={segment.nodesTotal}
+            nextLabel={segment.nextLabel}
+            onBackToWork={onBackToWork}
           />
         );
       case 'complete':

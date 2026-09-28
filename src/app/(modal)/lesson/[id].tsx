@@ -88,6 +88,8 @@ export default function LessonScreen() {
         lesson={lesson}
         focusNode={Number.isNaN(focusNode) ? undefined : focusNode}
         onExit={() => router.back()}
+        // Экран работы — вне зависимости от того, откуда открыт урок смены.
+        onBackToWork={() => router.dismissTo('/(modal)/adventure' as never)}
         onRequestExit={handleBackPress}
         onExitGuardChange={setNeedsExitConfirm}
       />

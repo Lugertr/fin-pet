@@ -6,7 +6,10 @@
 // «Перенос в копилку» — куда ушёл бюджет смены; если урок не закончен — где
 // он продолжится. Внизу — «Домой» и «Новая работа». Данные — снимок
 // AdventureCompletionSummary, награды к этому моменту уже начислены.
-// Ошибка не наказывается (§8): если трат больше плана — нейтральный тон.
+// Итог плана (решение пользователя 28.09.2026): потратил меньше плана —
+// «Супер!», сколько сэкономлено и похвала с бонусом; ровно по плану — тоже
+// похвала; больше плана — всё равно «Хорошая работа!», без упрёка, с
+// подсказкой на следующий раз (§8: ошибка не наказывается).
 
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -20,7 +23,7 @@ import { PetAvatarBubble } from '@/components/pet';
 import { HelpButton } from '@/components/shared';
 import { FURNITURE_ASSETS } from '@/constants/itemAssets';
 import { PLAN_CATEGORY_COLORS } from '@/constants/planCategories';
-import { isPlanBonusEligible } from '@/domain/adventure/Adventure';
+import { planOutcome } from '@/domain/adventure/Adventure';
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import type { AdventureCompletionSummary } from '@/lib/stores/adventureStore';
 import { usePetStore } from '@/lib/stores/petStore';
@@ -52,7 +55,26 @@ export function AdventureSummaryModal({
   const styles = createAdventureSummaryModalStyles({ theme });
 
   const { adventure } = summary;
-  const planKept = isPlanBonusEligible(adventure);
+  const outcome = planOutcome(adventure);
+  const planKept = outcome.kind !== 'over';
+  const bonusText = summary.bonusAwarded > 0 ? ` +${summary.bonusAwarded} C — бонус за план.` : '';
+  const hero = {
+    under: {
+      title: 'Супер!',
+      subtitle: `Потрачено на ${outcome.difference} C меньше плана`,
+      note: `⭐ Экономить — здорово!${bonusText} А сэкономленное осталось у тебя.`,
+    },
+    exact: {
+      title: 'Точно по плану!',
+      subtitle: 'Потрачено ровно столько, сколько планировал',
+      note: `⭐ Так держать!${bonusText}`,
+    },
+    over: {
+      title: 'Хорошая работа!',
+      subtitle: `Траты вышли на ${outcome.difference} C больше плана — не страшно`,
+      note: '💡 В следующий раз заложи в «Потратить» чуть больше или выбери бесплатный вариант — и бонус за план будет твоим.',
+    },
+  }[outcome.kind];
   // Золотой «Успех» — контрастный оттенок для светлой и тёмной темы.
   const chipColor = planKept ? colorPalettes.amber[isDark ? 400 : 700] : theme.textSecondary;
   const transferred = summary.toWallet + summary.toBank + summary.bankBonus;
@@ -112,12 +134,10 @@ export function AdventureSummaryModal({
                   </Text>
                 </View>
                 <Text style={[styles.heroTitle, { fontSize: scaledFont('xxl') }]}>
-                  {planKept ? 'Отличная работа!' : 'Смена завершена'}
+                  {hero.title}
                 </Text>
                 <Text style={[styles.heroSubtitle, { fontSize: scaledFont('md') }]}>
-                  {planKept
-                    ? 'Финни гордится тобой'
-                    : 'Потрачено больше плана — в следующий раз получится точнее'}
+                  {hero.subtitle}
                 </Text>
               </View>
               <PetAvatarBubble
@@ -128,6 +148,18 @@ export function AdventureSummaryModal({
               />
             </LinearGradient>
           </Animated.View>
+
+          {/* Похвала за план или дружелюбная подсказка — без красного и упрёков. */}
+          <View style={planKept ? styles.praiseCard : styles.tipCard}>
+            <Text
+              style={[
+                planKept ? styles.praiseText : styles.tipText,
+                { fontSize: scaledFont('md') },
+              ]}
+            >
+              {hero.note}
+            </Text>
+          </View>
 
           {(summary.autoCompleted || summary.completionRatio < 1) && (
             <Text style={[styles.note, { fontSize: scaledFont('md') }]}>

@@ -79,6 +79,32 @@ export function createAdventureSummaryModalStyles({ theme }: { theme: Theme }) {
       textAlign: 'center',
     },
 
+    // ── Итог плана: похвала (уложился) или подсказка (перерасход) ──
+    praiseCard: {
+      padding: spacing.lg,
+      borderRadius: radius.xl,
+      backgroundColor: withAlpha(theme.success, 0.12),
+      borderWidth: 1,
+      borderColor: withAlpha(theme.success, 0.3),
+    },
+    praiseText: {
+      color: theme.textPrimary,
+      fontSize: fontSizes.md,
+      fontWeight: fontWeights.semibold,
+      textAlign: 'center',
+    },
+    // Нейтральная, не красная — перерасход не ошибка, а опыт.
+    tipCard: {
+      padding: spacing.lg,
+      borderRadius: radius.xl,
+      backgroundColor: theme.surface,
+    },
+    tipText: {
+      color: theme.textSecondary,
+      fontSize: fontSizes.md,
+      textAlign: 'center',
+    },
+
     // ── Кнопки ──
     footer: {
       paddingHorizontal: spacing.lg,

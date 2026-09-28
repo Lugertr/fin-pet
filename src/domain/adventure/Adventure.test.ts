@@ -7,6 +7,7 @@ import {
   actualSpend,
   canAfford,
   computeAdventurePayout,
+  planOutcome,
   clampAllocationAmount,
   isPlanBonusEligible,
   isTimeUp,
@@ -157,5 +158,26 @@ describe('canAfford (§12.3 — без частичной оплаты)', () => 
   it('бесплатный вариант и пополнение доступны всегда', () => {
     expect(canAfford(0, 0)).toBe(true);
     expect(canAfford(15, 0)).toBe(true);
+  });
+});
+
+describe('planOutcome — итог плана трат для окна итогов', () => {
+  const withSpend = (planned: number, spent: number) =>
+    makeAdventure({
+      plan: { mandatory: planned, optional: 0, savings: 20 },
+      fact: { mandatory: spent, optional: 0, savings: 0 },
+    });
+
+  it('потрачено меньше плана — экономия и сколько сэкономлено', () => {
+    expect(planOutcome(withSpend(30, 10))).toEqual({ kind: 'under', difference: 20 });
+  });
+
+  it('ровно по плану', () => {
+    expect(planOutcome(withSpend(30, 30))).toEqual({ kind: 'exact', difference: 0 });
+    expect(planOutcome(withSpend(0, 0))).toEqual({ kind: 'exact', difference: 0 });
+  });
+
+  it('больше плана — на сколько (положительное число)', () => {
+    expect(planOutcome(withSpend(30, 45))).toEqual({ kind: 'over', difference: 15 });
   });
 });

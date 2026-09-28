@@ -89,6 +89,21 @@ export function isPlanBonusEligible(adventure: AdventureRecord): boolean {
 }
 
 /**
+ * Итог плана трат для окна итогов (решение пользователя 28.09.2026: потратил
+ * меньше — похвалить, больше — без нагнетания): under — сэкономлено
+ * difference монет, exact — ровно по плану, over — перерасход на difference.
+ */
+export function planOutcome(adventure: AdventureRecord): {
+  kind: 'under' | 'exact' | 'over';
+  difference: number;
+} {
+  const difference = plannedSpend(adventure) - actualSpend(adventure);
+  if (difference > 0) return { kind: 'under', difference };
+  if (difference === 0) return { kind: 'exact', difference: 0 };
+  return { kind: 'over', difference: -difference };
+}
+
+/**
  * Сколько ещё можно потратить по плану «Потратить» без потери бонуса за план.
  * 0 или меньше — бюджет трат плана исчерпан (накопления не расход).
  */

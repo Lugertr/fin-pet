@@ -8,3 +8,4 @@ export { LessonStepHeader } from './LessonStepHeader';
 export { LessonPlayer } from './LessonPlayer';
 export { LessonOverview } from './LessonOverview';
 export { LessonEventStep } from './LessonEventStep';
+export { StageDoneStep } from './StageDoneStep';
