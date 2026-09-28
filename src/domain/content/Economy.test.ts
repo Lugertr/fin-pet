@@ -12,13 +12,13 @@ import lessonsJson from '../../../content/lessons.json';
 import { AchievementDefinition } from '@/domain/achievement/Achievement';
 import { AdventureEventTemplate, EVENT_PACING } from '@/domain/adventure/AdventureEvent';
 import { ItemContent } from '@/domain/content/ItemContent';
-import { LessonContent } from '@/domain/content/LessonContent';
-import { LESSON_STEP_REWARDS } from '@/domain/lesson/buildLessonSteps';
+import { AnyLessonContent } from '@/domain/content/LessonContent';
+import { LESSON_STEP_REWARDS } from '@/domain/lesson/lessonRewards';
 import { QUIZ_TRAINER_QUESTION_COUNT } from '@/domain/arcade/TrainerSelection';
 import { ARCADE_COINS_PER_CORRECT, ARCADE_ENERGY_COST } from '@/constants/gameplay';
 
 const ITEMS = itemsJson as ItemContent[];
-const LESSONS = lessonsJson as LessonContent[];
+const LESSONS = lessonsJson as unknown as AnyLessonContent[];
 
 /** Бюджет приключения (ADVENTURE_BASE_INCOME) + бонус за план. */
 const ADVENTURE_BUDGET_WITH_PLAN_BONUS = 100 + 10;

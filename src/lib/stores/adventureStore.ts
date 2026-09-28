@@ -31,6 +31,7 @@ import {
   pickRandomEventTemplate,
   selectEventPool,
 } from '@/domain/adventure/AdventureEvent';
+import type { LessonEventOptionContent } from '@/domain/content/LessonContent';
 import { xpToNextLevel } from '@/domain/player/PlayerLevel';
 import { LevelUpResult, useLessonsStore, waitForLessonsLoaded } from '@/lib/hooks/useLessons';
 import { create } from 'zustand';
@@ -126,6 +127,13 @@ interface AdventureState {
    * (§12.3) и любой выбор после окончания времени игнорируются.
    */
   resolveEvent: (optionId: string) => Promise<void>;
+  /**
+   * Выбор в событии урока (решение пользователя 28.09.2026: события — внутри
+   * уроков, не по времени). Деньги — только бюджет приключения: трата
+   * уменьшает его и идёт в факт «нужно» / «хочу», пополнение — в бюджет.
+   * false — приключение не идёт или на платный вариант не хватает (§12.3).
+   */
+  applyLessonEventChoice: (eventId: string, option: LessonEventOptionContent) => Promise<boolean>;
   /**
    * Завершает приключение, начисляет бонусы. Блокируется, пока есть неразрешённое
    * событие. Можно вызвать до истечения времени («завершить досрочно») — тогда
@@ -645,6 +653,43 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
       } catch (error) {
         console.warn('[AdventureStore] Не удалось сохранить исход события:', error);
       }
+    },
+
+    applyLessonEventChoice: async (eventId, option) => {
+      const adventure = get().currentAdventure;
+      if (!adventure || adventure.status !== 'active') return false;
+      if (!isOptionAffordable(option, adventure.budget)) return false;
+
+      let budget = adventure.budget;
+      if (option.coinAmount < 0 && option.category) {
+        const cost = -option.coinAmount;
+        budget -= cost;
+        await get().recordFact(option.category, cost);
+      } else if (option.coinAmount > 0) {
+        budget += option.coinAmount;
+      }
+
+      // recordFact уже обновил currentAdventure — перечитываем, чтобы не затереть факт.
+      const latest = get().currentAdventure;
+      if (!latest) return false;
+      set({ currentAdventure: { ...latest, budget } });
+
+      try {
+        const repo = getAdventureRepository();
+        await repo.setBudget(latest.id, budget);
+        await repo.logEvent(
+          latest.id,
+          eventId,
+          option.id,
+          option.category,
+          option.coinAmount,
+          0,
+          new Date().toISOString()
+        );
+      } catch (error) {
+        console.warn('[AdventureStore] Не удалось сохранить выбор в событии урока:', error);
+      }
+      return true;
     },
 
     completeAdventure: () => withCompletionLock(() => finalizeAdventure(false)),

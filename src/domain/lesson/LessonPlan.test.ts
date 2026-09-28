@@ -2,9 +2,11 @@
 // Урок из узлов (28.09.2026): план для плеера, адаптер старых уроков и
 // правила состава — в том числе на всём content/lessons.json.
 
+import fiveLettersWordsJson from '../../../content/five_letters_words.json';
 import lessonsJson from '../../../content/lessons.json';
 import {
   AnyLessonContent,
+  FiveLettersWordContent,
   LessonActivityContent,
   LessonContent,
   NodeLessonContent,
@@ -13,7 +15,9 @@ import {
 import {
   DEMO_NODE_LESSON_LIMITS,
   buildLessonPlan,
+  fiveLettersWordFor,
   isNodeLesson,
+  lessonQuestionPools,
   planForLesson,
   planFromLegacyLesson,
   validateNodeLesson,
@@ -252,8 +256,91 @@ describe('validateNodeLesson', () => {
   });
 });
 
+describe('lessonQuestionPools — вопросы уроков для Аркады', () => {
+  it('урок из узлов: тесты и викторины — в квиз, свайпы — в свайпы', () => {
+    const swipe = question({
+      question_type: 'minigame',
+      options: ['Да', 'Нет'],
+      correct_answer: 'Да',
+    });
+    const quizQuestion = question({ question_type: 'minigame' });
+    const pools = lessonQuestionPools(
+      lesson({
+        nodes: [
+          {
+            cards: [card],
+            activities: [
+              test(2),
+              event(),
+              { type: 'minigame', minigame_type: 'quiz', questions: [quizQuestion] },
+              { type: 'minigame', minigame_type: 'tinder_swipe', questions: [swipe] },
+            ],
+          },
+        ],
+      })
+    );
+    expect(pools.quiz).toHaveLength(3);
+    expect(pools.swipes).toEqual([swipe]);
+  });
+});
+
+describe('fiveLettersWordFor — слово для «5 букв»', () => {
+  const bank: FiveLettersWordContent[] = [
+    { word: 'ДОХОД', hint: 'Приходящие деньги', branch_ids: [1] },
+    { word: 'НАЛОГ', hint: 'Платёж государству', branch_ids: [1] },
+    { word: 'ВКЛАД', hint: 'Деньги в банке', branch_ids: [3] },
+  ];
+  const game: LessonActivityContent = { type: 'minigame', minigame_type: 'five_letters' };
+
+  it('заданное в контенте слово', () => {
+    expect(fiveLettersWordFor({ ...game, word: 'ВКЛАД' }, 1, bank)?.word).toBe('ВКЛАД');
+  });
+
+  it('иначе — случайное слово темы урока', () => {
+    expect(fiveLettersWordFor(game, 1, bank, () => 0.99)?.word).toBe('НАЛОГ');
+    expect(fiveLettersWordFor(game, 3, bank)?.word).toBe('ВКЛАД');
+  });
+
+  it('у темы нет слов — любое из банка; банк пуст — null', () => {
+    expect(fiveLettersWordFor(game, 7, bank, () => 0)?.word).toBe('ДОХОД');
+    expect(fiveLettersWordFor(game, 1, [])).toBeNull();
+  });
+
+  it('слово в контенте — ровно 5 заглавных русских букв', () => {
+    const errors = validateNodeLesson(
+      lesson({
+        nodes: [{ cards: [card], activities: [{ ...game, word: 'бюджет' }, test(), event()] }],
+      })
+    );
+    expect(errors).toEqual([expect.stringContaining('ровно 5 заглавных русских букв')]);
+  });
+});
+
 describe('content/lessons.json', () => {
   const lessons = lessonsJson as unknown as AnyLessonContent[];
+
+  it('пилот ветки «Бюджет» — все три урока в формате узлов', () => {
+    const budget = lessons.filter((l) => l.branch_id === 1);
+    expect(budget.length).toBe(3);
+    expect(budget.every(isNodeLesson)).toBe(true);
+  });
+
+  it('слова «5 букв», заданные в уроках, есть в общем банке', () => {
+    const bank = new Set((fiveLettersWordsJson as FiveLettersWordContent[]).map((w) => w.word));
+    const words = lessons
+      .filter(isNodeLesson)
+      .flatMap((l) => l.nodes.flatMap((n) => n.activities))
+      .flatMap((a) => (a.type === 'minigame' && a.word ? [a.word] : []));
+    for (const word of words) expect(bank.has(word)).toBe(true);
+  });
+
+  it('id вопросов уникальны во всём контенте уроков', () => {
+    const ids = lessons.flatMap((l) => {
+      const pools = lessonQuestionPools(l);
+      return [...pools.quiz, ...pools.swipes].map((q) => q.id);
+    });
+    expect(new Set(ids).size).toBe(ids.length);
+  });
 
   it('уроки из узлов соблюдают правила состава', () => {
     const errors = lessons.filter(isNodeLesson).flatMap(validateNodeLesson);

@@ -7,9 +7,10 @@
 import {
   ArcadeSwipeCardsContent,
   FiveLettersWordContent,
-  LessonContent,
+  AnyLessonContent,
   QuestionContent,
 } from '@/domain/content/LessonContent';
+import { lessonQuestionPools } from '@/domain/lesson/LessonPlan';
 
 export type ArcadeGameType = 'quiz' | 'tinder_swipe' | 'five_letters';
 
@@ -50,7 +51,7 @@ export interface TrainerSession {
 
 /** Весь контент темы, из которого собираются раунды. */
 export interface BranchArcadeSources {
-  lessons: LessonContent[];
+  lessons: AnyLessonContent[];
   swipeCards: ArcadeSwipeCardsContent[];
   words: FiveLettersWordContent[];
 }
@@ -84,20 +85,13 @@ function gamePool(
   switch (type) {
     case 'quiz':
       return {
-        questions: [
-          ...lessons
-            .filter((l) => l.minigame_type === 'quiz')
-            .flatMap((l) => l.questions.filter((q) => q.question_type === 'minigame')),
-          ...lessons.flatMap((l) => l.test_questions),
-        ],
+        questions: lessons.flatMap((l) => lessonQuestionPools(l).quiz),
         words: [],
       };
     case 'tinder_swipe':
       return {
         questions: [
-          ...lessons
-            .filter((l) => l.minigame_type === 'tinder_swipe')
-            .flatMap((l) => l.questions.filter((q) => q.question_type === 'minigame')),
+          ...lessons.flatMap((l) => lessonQuestionPools(l).swipes),
           ...sources.swipeCards
             .filter((set) => set.branch_id === branchId)
             .flatMap((set) => set.cards),

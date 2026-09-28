@@ -4,7 +4,9 @@
 import { View } from 'react-native';
 import { Text } from '@/components/ui/Text';
 
+import { isNodeLesson } from '@/domain/lesson/LessonPlan';
 import { Lesson } from '@/lib/hooks/useLessons';
+import { pluralize } from '@/lib/utils/formatters';
 import { useResponsive, useTheme } from '@/theme';
 import { fontWeights } from '@/theme/tokens';
 
@@ -57,13 +59,7 @@ export function LessonInfo({
             fontWeight: fontWeights.semibold,
           }}
         >
-          {isCompleted
-            ? '✓ Пройдено'
-            : lesson.minigame_type === 'quiz'
-              ? 'Викторина'
-              : lesson.minigame_type === 'five_letters'
-                ? '5 букв'
-                : 'Мини-игра'}
+          {isCompleted ? '✓ Пройдено' : lessonKindLabel(lesson)}
         </Text>
         {isPriority && !isCompleted && (
           <Text
@@ -79,4 +75,15 @@ export function LessonInfo({
       </View>
     </View>
   );
+}
+
+/** Подпись урока: у урока из узлов — сколько в нём этапов (как на треке смены). */
+function lessonKindLabel(lesson: Lesson): string {
+  if (isNodeLesson(lesson)) {
+    const stages = lesson.nodes.length + 1;
+    return `${stages} ${pluralize(stages, 'этап', 'этапа', 'этапов')}`;
+  }
+  if (lesson.minigame_type === 'quiz') return 'Викторина';
+  if (lesson.minigame_type === 'five_letters') return '5 букв';
+  return 'Мини-игра';
 }

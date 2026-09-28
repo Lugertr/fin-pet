@@ -5,6 +5,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LessonProgressState, createLessonProgress } from '@/domain/lesson/lessonProgress';
+import { planForLesson } from '@/domain/lesson/LessonPlan';
 import { LEGACY_LESSONS_STORE_KEY } from '@/lib/lessons/importLegacyLessonProgress';
 import { useUserStore } from '@/lib/stores/userStore';
 import { LESSONS, useLessonsStore, waitForLessonsLoaded } from './useLessons';
@@ -133,5 +134,43 @@ describe('useLessonsStore — прогресс в SQLite', () => {
     await loading;
     await wait;
     expect(waited).toBe(true);
+  });
+});
+
+describe('useLessonsStore.finishLesson — завершение урока из узлов', () => {
+  it('всё пройдено — урок завершён и сохранён, повторно — не «впервые»', async () => {
+    const lesson = LESSONS[0];
+    const plan = planForLesson(lesson);
+    let state = createLessonProgress(lesson.id);
+    for (const node of plan.nodes) {
+      state = { ...state, readNodes: [...state.readNodes, node.index] };
+      for (const activity of node.activities) {
+        state = {
+          ...state,
+          results: {
+            ...state.results,
+            [activity.id]: { completed: true, perfect: true, attempts: 1 },
+          },
+        };
+      }
+    }
+
+    const first = useLessonsStore.getState().finishLesson(plan, state);
+    await flush();
+    expect(first).toMatchObject({ firstCompletion: true, firstPerfect: true });
+    expect(mockRows.get(`${PROFILE}:${lesson.id}`)?.completedAt).not.toBeNull();
+    expect(useLessonsStore.getState().progress[lesson.id]?.status).toBe('completed');
+
+    const again = useLessonsStore.getState().finishLesson(plan, first.state);
+    expect(again).toMatchObject({ firstCompletion: false, firstPerfect: false });
+  });
+
+  it('не всё пройдено — урок не завершается', () => {
+    const lesson = LESSONS[0];
+    const result = useLessonsStore
+      .getState()
+      .finishLesson(planForLesson(lesson), createLessonProgress(lesson.id));
+    expect(result.firstCompletion).toBe(false);
+    expect(useLessonsStore.getState().progress[lesson.id]?.status).toBe('in_progress');
   });
 });

@@ -145,7 +145,7 @@ export function TestStep({
                 color={theme.onGradient}
               />
               <Text style={[styles.gradientButtonText, { fontSize: scaledFont('lg') }]}>
-                {isPassed ? 'Забрать награду' : 'Пройти тест снова'}
+                {isPassed ? 'Дальше' : 'Пройти тест снова'}
               </Text>
             </LinearGradient>
           </TouchableOpacity>

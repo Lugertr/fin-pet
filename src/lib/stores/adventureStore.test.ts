@@ -520,3 +520,48 @@ describe('adventureStore.registerArcadeRound (Аркада ускоряет, н�
     expect(useAdventureStore.getState().currentAdventure?.plannedEndAt).toBe(before.plannedEndAt);
   });
 });
+
+describe('adventureStore.applyLessonEventChoice — события внутри урока', () => {
+  const spendNeed = {
+    id: 'pay',
+    label: 'Заплатить',
+    category: 'mandatory' as const,
+    coinAmount: -10,
+  };
+  const spendWant = { id: 'buy', label: 'Купить', category: 'optional' as const, coinAmount: -15 };
+  const reward = { id: 'gift', label: 'Подарок', category: null, coinAmount: 20 };
+
+  it('трата — из бюджета приключения в факт «нужно» или «хочу», кошелёк не трогается', async () => {
+    seedActiveAdventure({ budget: 100 });
+    seedWallet(50);
+
+    expect(await useAdventureStore.getState().applyLessonEventChoice('bus', spendNeed)).toBe(true);
+    expect(await useAdventureStore.getState().applyLessonEventChoice('stickers', spendWant)).toBe(
+      true
+    );
+
+    const adventure = useAdventureStore.getState().currentAdventure!;
+    expect(adventure.budget).toBe(75);
+    expect(adventure.fact).toMatchObject({ mandatory: 10, optional: 15 });
+    expect(useUserStore.getState().user?.liquid_balance).toBe(50);
+  });
+
+  it('пополнение увеличивает бюджет', async () => {
+    seedActiveAdventure({ budget: 30 });
+    await useAdventureStore.getState().applyLessonEventChoice('gift', reward);
+    expect(useAdventureStore.getState().currentAdventure?.budget).toBe(50);
+  });
+
+  it('не хватает бюджета — выбор отклонён целиком, без ухода в минус', async () => {
+    seedActiveAdventure({ budget: 5 });
+    expect(await useAdventureStore.getState().applyLessonEventChoice('bus', spendNeed)).toBe(false);
+    expect(useAdventureStore.getState().currentAdventure).toMatchObject({
+      budget: 5,
+      fact: { mandatory: 0 },
+    });
+  });
+
+  it('без активного приключения ничего не меняет', async () => {
+    expect(await useAdventureStore.getState().applyLessonEventChoice('bus', spendNeed)).toBe(false);
+  });
+});

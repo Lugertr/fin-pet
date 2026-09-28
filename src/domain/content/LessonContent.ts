@@ -120,6 +120,9 @@ export interface LessonMinigameActivityContent {
   minigame_type: MinigameType;
   /** quiz / tinder_swipe — вопросы игры; five_letters — не нужны (слово из общего банка). */
   questions?: QuestionContent[];
+  /** five_letters: слово из общего банка (content/five_letters_words.json);
+   * без него — случайное слово темы урока. */
+  word?: string;
 }
 
 export interface LessonEventActivityContent {

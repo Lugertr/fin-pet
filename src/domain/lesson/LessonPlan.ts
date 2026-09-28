@@ -12,6 +12,7 @@
 
 import {
   AnyLessonContent,
+  FiveLettersWordContent,
   LessonActivityContent,
   LessonConclusionContent,
   LessonContent,
@@ -251,6 +252,8 @@ export function validateNodeLesson(lesson: NodeLessonContent): string[] {
           errors.push(`${activityAt}: неизвестная мини-игра ${activity.minigame_type}`);
         } else if (activity.minigame_type !== 'five_letters') {
           errors.push(...questionErrors(activityAt, activity.questions ?? []));
+        } else if (activity.word !== undefined && !/^[А-ЯЁ]{5}$/.test(activity.word)) {
+          errors.push(`${activityAt}: слово «5 букв» — ровно 5 заглавных русских букв`);
         }
       } else {
         if (activity.pool.length === 0) errors.push(`${activityAt}: пустой пул событий`);
@@ -284,4 +287,52 @@ export function validateNodeLesson(lesson: NodeLessonContent): string[] {
   });
 
   return errors;
+}
+
+// ── Вопросы и слова уроков для игр ──
+
+/** Вопросы урока любого формата по играм — для Аркады по теме. */
+export function lessonQuestionPools(lesson: AnyLessonContent): {
+  quiz: QuestionContent[];
+  swipes: QuestionContent[];
+} {
+  if (!isNodeLesson(lesson)) {
+    const minigame = lesson.questions.filter((q) => q.question_type === 'minigame');
+    return {
+      quiz: [...(lesson.minigame_type === 'quiz' ? minigame : []), ...lesson.test_questions],
+      swipes: lesson.minigame_type === 'tinder_swipe' ? minigame : [],
+    };
+  }
+  const activities = lesson.nodes.flatMap((node) => node.activities);
+  const quiz: QuestionContent[] = [];
+  const swipes: QuestionContent[] = [];
+  for (const activity of activities) {
+    if (activity.type === 'test') quiz.push(...activity.questions);
+    else if (activity.type === 'minigame' && activity.minigame_type === 'quiz') {
+      quiz.push(...(activity.questions ?? []));
+    } else if (activity.type === 'minigame' && activity.minigame_type === 'tinder_swipe') {
+      swipes.push(...(activity.questions ?? []));
+    }
+  }
+  return { quiz, swipes };
+}
+
+/**
+ * Слово для «5 букв» в уроке: заданное в контенте, иначе случайное слово темы,
+ * иначе — любое из банка. null — банк пуст.
+ */
+export function fiveLettersWordFor(
+  activity: LessonActivityContent,
+  branchId: number,
+  bank: FiveLettersWordContent[],
+  random: () => number = Math.random
+): FiveLettersWordContent | null {
+  if (activity.type === 'minigame' && activity.word) {
+    const exact = bank.find((w) => w.word === activity.word);
+    if (exact) return exact;
+  }
+  const themed = bank.filter((w) => w.branch_ids?.includes(branchId));
+  const pool = themed.length > 0 ? themed : bank;
+  if (pool.length === 0) return null;
+  return pool[Math.min(pool.length - 1, Math.floor(random() * pool.length))];
 }

@@ -12,6 +12,7 @@ import {
   LessonContent,
   QuestionContent,
 } from '@/domain/content/LessonContent';
+import { lessonQuestionPools } from '@/domain/lesson/LessonPlan';
 import {
   ARCADE_MAX_TIME_BONUS_MINUTES,
   arcadeTimeBonusMinutes,
@@ -162,7 +163,12 @@ describe('контент Аркады', () => {
 
   it('у карточки свайпа два варианта, верный — один из них; id не пересекаются с уроками', () => {
     const lessonIds = new Set(
-      realSources.lessons.flatMap((l) => [...l.questions, ...l.test_questions]).map((q) => q.id)
+      realSources.lessons
+        .flatMap((l) => {
+          const pools = lessonQuestionPools(l);
+          return [...pools.quiz, ...pools.swipes];
+        })
+        .map((q) => q.id)
     );
     for (const set of realSources.swipeCards) {
       for (const card of set.cards) {

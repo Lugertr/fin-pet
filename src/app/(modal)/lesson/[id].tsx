@@ -1,23 +1,21 @@
 // src/app/(modal)/lesson/[id].tsx
-// Экран урока: полная композиция шагов теория→награда→планирование→
-// мини-игра→…→тест (§9.1, §9.6) для любого урока — все 19 уроков имеют
-// theory_cards/test_questions (см. buildLessonSteps).
+// Экран урока: LessonPlayer — урок из узлов (ситуация → этапы → заключение),
+// уроки старого формата — через адаптер (domain/lesson/LessonPlan.ts).
 //
-// Шапка (закрыть/прогресс/настроение) — внутри StepRunner (LessonStepHeader),
-// этот файл отвечает только за загрузку урока и модалку паузы.
+// Шапка (закрыть/прогресс/настроение) — внутри LessonPlayer (LessonStepHeader),
+// этот файл отвечает только за загрузку урока и модалку паузы. Пройденные
+// этапы урока сохраняются сразу, поэтому выход не теряет прогресс — начнётся
+// заново только незаконченное задание.
 
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { BackHandler, Modal, TouchableOpacity, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
 
-import { StepRunner } from '@/components/lesson';
-import { buildLessonSteps } from '@/domain/lesson/buildLessonSteps';
+import { LessonPlayer } from '@/components/lesson';
 import { useFeedback } from '@/lib/hooks/useFeedback';
-import { FIVE_LETTERS_WORDS, LESSONS, useLessonsStore } from '@/lib/hooks/useLessons';
-import { useUserStore } from '@/lib/stores/userStore';
+import { LESSONS, useLessonsStore } from '@/lib/hooks/useLessons';
 import { Alert } from '@/lib/utils/alert';
-import { formatPrice } from '@/lib/utils/formatters';
 import { useTheme } from '@/theme';
 import { createLessonStyles } from '../../../styles/screens/lesson/_[id].styles';
 
@@ -34,23 +32,13 @@ export default function LessonScreen() {
 
   const styles = createLessonStyles({ theme });
 
-  const [stepRunnerComplete, setStepRunnerComplete] = useState(false);
+  // Выход посреди задания — через подтверждение (решает LessonPlayer).
+  const [needsExitConfirm, setNeedsExitConfirm] = useState(true);
   const [showPauseModal, setShowPauseModal] = useState(false);
 
-  // LESSONS — статический забандленный массив, поиск чистый и синхронный —
-  // не требует useState+useEffect (не даёт лишнего рендера и не вызывает
-  // set-state внутри эффекта).
   const lesson = useMemo(() => LESSONS.find((l) => l.id === lessonId) ?? null, [lessonId]);
 
-  // §18 демо-режим — укороченный урок (DEMO_LESSON_LIMITS).
-  const isDemo = useUserStore((s) => s.user?.is_demo ?? false);
-  const steps = useMemo(
-    () => (lesson ? buildLessonSteps(lesson, FIVE_LETTERS_WORDS, isDemo) : null),
-    [lesson, isDemo]
-  );
-  const isFinished = stepRunnerComplete;
-
-  // Инициализация прогресса урока (side effect, не производит setState в этом компоненте)
+  // Строка прогресса урока — при первом открытии (урок «начат»).
   useEffect(() => {
     if (!lesson) {
       trigger('error');
@@ -66,9 +54,8 @@ export default function LessonScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lessonId, lesson]);
 
-  // §9.1/§21: попытка выйти до завершения — предупреждаем, что прогресс не сохранится
   const handleBackPress = () => {
-    if (isFinished) {
+    if (!needsExitConfirm) {
       router.back();
     } else {
       triggerHaptic('light');
@@ -78,14 +65,13 @@ export default function LessonScreen() {
 
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (isFinished) return false;
+      if (!needsExitConfirm) return false;
       setShowPauseModal(true);
       return true;
     });
     return () => subscription.remove();
-  }, [isFinished]);
+  }, [needsExitConfirm]);
 
-  // Экран загрузки
   if (!lesson) {
     return (
       <View style={styles.loadingContainer}>
@@ -96,16 +82,12 @@ export default function LessonScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Контент (шапка — внутри StepRunner) */}
-      {steps && (
-        <StepRunner
-          lesson={lesson}
-          steps={steps}
-          onExit={() => router.back()}
-          onRequestExit={handleBackPress}
-          onComplete={() => setStepRunnerComplete(true)}
-        />
-      )}
+      <LessonPlayer
+        lesson={lesson}
+        onExit={() => router.back()}
+        onRequestExit={handleBackPress}
+        onExitGuardChange={setNeedsExitConfirm}
+      />
 
       {/* Модалка паузы (референс «Пауза урока») */}
       <Modal
@@ -121,11 +103,11 @@ export default function LessonScreen() {
             </View>
             <Text style={styles.pauseTitle}>Уже уходишь?</Text>
             <Text style={styles.pauseSubtitle}>
-              Прогресс текущего урока не сохранится, и ты не получишь монеты.
+              Пройденные этапы сохранятся — в следующий раз продолжишь с того же места. Начатое
+              задание придётся пройти заново.
             </Text>
             <View style={styles.pauseWarningBanner}>
-              <Text style={styles.pauseWarningText}>{formatPrice(0)}</Text>
-              <Text style={styles.pauseWarningText}>⚡ Прогресс будет сброшен</Text>
+              <Text style={styles.pauseWarningText}>✓ Прогресс урока сохранён</Text>
             </View>
             <TouchableOpacity
               onPress={() => setShowPauseModal(false)}

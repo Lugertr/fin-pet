@@ -180,7 +180,10 @@ export function pickDemoEventTemplate(
 }
 
 /** §12.3: платный вариант доступен, только если хватает денег целиком — без частичной оплаты. */
-export function isOptionAffordable(option: AdventureEventOption, balance: number): boolean {
+export function isOptionAffordable(
+  option: Pick<AdventureEventOption, 'coinAmount'>,
+  balance: number
+): boolean {
   return option.coinAmount >= 0 || balance >= -option.coinAmount;
 }
 

@@ -10,9 +10,9 @@
 
 import { getLocalContentRepository } from '@/data/content';
 import {
+  AnyLessonContent,
   BranchContent,
   FiveLettersWordContent,
-  LessonContent,
   QuestionContent,
 } from '@/domain/content/LessonContent';
 import {
@@ -23,7 +23,12 @@ import {
   pickLookToGrant,
 } from '@/domain/player/PlayerLevel';
 import { getLessonProgressRepository } from '@/data/local/repositories';
-import { LessonProgressState, createLessonProgress } from '@/domain/lesson/lessonProgress';
+import { LessonPlan } from '@/domain/lesson/LessonPlan';
+import {
+  LessonProgressState,
+  createLessonProgress,
+  settleLesson,
+} from '@/domain/lesson/lessonProgress';
 import { create } from 'zustand';
 import { importLegacyLessonProgress } from '../lessons/importLegacyLessonProgress';
 import { useAchievementsStore } from '../stores/achievementsStore';
@@ -94,7 +99,8 @@ function reportBranchProgress(
 
 // Содержимое веток/уроков живёт в content/*.json (§25 ТЗ), не здесь —
 // см. LocalJsonContentRepository. Типы переиспользуют форму контента.
-export type Lesson = LessonContent;
+/** Урок любого формата: из узлов или старый (идёт через адаптер, см. LessonPlan.ts). */
+export type Lesson = AnyLessonContent;
 export type Question = QuestionContent;
 export type Branch = BranchContent;
 
@@ -164,6 +170,18 @@ function persistTotalXp(totalXp: number): void {
 
 type LoadStatus = 'idle' | 'loading' | 'loaded';
 
+/** Первое завершение урока: прогресс ветки и число пройденных уроков — для достижений. */
+function reportLessonCompleted(
+  lessonId: number,
+  lessonStates: Record<number, LessonProgressState>,
+  getBranchProgress: (id: number) => { completed: number; total: number }
+): void {
+  const lesson = LESSONS.find((l) => l.id === lessonId);
+  if (lesson) reportBranchProgress(lesson.branch_id, getBranchProgress);
+  const completedCount = Object.values(lessonStates).filter((state) => state.completedAt).length;
+  useAchievementsStore.getState().recordLessonsCompleted(completedCount);
+}
+
 interface LessonsState {
   /** Состояние уроков из узлов по id урока — источник истины (SQLite). */
   lessonStates: Record<number, LessonProgressState>;
@@ -176,8 +194,17 @@ interface LessonsState {
   // Actions
   /** Читает прогресс профиля из SQLite (и один раз переносит старый из AsyncStorage). */
   load: (profileId: string) => Promise<void>;
-  /** Сохраняет состояние урока из узлов (плеер урока, этап 3). */
+  /** Сохраняет состояние урока из узлов (плеер урока). */
   saveLessonState: (state: LessonProgressState) => void;
+  /**
+   * Финальный узел или перепрохождение завершённого урока: фиксирует
+   * завершение и звезду (settleLesson), сохраняет; при первом завершении —
+   * прогресс ветки и достижения. Флаги — впервые ли (награды один раз).
+   */
+  finishLesson: (
+    plan: LessonPlan,
+    state: LessonProgressState
+  ) => { state: LessonProgressState; firstCompletion: boolean; firstPerfect: boolean };
   startLesson: (lessonId: number) => Lesson;
   /**
    * Для уроков с полной композицией шагов (buildLessonSteps): награды уже выданы
@@ -238,6 +265,15 @@ export const useLessonsStore = create<LessonsState>()((set, get) => {
       persistLessonState(state);
     },
 
+    finishLesson: (plan, state) => {
+      const result = settleLesson(plan, state, new Date().toISOString());
+      get().saveLessonState(result.state);
+      if (result.firstCompletion) {
+        reportLessonCompleted(plan.lessonId, get().lessonStates, get().getBranchProgress);
+      }
+      return result;
+    },
+
     startLesson: (lessonId) => {
       const lesson = LESSONS.find((l) => l.id === lessonId);
       if (!lesson) throw new Error('Урок не найден');
@@ -259,14 +295,7 @@ export const useLessonsStore = create<LessonsState>()((set, get) => {
       });
       // Опыт за уроки не начисляется — только за завершение приключения
       // (решение пользователя 27.09.2026, см. adventureStore ADVENTURE_XP).
-
-      const lesson = LESSONS.find((l) => l.id === lessonId);
-      if (lesson) reportBranchProgress(lesson.branch_id, get().getBranchProgress);
-
-      const completedCount = Object.values(get().lessonStates).filter(
-        (state) => state.completedAt
-      ).length;
-      useAchievementsStore.getState().recordLessonsCompleted(completedCount);
+      reportLessonCompleted(lessonId, get().lessonStates, get().getBranchProgress);
     },
 
     isLessonAvailable: (lessonId) => {

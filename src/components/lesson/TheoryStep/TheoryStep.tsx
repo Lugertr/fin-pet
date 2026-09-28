@@ -16,11 +16,18 @@ import { useResponsive, useTheme } from '@/theme';
 import { spacing } from '@/theme/tokens';
 import { createLessonStepsStyles } from '../lessonSteps.styles';
 
+const CARD_PILLS = {
+  theory: '★ СОВЕТ СПУТНИКА',
+  situation: '📍 СИТУАЦИЯ',
+  conclusion: '🏁 ИТОГ',
+} as const;
+
 export function TheoryStep({
   cards,
   onDone,
 }: {
-  cards: { title: string; text: string; bonusFact?: string }[];
+  /** kind — ситуация урока или заключение: своя плашка и эмоция питомца. */
+  cards: { title: string; text: string; bonusFact?: string; kind?: 'situation' | 'conclusion' }[];
   onDone: () => void;
 }) {
   const { theme } = useTheme();
@@ -40,7 +47,7 @@ export function TheoryStep({
           <View style={[styles.theoryAvatarBox, { marginBottom: scale(spacing.lg) }]}>
             <PetAvatarBubble
               petType={petType}
-              emotion="question"
+              emotion={card.kind === 'conclusion' ? 'reward' : 'question'}
               skinVariant={skinVariant}
               size={88}
             />
@@ -58,7 +65,7 @@ export function TheoryStep({
           <View style={styles.comicCard}>
             <View style={[styles.theoryTipPill, { marginBottom: scale(spacing.md) }]}>
               <Text style={[styles.theoryTipPillText, { fontSize: scaledFont('xs') }]}>
-                ★ СОВЕТ СПУТНИКА
+                {CARD_PILLS[card.kind ?? 'theory']}
               </Text>
             </View>
             <HighlightedText
