@@ -29,6 +29,7 @@ function seedActiveAdventure(overrides: Partial<AdventureRecord> = {}): void {
       branchId: 1,
       lessonId: SHIFT_LESSON.id,
       projectedIncome: 100,
+      walletContribution: 0,
       budget: 100,
       plan: { mandatory: 40, optional: 30, savings: 30 },
       fact: { mandatory: 0, optional: 0, savings: 0 },
@@ -168,6 +169,42 @@ describe('adventureStore.confirmPlan — смена = один урок, 24 ча
     expect(useUserStore.getState().user?.liquid_balance).toBe(0);
   });
 
+  it('монеты из кошелька: списываются при старте и добавляются в бюджет', async () => {
+    seedWallet(80);
+    seedActiveAdventure(planning);
+
+    useAdventureStore.getState().setWalletContribution(50);
+    expect(await useAdventureStore.getState().confirmPlan()).toBe(true);
+
+    expect(useAdventureStore.getState().currentAdventure).toMatchObject({
+      budget: 150,
+      walletContribution: 50,
+    });
+    expect(useUserStore.getState().user?.liquid_balance).toBe(30);
+  });
+
+  it('из кошелька не добавить больше, чем в нём есть (§12.3)', async () => {
+    seedWallet(20);
+    seedActiveAdventure(planning);
+
+    useAdventureStore.getState().setWalletContribution(50);
+
+    expect(useAdventureStore.getState().currentAdventure?.walletContribution).toBe(20);
+    await useAdventureStore.getState().confirmPlan();
+    expect(useUserStore.getState().user?.liquid_balance).toBe(0);
+  });
+
+  it('кошелёк опустел до старта — смена не начинается, баланс не в минус', async () => {
+    seedWallet(50);
+    seedActiveAdventure(planning);
+    useAdventureStore.getState().setWalletContribution(50);
+    seedWallet(10);
+
+    expect(await useAdventureStore.getState().confirmPlan()).toBe(false);
+    expect(useAdventureStore.getState().currentAdventure?.status).toBe('planning');
+    expect(useUserStore.getState().user?.liquid_balance).toBe(10);
+  });
+
   it('в пройденной теме урока нет — смена не начинается', async () => {
     seedWallet(0);
     const completedAt = new Date().toISOString();
@@ -249,6 +286,16 @@ describe('adventureStore.completeAdventure', () => {
     expect(result?.lesson).toMatchObject({ nodesDone: 1, nodesTotal: total, finished: false });
     // Прогресс урока не трогается — следующая смена продолжит с того же места.
     expect(useLessonsStore.getState().lessonStates[SHIFT_LESSON.id].readNodes).toEqual([0]);
+  });
+
+  it('урок не пройден — монеты из кошелька возвращаются целиком', async () => {
+    seedWallet(0);
+    seedActiveAdventure({ budget: 150, walletContribution: 50 });
+
+    const result = await useAdventureStore.getState().completeAdventure();
+
+    expect(result?.completionRatio).toBe(0);
+    expect(result!.toWallet + result!.toBank).toBe(50);
   });
 
   it('ничего не пройдено — выплаты нет, но и наказания нет', async () => {

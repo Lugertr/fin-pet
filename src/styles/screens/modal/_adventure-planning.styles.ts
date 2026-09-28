@@ -58,6 +58,39 @@ export function createAdventurePlanningStyles({ theme }: AdventurePlanningStyles
     remainderRow: {
       marginTop: spacing.xs,
     },
+    // «Из кошелька» — монеты ребёнка сверх дохода смены (решение 28.09.2026).
+    incomeBreakdown: {
+      color: theme.textSecondary,
+      fontSize: fontSizes.sm,
+      textAlign: 'center',
+      marginTop: spacing.xxs,
+    },
+    walletBlock: {
+      alignSelf: 'stretch',
+      marginTop: spacing.md,
+      paddingTop: spacing.md,
+      borderTopWidth: 1,
+      borderTopColor: theme.border,
+      gap: spacing.xs,
+    },
+    walletTitle: {
+      color: theme.textPrimary,
+      fontWeight: fontWeights.semibold,
+      fontSize: fontSizes.md,
+      textAlign: 'center',
+    },
+    walletValue: {
+      flex: 1,
+      color: theme.textPrimary,
+      fontWeight: fontWeights.bold,
+      fontSize: fontSizes.lg,
+      textAlign: 'center',
+    },
+    walletCaption: {
+      color: theme.textMuted,
+      fontSize: fontSizes.sm,
+      textAlign: 'center',
+    },
     remainderValue: {
       fontWeight: fontWeights.semibold,
       fontSize: fontSizes.md,

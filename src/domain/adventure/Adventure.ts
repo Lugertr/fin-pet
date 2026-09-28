@@ -29,6 +29,13 @@ export interface AdventureRecord {
   /** Сколько монет заработает это приключение — известно уже на планировании. */
   projectedIncome: number;
   /**
+   * Монеты из кошелька, которые ребёнок сам добавил в бюджет на планировании
+   * (решение пользователя 28.09.2026). Списываются при старте смены; при
+   * досрочном завершении не делятся по доле — это его деньги
+   * (computeAdventurePayout).
+   */
+  walletContribution: number;
+  /**
    * Бюджет приключения — отдельный от хаба контур денег: доход приключения при
    * старте + награды событий − траты событий. Живёт только в приключении; в
    * конце остаток уходит в хаб (см. computeAdventurePayout). Магазин и банк
@@ -112,23 +119,30 @@ export function planSpendRemaining(adventure: AdventureRecord): number {
 }
 
 /**
- * Выплата остатка бюджета приключения в хаб при завершении: запланированное
+ * Выплата остатка бюджета смены в хаб при завершении: запланированное
  * «коплю» — в банк (сколько осталось, если потрачено больше плана), всё
  * остальное — в кошелёк.
  *
- * completionRatio — доля пройденного времени (решение пользователя
- * 27.09.2026): при досрочном завершении выплачивается только эта доля
- * остатка и «коплю» (закрыл на 10% — получил 10%), остальное не выплачивается.
- * Иначе «начал и сразу закрыл» приносило бы весь бюджет.
+ * completionRatio — доля пройденного урока (решение пользователя 27.09.2026):
+ * если урок не пройден, выплачивается только эта доля дохода смены и «коплю»
+ * (закрыл на 10% — получил 10%) — иначе «начал и сразу закрыл» приносило бы
+ * весь бюджет. walletContribution — монеты, добавленные из кошелька: это
+ * деньги ребёнка, они (сколько не потрачено) возвращаются целиком и первыми
+ * идут в «коплю»; по доле делится только остальное.
  */
 export function computeAdventurePayout(
   budget: number,
   plannedSavings: number,
-  completionRatio = 1
+  completionRatio = 1,
+  walletContribution = 0
 ): { toBank: number; toWallet: number } {
   const ratio = Math.max(0, Math.min(1, completionRatio));
-  const remaining = Math.floor(Math.max(0, budget) * ratio);
-  const savingsShare = Math.floor(Math.max(0, plannedSavings) * ratio);
+  const left = Math.max(0, budget);
+  const own = Math.min(left, Math.max(0, walletContribution));
+  const remaining = own + Math.floor((left - own) * ratio);
+  const savings = Math.max(0, plannedSavings);
+  const ownSavings = Math.min(savings, own);
+  const savingsShare = ownSavings + Math.floor((savings - ownSavings) * ratio);
   const toBank = Math.min(savingsShare, remaining);
   return { toBank, toWallet: remaining - toBank };
 }

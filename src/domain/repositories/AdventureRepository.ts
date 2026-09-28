@@ -8,13 +8,17 @@ export interface AdventureRepository {
   create(record: Omit<AdventureRecord, 'id'>): Promise<AdventureRecord>;
   /** Фиксирует ветку и план (§ этап планирования) — до этого статус остаётся 'planning'. */
   setPlan(id: number, branchId: number, plan: AdventureAllocation): Promise<void>;
-  /** planning -> active: момент старта, конец смены, стартовый бюджет и урок смены. */
+  /**
+   * planning -> active: момент старта, конец смены, стартовый бюджет, урок
+   * смены и сколько в бюджете монет из кошелька.
+   */
   activate(
     id: number,
     startedAt: string,
     plannedEndAt: string,
     budget: number,
-    lessonId: number
+    lessonId: number,
+    walletContribution: number
   ): Promise<void>;
   /** Новый остаток бюджета смены (после трат/пополнений событий, выплаты в хаб). */
   setBudget(id: number, budget: number): Promise<void>;

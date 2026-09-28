@@ -98,9 +98,15 @@ interface AdventureState {
   /** Редактирование распределения будущего дохода — до подтверждения, только в памяти. */
   updatePlan: (plan: AdventureAllocation) => void;
   /**
+   * Сколько монет из кошелька добавить в бюджет смены — до подтверждения,
+   * только в памяти; не больше, чем в кошельке, и не меньше 0.
+   */
+  setWalletContribution: (amount: number) => void;
+  /**
    * Фиксирует план и урок смены (следующий непройденный урок темы), ставит
-   * конец смены через 24 часа. false — нет темы, пустой план или в теме не
-   * осталось непройденных уроков.
+   * конец смены через 24 часа, списывает добавленные монеты из кошелька в
+   * бюджет. false — нет темы, пустой план, в теме не осталось непройденных
+   * уроков или в кошельке меньше добавленного.
    */
   confirmPlan: () => Promise<boolean>;
   /** Прибавляет фактический расход/пополнение к направлению активной смены. */
@@ -238,7 +244,8 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
     const { toBank, toWallet } = computeAdventurePayout(
       currentAdventure.budget + fullBonus,
       currentAdventure.plan.savings,
-      completionRatio
+      completionRatio,
+      currentAdventure.walletContribution
     );
     // Бонус банка на «коплю» — только за пройденный урок.
     const bankBonusAllowed = completionRatio >= 1;
@@ -360,6 +367,7 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
           branchId: null,
           lessonId: null,
           projectedIncome: ADVENTURE_BASE_INCOME,
+          walletContribution: 0,
           budget: 0,
           plan: EMPTY_ALLOCATION,
           fact: EMPTY_ALLOCATION,
@@ -388,6 +396,14 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
       set({ currentAdventure: { ...currentAdventure, plan } });
     },
 
+    setWalletContribution: (amount) => {
+      const { currentAdventure } = get();
+      if (!currentAdventure || currentAdventure.status !== 'planning') return;
+      const wallet = useUserStore.getState().user?.liquid_balance ?? 0;
+      const walletContribution = Math.max(0, Math.min(Math.floor(amount), wallet));
+      set({ currentAdventure: { ...currentAdventure, walletContribution } });
+    },
+
     confirmPlan: async () => {
       const { currentAdventure } = get();
       if (!currentAdventure || currentAdventure.status !== 'planning') return false;
@@ -398,6 +414,20 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
       const lesson = useLessonsStore.getState().getNextLessonInBranch(currentAdventure.branchId);
       if (!lesson) return false;
 
+      // Монеты из кошелька (§12.3: баланс не уходит в минус) — списываются
+      // сразу при старте; не хватает — смена не начинается.
+      const walletContribution = currentAdventure.walletContribution;
+      if (walletContribution > 0) {
+        const paid = useUserStore
+          .getState()
+          .recordTransaction(
+            -walletContribution,
+            'adventure_budget',
+            `В бюджет работы №${currentAdventure.adventureNumber}`
+          );
+        if (!paid) return false;
+      }
+
       const startedAt = new Date();
       const plannedEndAt = new Date(startedAt.getTime() + ADVENTURE_DURATION_MS);
 
@@ -406,17 +436,32 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
         currentAdventure.branchId,
         currentAdventure.plan
       );
-      // Доход смены — её собственный бюджет (не кошелёк хаба): план
+      // Доход смены (и добавленное из кошелька) — её собственный бюджет: план
       // распределяет ИМЕННО эту сумму на «потратить» и «коплю», тратят её
       // события урока, остаток в конце уходит в хаб (см. finalizeAdventure).
-      const budget = currentAdventure.projectedIncome;
-      await getAdventureRepository().activate(
-        currentAdventure.id,
-        startedAt.toISOString(),
-        plannedEndAt.toISOString(),
-        budget,
-        lesson.id
-      );
+      const budget = currentAdventure.projectedIncome + walletContribution;
+      try {
+        await getAdventureRepository().activate(
+          currentAdventure.id,
+          startedAt.toISOString(),
+          plannedEndAt.toISOString(),
+          budget,
+          lesson.id,
+          walletContribution
+        );
+      } catch (error) {
+        // Смена не началась — монеты возвращаются в кошелёк.
+        if (walletContribution > 0) {
+          useUserStore
+            .getState()
+            .recordTransaction(
+              walletContribution,
+              'adventure_budget',
+              'Возврат: смена не началась'
+            );
+        }
+        throw error;
+      }
 
       set({
         currentAdventure: {

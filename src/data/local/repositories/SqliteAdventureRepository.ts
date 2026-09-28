@@ -12,6 +12,7 @@ interface AdventureRow {
   branch_id: number | null;
   lesson_id: number | null;
   projected_income: number;
+  wallet_contribution?: number | null;
   budget: number;
   plan_mandatory: number;
   plan_optional: number;
@@ -35,6 +36,7 @@ function rowToAdventure(row: AdventureRow): AdventureRecord {
     branchId: row.branch_id,
     lessonId: row.lesson_id ?? null,
     projectedIncome: row.projected_income,
+    walletContribution: row.wallet_contribution ?? 0,
     budget: row.budget ?? 0,
     plan: {
       mandatory: row.plan_mandatory,
@@ -128,14 +130,16 @@ export class SqliteAdventureRepository implements AdventureRepository {
     startedAt: string,
     plannedEndAt: string,
     budget: number,
-    lessonId: number
+    lessonId: number,
+    walletContribution: number
   ): Promise<void> {
     const db = await this.getDb();
     await db.runAsync(
       `UPDATE adventures
-       SET status = 'active', started_at = ?, planned_end_at = ?, budget = ?, lesson_id = ?
+       SET status = 'active', started_at = ?, planned_end_at = ?, budget = ?, lesson_id = ?,
+           wallet_contribution = ?
        WHERE id = ?`,
-      [startedAt, plannedEndAt, budget, lessonId, id]
+      [startedAt, plannedEndAt, budget, lessonId, walletContribution, id]
     );
   }
 

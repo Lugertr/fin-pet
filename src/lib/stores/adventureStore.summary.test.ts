@@ -44,6 +44,7 @@ const ACTIVE: AdventureRecord = {
   branchId: 1,
   lessonId: null,
   projectedIncome: 100,
+  walletContribution: 0,
   budget: 100,
   plan: { mandatory: 40, optional: 30, savings: 30 },
   fact: { mandatory: 0, optional: 0, savings: 0 },

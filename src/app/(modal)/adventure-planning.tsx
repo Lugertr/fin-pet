@@ -8,6 +8,9 @@
 //      (урок продолжится с того же места), пройденную тему выбрать нельзя.
 // Бюджет смены — отдельный от хаба контур денег: его тратят события урока, а
 // остаток в конце уходит в хаб («коплю» — в банк, остальное — в кошелёк).
+// К доходу смены можно добавить монеты из своего кошелька (решение
+// пользователя 28.09.2026): кнопки «Из кошелька», списываются при «Начать
+// работу»; при досрочном завершении возвращаются целиком (не по доле урока).
 // Открывается с хаба — тап по ноутбуку или кнопка «Начать работу».
 
 import { Ionicons } from '@expo/vector-icons';
@@ -21,7 +24,11 @@ import { BRANCH_GRADIENTS, BRANCH_ICONS } from '@/components/lessons/branchVisua
 import { AppHeaderStats, CoinAmount, useAppHeaderPadding } from '@/components/shared';
 import { AnimatedFill, Card } from '@/components/ui';
 import { PLAN_CATEGORY_COLORS } from '@/constants/planCategories';
-import { AdventureAllocation, clampAllocationAmount } from '@/domain/adventure/Adventure';
+import {
+  AdventureAllocation,
+  clampAllocationAmount,
+  totalAllocation,
+} from '@/domain/adventure/Adventure';
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { BRANCHES, useLessonsStore } from '@/lib/hooks/useLessons';
 import { useAdventureStore } from '@/lib/stores/adventureStore';
@@ -80,6 +87,7 @@ export default function AdventurePlanningScreen() {
   const startPlanning = useAdventureStore((s) => s.startPlanning);
   const setBranch = useAdventureStore((s) => s.setBranch);
   const updatePlan = useAdventureStore((s) => s.updatePlan);
+  const setWalletContribution = useAdventureStore((s) => s.setWalletContribution);
   const confirmPlan = useAdventureStore((s) => s.confirmPlan);
   const getBranchProgress = useLessonsStore((s) => s.getBranchProgress);
   const getNextLessonInBranch = useLessonsStore((s) => s.getNextLessonInBranch);
@@ -104,10 +112,29 @@ export default function AdventurePlanningScreen() {
   });
   const [isConfirming, setIsConfirming] = useState(false);
 
-  const available = currentAdventure?.projectedIncome ?? 0;
+  // Монеты из кошелька в бюджет смены — до «Начать работу» только здесь.
+  const wallet = user?.liquid_balance ?? 0;
+  const income = currentAdventure?.projectedIncome ?? 0;
+  const [fromWallet, setFromWallet] = useState(currentAdventure?.walletContribution ?? 0);
+  const available = income + fromWallet;
   const total = amounts.mandatory + amounts.optional + amounts.savings;
   const remainder = available - total;
   const canProceed = remainder >= 0 && total > 0;
+
+  /** Сколько взять из кошелька (0…весь кошелёк); распределённое не больше бюджета. */
+  const changeFromWallet = (next: number) => {
+    const value = Math.max(0, Math.min(next, wallet));
+    const nextAvailable = income + value;
+    setFromWallet(value);
+    // Бюджет уменьшился — сначала урезаем «Коплю», затем «Потратить».
+    setAmounts((prev) => {
+      const excess = totalAllocation(prev) - nextAvailable;
+      if (excess <= 0) return prev;
+      const savings = Math.max(0, prev.savings - excess);
+      const mandatory = Math.max(0, prev.mandatory - (excess - (prev.savings - savings)));
+      return { ...prev, mandatory, savings };
+    });
+  };
 
   const setAmount = (key: 'mandatory' | 'savings', value: number) => {
     setAmounts((prev) => clampAllocationAmount(prev, key, value, available));
@@ -154,9 +181,16 @@ export default function AdventurePlanningScreen() {
     try {
       // Итоговый план — 3 направления: надо / хочу / коплю.
       updatePlan({ mandatory: amounts.mandatory, optional: 0, savings: amounts.savings });
+      setWalletContribution(fromWallet);
       const started = await confirmPlan();
       if (!started) {
-        Alert.alert('Не получилось начать', 'В этой теме нет непройденных уроков — выбери другую.');
+        const walletNow = useUserStore.getState().user?.liquid_balance ?? 0;
+        Alert.alert(
+          'Не получилось начать',
+          walletNow < fromWallet
+            ? 'В кошельке меньше монет, чем ты добавил в бюджет. Убери лишнее кнопкой «−».'
+            : 'В этой теме нет непройденных уроков — выбери другую.'
+        );
         setIsConfirming(false);
         return;
       }
@@ -268,6 +302,11 @@ export default function AdventurePlanningScreen() {
               fontSize={scaledFont('hero')}
               textStyle={styles.availableValue}
             />
+            {fromWallet > 0 && (
+              <Text style={[styles.incomeBreakdown, { fontSize: scaledFont('sm') }]}>
+                {income} C за работу + {fromWallet} C из кошелька
+              </Text>
+            )}
             <CoinAmount
               amount={remainder}
               prefix="Не распределено: "
@@ -278,6 +317,46 @@ export default function AdventurePlanningScreen() {
                 { color: remainder >= 0 ? theme.success : theme.error },
               ]}
             />
+
+            {/* Свои монеты в бюджет смены: что не потратишь — вернётся. */}
+            <View style={styles.walletBlock}>
+              <Text style={[styles.walletTitle, { fontSize: scaledFont('md') }]}>
+                Добавить из кошелька
+              </Text>
+              <View style={styles.stepperRow}>
+                <TouchableOpacity
+                  onPress={() => {
+                    triggerHaptic('selection');
+                    changeFromWallet(fromWallet - STEP);
+                  }}
+                  style={styles.stepperButton}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Из кошелька: убрать ${STEP}`}
+                >
+                  <Ionicons name="remove" size={scale(20)} color={theme.textPrimary} />
+                </TouchableOpacity>
+                <Text
+                  style={[styles.walletValue, { fontSize: scaledFont('lg') }]}
+                  accessibilityLabel={`Из кошелька: ${formatCoins(fromWallet)}`}
+                >
+                  {fromWallet} C
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    triggerHaptic('selection');
+                    changeFromWallet(fromWallet + STEP);
+                  }}
+                  style={styles.stepperButton}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Из кошелька: добавить ${STEP}`}
+                >
+                  <Ionicons name="add" size={scale(20)} color={theme.textPrimary} />
+                </TouchableOpacity>
+              </View>
+              <Text style={[styles.walletCaption, { fontSize: scaledFont('sm') }]}>
+                В кошельке {wallet} C. Что не потратишь — вернётся после смены.
+              </Text>
+            </View>
           </Card>
 
           {CATEGORIES.map((category) => (

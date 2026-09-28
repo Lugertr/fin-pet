@@ -266,4 +266,14 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE adventures ADD COLUMN pending_summary TEXT;
     `,
   },
+  {
+    version: 14,
+    // На планировании смены в бюджет можно добавить монеты из кошелька
+    // (решение пользователя 28.09.2026). Сколько добавлено — хранится к смене:
+    // при досрочном завершении эти деньги ребёнка возвращаются целиком, по
+    // доле урока делится только доход смены (computeAdventurePayout).
+    sql: `
+      ALTER TABLE adventures ADD COLUMN wallet_contribution INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
 ];

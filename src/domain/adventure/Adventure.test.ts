@@ -25,6 +25,7 @@ function makeAdventure(overrides: Partial<AdventureRecord> = {}): AdventureRecor
     branchId: 1,
     lessonId: 1,
     projectedIncome: 100,
+    walletContribution: 0,
     budget: 100,
     plan: { mandatory: 40, optional: 30, savings: 30 },
     fact: { mandatory: 0, optional: 0, savings: 0 },
@@ -179,5 +180,32 @@ describe('planOutcome — итог плана трат для окна итог�
 
   it('больше плана — на сколько (положительное число)', () => {
     expect(planOutcome(withSpend(30, 45))).toEqual({ kind: 'over', difference: 15 });
+  });
+});
+
+describe('computeAdventurePayout — монеты из кошелька (решение 28.09)', () => {
+  it('без своих монет — как раньше: доля урока от всего', () => {
+    expect(computeAdventurePayout(100, 30, 0.5)).toEqual(computeAdventurePayout(100, 30, 0.5, 0));
+  });
+
+  it('урок не пройден — свои монеты возвращаются целиком, по доле делится только доход', () => {
+    // бюджет 150 = 100 дохода + 50 своих, ничего не потрачено, пройдена треть
+    const payout = computeAdventurePayout(150, 0, 1 / 3, 50);
+    expect(payout.toBank + payout.toWallet).toBe(50 + Math.floor(100 / 3));
+  });
+
+  it('свои монеты в «Коплю» уходят в банк целиком', () => {
+    const payout = computeAdventurePayout(150, 50, 1 / 3, 50);
+    expect(payout.toBank).toBe(50);
+    expect(payout.toWallet).toBe(Math.floor(100 / 3));
+  });
+
+  it('потрачено больше дохода — возвращается только то, что осталось', () => {
+    // 100 + 50 своих, потрачено 120 — осталось 30, всё своё
+    expect(computeAdventurePayout(30, 0, 0.5, 50)).toEqual({ toBank: 0, toWallet: 30 });
+  });
+
+  it('урок пройден — всё как без своих монет', () => {
+    expect(computeAdventurePayout(150, 40, 1, 50)).toEqual({ toBank: 40, toWallet: 110 });
   });
 });
