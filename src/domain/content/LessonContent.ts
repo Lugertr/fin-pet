@@ -11,8 +11,9 @@ export interface QuestionOptionDetail {
 export interface QuestionContent {
   id: number;
   question_text: string;
-  /** Для «Свайпов» — ровно [ответ «нет» (влево ✗), ответ «да» (вправо ✓)],
-   * а question_text — вопрос «да / нет» (см. TinderSwipeGame). */
+  /** Для «Свайпов» — ровно 2 ответа: «Да…» и «Нет…» в любом порядке («Нет»
+   * встанет влево ✗, «Да» — вправо ✓) или два своих ответа (выбор из двух,
+   * порядок сторон — как в контенте); см. LessonPlan.swipeSides. */
   options: string[];
   correct_answer: string;
   question_type: 'minigame' | 'test';

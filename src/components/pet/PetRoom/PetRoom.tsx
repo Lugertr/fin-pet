@@ -7,10 +7,11 @@
 // позиция в процентах от комнаты + ширина в процентах, высота — из реального
 // соотношения сторон конкретного SVG (см. lib/utils/imageAspectRatio.ts), а
 // не подогнанная вручную цифра — поэтому предметы никогда не растягиваются/
-// не обрезаются. Ноутбук кликабелен — открывает планирование «Приключения»
-// (во время активного приключения комнаты не видно — на месте хаба экран
-// приключения, см. app/(tabs)/index.tsx). Копилка —
-// переход в «Банк». У каждой из категорий laptop/piggybank/bed/carpet/window/
+// не обрезаются. «Работа» (ноутбук) и «Копилка» кликабельны целиком — и сам
+// предмет, и подпись над ним (решение пользователя 29.09.2026): ноутбук ведёт
+// в работу (смена идёт — её экран, нет — планирование), копилка — на вкладку
+// «Копилка». Рядом с подписью — текущий бонус предметов (суммы из useShop —
+// те же, что применяет игра). У каждой из категорий laptop/piggybank/bed/carpet/window/
 // room есть свой набор вариантов арта (см. *_ASSETS ниже) — какой именно
 // показать, определяется skin_variant реально экипированного товара этой
 // категории (тот же приём, что и у PetSpecies.getBodyAsset для скинов самого
@@ -74,7 +75,7 @@ interface PetRoomProps {
   skinVariant?: number;
   mood: number;
   onPetPress?: () => void;
-  /** Подписи мест («Приключение», «Энергия», «Банк»). Тур онбординга
+  /** Подписи мест («Работа», «Энергия», «Копилка»). Тур онбординга
    * скрывает их на шаге про бонусы — там свои выноски. */
   showLabels?: boolean;
 }
@@ -91,6 +92,12 @@ export function PetRoom({
   const { theme } = useTheme();
   const { triggerHaptic } = useFeedback();
   const equippedFurniture = useShopStore((s) => s.equippedFurniture);
+  // Текущие бонусы предметов — те же суммы, что применяет игра: зарплата
+  // смены, бонус копилки к новым монетам, максимум и восстановление энергии.
+  const workBonus = useShopStore((s) => s.getTotalCoinBonusPercent());
+  const savingsBonus = useShopStore((s) => s.getSavingsBonusRateBonus());
+  const energyMaxBonus = useShopStore((s) => s.getTotalEnergyMaxBonus());
+  const energyRecoveryBonus = useShopStore((s) => s.getTotalEnergyRecoveryBonus());
 
   const styles = createPetRoomStyles({ theme });
 
@@ -133,7 +140,7 @@ export function PetRoom({
   };
   const petSize = roomWidth > 0 ? Math.round((roomWidth * layout.pet.sizePercent) / 100) : 0;
 
-  const handleOpenLessons = () => {
+  const handleOpenWork = () => {
     triggerHaptic('light');
     // Ноутбук — вход в работу: идёт смена — её экран, нет — планирование
     // (все уроки пройдены — объяснение, см. openWorkOrExplain).
@@ -142,24 +149,20 @@ export function PetRoom({
 
   const handleOpenSavings = () => {
     triggerHaptic('light');
-    // Банк — вкладка «Копилка» в нижней панели.
+    // Копилка — вкладка «Копилка» в нижней панели.
     router.navigate('/(tabs)/savings' as never);
   };
 
-  // Реальный бонус текущего надетого предмета — не выдуманное число: у
-  // стартовых (бесплатных) кровати/копилки все бонусные поля — 0, тогда
-  // бейдж с цифрой не показываем вовсе (см. RoomLabelPill ниже), пилюля с
-  // названием места остаётся.
-  const bedBonusText = bed?.energy_max_bonus
-    ? `+${bed.energy_max_bonus}⚡`
-    : bed?.energy_recovery_bonus
-      ? `+${bed.energy_recovery_bonus}⚡/ч`
-      : null;
-  const piggybankBonusText = piggybank?.savings_bonus_rate
-    ? `+${piggybank.savings_bonus_rate}%`
-    : null;
-  // Ноутбук — надбавка к зарплате смены (у стартового 0 — бейджа нет).
-  const laptopBonusText = laptop?.coin_bonus_percent ? `+${laptop.coin_bonus_percent}% C` : null;
+  // Бонус рядом с подписью — только если он есть: у стартовых вещей все
+  // бонусные поля 0, тогда остаётся одно название места.
+  const workBonusText = workBonus > 0 ? `+${workBonus}%` : null;
+  const savingsBonusText = savingsBonus > 0 ? `+${savingsBonus}%` : null;
+  const energyBonusText =
+    energyMaxBonus > 0
+      ? `+${energyMaxBonus}⚡`
+      : energyRecoveryBonus > 0
+        ? `+${energyRecoveryBonus}⚡/ч`
+        : null;
 
   return (
     <ScrollView
@@ -205,17 +208,19 @@ export function PetRoom({
               top={layout.bed.top}
               right={boxRight(layout.bed)}
               label="Энергия"
-              badge={bedBonusText}
+              bonus={energyBonusText}
               styles={styles}
             />
           )}
 
-          {/* Копилка — кликабельно, переход в «Банк». Хитбокс TouchableOpacity —
-              это и есть весь прямоугольник места, без несовпадения с видимой
-              картинкой. */}
+          {/* Копилка — кликабельно, переход на вкладку «Копилка». Хитбокс
+              TouchableOpacity — это и есть весь прямоугольник места, без
+              несовпадения с видимой картинкой. */}
           <TouchableOpacity
             onPress={handleOpenSavings}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={withBonus('Копилка', savingsBonusText)}
             style={roomBoxToStyle(layout.piggybank, roomWidth, getAssetAspectRatio(piggybankAsset))}
           >
             <FurnitureChip asset={piggybankAsset} styles={styles} />
@@ -224,16 +229,19 @@ export function PetRoom({
             <RoomLabelPill
               top={layout.piggybank.top}
               right={boxRight(layout.piggybank)}
-              label="Банк"
-              badge={piggybankBonusText}
+              label="Копилка"
+              bonus={savingsBonusText}
+              onPress={handleOpenSavings}
               styles={styles}
             />
           )}
 
-          {/* Ноутбук — кликабельно, открывает «Приключение» */}
+          {/* Ноутбук — кликабельно, вход в работу */}
           <TouchableOpacity
-            onPress={handleOpenLessons}
+            onPress={handleOpenWork}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={withBonus('Работа', workBonusText)}
             style={roomBoxToStyle(layout.laptop, roomWidth, getAssetAspectRatio(laptopAsset))}
           >
             <FurnitureChip asset={laptopAsset} styles={styles} />
@@ -242,16 +250,22 @@ export function PetRoom({
             <RoomLabelPill
               top={layout.laptop.top}
               left={layout.laptop.left}
-              label="Смена"
-              badge={laptopBonusText}
+              label="Работа"
+              bonus={workBonusText}
+              onPress={handleOpenWork}
               styles={styles}
             />
           )}
 
           {/* Питомец в центре на ковре — размер пропорционален вписанной
               ширине комнаты (см. petSize выше), не показываем до первого
-              измерения. */}
-          <View style={[styles.petContainer, { bottom: `${layout.pet.bottom}%` }]}>
+              измерения. Контейнер — во всю ширину комнаты и лежит поверх
+              копилки: box-none, чтобы касания ловили только сам питомец и
+              его имя, а копилка под ним оставалась кликабельной. */}
+          <View
+            pointerEvents="box-none"
+            style={[styles.petContainer, { bottom: `${layout.pet.bottom}%` }]}
+          >
             {petSize > 0 && (
               <PetSprite
                 petType={petType}
@@ -286,10 +300,16 @@ function FurnitureChip({
   );
 }
 
+/** «Работа, +10%» — для скринридера. */
+function withBonus(label: string, bonus: string | null): string {
+  return bonus ? `${label}, бонус ${bonus}` : label;
+}
+
 /**
  * Пилюля-подсказка над ноутбуком/кроватью/копилкой (см. референс из чата) —
- * что это за место в комнате и, если есть, какой реальный бонус даёт сейчас
- * надетый там предмет (badge). Висит чуть выше самого предмета — тот же
+ * что это за место в комнате и, если есть, текущий бонус предметов рядом с
+ * названием. С onPress — кнопка (то же действие, что у самого предмета).
+ * Висит чуть выше самого предмета — тот же
  * горизонтальный якорь (left ИЛИ right), bottom считается от top предмета,
  * поэтому позиция верна независимо от размера комнаты на экране.
  *
@@ -303,36 +323,51 @@ function RoomLabelPill({
   left,
   right,
   label,
-  badge,
+  bonus,
+  onPress,
   styles,
 }: {
   top?: number;
   left?: number;
   right?: number;
   label: string;
-  badge?: string | null;
+  bonus?: string | null;
+  onPress?: () => void;
   styles: ReturnType<typeof createPetRoomStyles>;
 }) {
   const { scaledFont } = useResponsive();
   if (top === undefined) return null;
-  return (
-    <View
-      style={[
-        styles.labelPill,
-        {
-          bottom: `${100 - top + 1.5}%`,
-          ...(left !== undefined ? { left: `${left}%` } : {}),
-          ...(right !== undefined ? { right: `${right}%` } : {}),
-        },
-      ]}
-      pointerEvents="none"
-    >
+  const position = {
+    bottom: `${100 - top + 1.5}%` as const,
+    ...(left !== undefined ? { left: `${left}%` as const } : {}),
+    ...(right !== undefined ? { right: `${right}%` as const } : {}),
+  };
+  const content = (
+    <>
       <Text style={[styles.labelPillText, { fontSize: scaledFont('xs') }]}>{label}</Text>
-      {badge && (
-        <View style={styles.labelPillBadge}>
-          <Text style={[styles.labelPillBadgeText, { fontSize: scaledFont('xxs') }]}>{badge}</Text>
-        </View>
+      {bonus && (
+        <Text style={[styles.labelPillBonus, { fontSize: scaledFont('xs') }]}>{bonus}</Text>
       )}
-    </View>
+    </>
+  );
+  if (!onPress) {
+    return (
+      <View style={[styles.labelPill, position]} pointerEvents="none">
+        {content}
+      </View>
+    );
+  }
+  // Пилюля невысокая — hitSlop дотягивает зону касания до ≥48 dp (§23).
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.8}
+      hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+      accessibilityRole="button"
+      accessibilityLabel={withBonus(label, bonus ?? null)}
+      style={[styles.labelPill, position]}
+    >
+      {content}
+    </TouchableOpacity>
   );
 }

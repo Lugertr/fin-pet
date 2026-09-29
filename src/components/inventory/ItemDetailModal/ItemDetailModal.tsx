@@ -74,13 +74,13 @@ export function ItemDetailModal({
 
     if (item.category === 'food') {
       const result = consumeItem(item.id);
+      onClose();
       if (result.success) {
         onFeedback('purchase');
       } else {
         onFeedback('error');
         Alert.alert('Пока нельзя', result.message);
       }
-      onClose();
       return;
     }
 
@@ -101,13 +101,17 @@ export function ItemDetailModal({
         return;
       }
       const result = equipFurniture(item.id);
+      onClose();
       onFeedback(result.success ? 'purchase' : 'error');
       if (!result.success) Alert.alert('Пока нельзя', result.message);
-      onClose();
     }
   };
 
+  // Сообщения и подтверждения — после закрытия окна предмета (решение
+  // пользователя 29.09.2026): алерт — отдельное окно, и открытым поверх окна
+  // предмета оно оказывалось позади него.
   const handleSell = () => {
+    onClose();
     if (item.is_hidden) {
       Alert.alert('Нельзя продать', 'Этот предмет получен как редкий подарок и не продаётся.');
       return;
@@ -130,7 +134,6 @@ export function ItemDetailModal({
               onFeedback('error');
               Alert.alert('Не получилось', result.message);
             }
-            onClose();
           },
         },
       ]

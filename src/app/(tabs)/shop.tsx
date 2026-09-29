@@ -1,5 +1,11 @@
 // src/app/(tabs)/shop.tsx
 // Магазин с кнопкой инвентаря и секцией подарков
+// Вещь одна на игрока (решение пользователя 29.09.2026): купленное пропадает
+// из магазина (isOwnedSinglePurchase) и возвращается, только если его продали.
+// Купили вещь, на которую копили в банке, — цель снимается, накопленное
+// остаётся, а хаб попросит выбрать новую (иначе банк выдал бы её второй раз).
+// Купленная вещь сама в комнату не встаёт — магазин спрашивает: поставить
+// или оставить в хранилище (решение пользователя 29.09.2026).
 //
 // Карточка товара живёт в src/components/shop/ — этот файл отвечает только
 // за шапку, баланс, категории и покупку.
@@ -18,6 +24,9 @@ import { useFeedback } from '@/lib/hooks/useFeedback';
 import { Alert } from '@/lib/utils/alert';
 import {
   FOOD_ONLY_WHEN_HUNGRY_MESSAGE,
+  FURNITURE_CATEGORIES,
+  FurnitureCategory,
+  isOwnedSinglePurchase,
   isPetHungryNow,
   SHOP_CATALOG,
   ShopItem,
@@ -26,6 +35,7 @@ import {
 import { useGiftsStore } from '@/lib/stores/giftsStore';
 import { usePetStore } from '@/lib/stores/petStore';
 import { usePreferencesStore } from '@/lib/stores/preferencesStore';
+import { useSavingsStore } from '@/lib/stores/savingsStore';
 import { useUserStore } from '@/lib/stores/userStore';
 import { formatPrice } from '@/lib/utils/formatters';
 import {
@@ -34,7 +44,7 @@ import {
   itemMatchesCategoryFilter,
   isShopItem,
 } from '@/lib/utils/itemCategories';
-import { getEffectDescription, shopPrice } from '@/lib/utils/shopItems';
+import { getEffectDescription, placementPromptText, shopPrice } from '@/lib/utils/shopItems';
 import { useResponsive, useTheme } from '@/theme';
 import { circleRadius, spacing } from '@/theme/tokens';
 import { createShopStyles } from '../../styles/screens/tabs/_shop.styles';
@@ -51,9 +61,9 @@ export default function ShopScreen() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const user = useUserStore((s) => s.user);
   const currentMood = usePetStore((s) => s.currentMood);
-  // Только стабильный экшен — экрану магазина не нужно перерисовываться
-  // при изменениях инвентаря/декора.
   const purchaseItem = useShopStore((s) => s.purchaseItem);
+  // Инвентарь — чтобы купленное сразу пропадало из магазина.
+  const ownedItems = useShopStore((s) => s.ownedItems);
   const pendingGifts = useGiftsStore((s) => s.pendingGifts);
   const petType = usePreferencesStore((s) => s.petType);
 
@@ -66,14 +76,39 @@ export default function ShopScreen() {
   // Стартовые предметы комнаты (is_starter) не продаются — они и так у всех
   // с онбординга, в магазине есть только их платные апгрейды. Скинов в
   // магазине нет вовсе — новый облик питомец получает на новом уровне.
-  const purchasableCatalog = SHOP_CATALOG.filter((item) => isShopItem(item, petType));
-  const filteredItems = purchasableCatalog.filter((item) =>
-    itemMatchesCategoryFilter(item.category, selectedCategory)
+  const shopCatalog = SHOP_CATALOG.filter(
+    (item) =>
+      isShopItem(item, petType) && itemMatchesCategoryFilter(item.category, selectedCategory)
   );
+  // Купленное — уже в хранилище, в магазине его больше нет.
+  const filteredItems = shopCatalog.filter((item) => !isOwnedSinglePurchase(item, ownedItems));
+  const allBought = shopCatalog.length > 0 && filteredItems.length === 0;
 
   const handleSelectCategory = (categoryId: string) => {
     triggerHaptic('selection');
     setSelectedCategory(categoryId);
+  };
+
+  // Куплено — вещь в хранилище; мебель можно сразу поставить в комнату.
+  const offerPlacement = (item: ShopItem, goalReleased: boolean) => {
+    const goalNote = goalReleased
+      ? '\n\nЭто была твоя цель в банке — накопленное осталось, выбери на хабе новую цель.'
+      : '';
+    if (!FURNITURE_CATEGORIES.includes(item.category as FurnitureCategory)) {
+      Alert.alert('🎉 Куплено!', `«${item.name}» теперь в хранилище.${goalNote}`);
+      return;
+    }
+    Alert.alert('🎉 Куплено!', `${placementPromptText(item)}${goalNote}`, [
+      { text: 'Оставить в хранилище', style: 'cancel' },
+      {
+        text: 'Поставить в комнату',
+        onPress: () => {
+          const placed = useShopStore.getState().equipFurniture(item.id);
+          if (placed.success) triggerHaptic('success');
+          else Alert.alert('Пока нельзя', placed.message);
+        },
+      },
+    ]);
   };
 
   const handlePurchase = (item: ShopItem) => {
@@ -117,7 +152,10 @@ export default function ShopScreen() {
           const result = purchaseItem(item.id);
           if (result.success) {
             trigger('purchase');
-            Alert.alert('🎉 Успех!', result.message);
+            void useSavingsStore
+              .getState()
+              .releaseOwnedTarget()
+              .then((released) => offerPlacement(item, released));
           } else {
             trigger('error');
             Alert.alert('Ошибка', result.message);
@@ -221,7 +259,11 @@ export default function ShopScreen() {
         {filteredItems.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyEmoji}>🛒</Text>
-            <Text style={styles.emptyText}>В этой категории пока нет товаров</Text>
+            <Text style={styles.emptyText}>
+              {allBought
+                ? 'Всё отсюда уже твоё — оно в хранилище'
+                : 'В этой категории пока нет товаров'}
+            </Text>
           </View>
         ) : (
           filteredItems.map((item) => (

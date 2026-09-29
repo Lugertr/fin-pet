@@ -32,9 +32,15 @@ describe('цели накопления', () => {
     }
   });
 
-  it('подпись показывает реальный бонус вещи', () => {
-    const laptop = getFirstGoalOptions().find((i) => i.category === 'laptop')!;
-    expect(goalBonusCaption(laptop)).toBe(`бонус к урокам +${laptop.coin_bonus_percent}%`);
+  it('подпись показывает реальный бонус вещи — как в магазине', () => {
+    const byCategory = (category: string) =>
+      getFirstGoalOptions().find((i) => i.category === category)!;
+    const laptop = byCategory('laptop');
+    const piggybank = byCategory('piggybank');
+    const bed = byCategory('bed');
+    expect(goalBonusCaption(laptop)).toBe(`+${laptop.coin_bonus_percent}% к зарплате за смену`);
+    expect(goalBonusCaption(piggybank)).toBe(`+${piggybank.savings_bonus_rate}% к бонусу копилки`);
+    expect(goalBonusCaption(bed)).toBe(`+${bed.energy_max_bonus}⚡ к максимуму энергии`);
   });
 });
 

@@ -1,10 +1,11 @@
 // app/(tabs)/_layout.tsx
-// Tab Navigator для основных экранов (5 табов). Хаб — всегда комната; экран
-// приключения — отдельный ((modal)/adventure), туда ведёт кнопка на хабе.
+// Tab Navigator для основных экранов (5 табов, порядок — constants/mainTabs:
+// Хаб слева). Хаб — всегда комната; экран смены — отдельный
+// ((modal)/adventure), туда ведёт кнопка на хабе.
 
-import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 
+import { MainTabIcon } from '@/components/shared';
 import { MAIN_TABS } from '@/constants/mainTabs';
 import { useEnergyTicker } from '@/lib/pet/useEnergyTicker';
 import { useTheme } from '@/theme';
@@ -51,7 +52,9 @@ export default function TabsLayout() {
           name={tab.name}
           options={{
             title: tab.title,
-            tabBarIcon: ({ color, size }) => <Ionicons name={tab.icon} size={size} color={color} />,
+            tabBarIcon: ({ color, size }) => (
+              <MainTabIcon icon={tab.icon} size={size} color={color} />
+            ),
           }}
         />
       ))}

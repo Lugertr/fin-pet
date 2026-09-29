@@ -11,6 +11,12 @@
 // - 2+ кнопки (подтверждение) — карточка с кружком-иконкой (+ опциональной
 //   цветной плашкой сверху), кнопка отмены становится текстовой ссылкой
 //   снизу, а не ещё одной закрашенной кнопкой — см. референс дизайна.
+//
+// Modal монтируется только на время показа. В react-native-web каждый Modal
+// добавляет свой слой в конец страницы при монтировании, а не при показе:
+// всегда смонтированный алерт (с запуска приложения) лежал под любым окном,
+// открытым позже, — подтверждение из окна (например, продажа в хранилище)
+// появлялось позади него (замечание пользователя 29.09.2026).
 
 import { Ionicons } from '@expo/vector-icons';
 import { Modal, TouchableOpacity, View } from 'react-native';
@@ -27,6 +33,8 @@ export function AlertHost() {
   const { visible, title, message, buttons, icon, badgeLabel, badgeVariant, hide } =
     useAlertStore();
   const styles = createAlertHostStyles({ theme });
+
+  if (!visible) return null;
 
   const handlePress = (button: AlertButton) => {
     hide();
@@ -52,7 +60,7 @@ export function AlertHost() {
   const resolvedIcon: IconName = icon ?? (hasDestructive ? 'trash' : 'help-circle');
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={hide}>
+    <Modal visible transparent animationType="fade" onRequestClose={hide}>
       <View style={styles.overlay}>
         <View style={styles.card}>
           {isConfirmation && badgeLabel && (

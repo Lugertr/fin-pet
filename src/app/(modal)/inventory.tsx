@@ -3,8 +3,9 @@
 //
 // Карточка предмета и модалка деталей живут в src/components/inventory/ —
 // этот файл отвечает только за шапку, статистику, фильтр категорий и список.
+// Шапка — общая SubpageHeader на фоне темы (решение пользователя 29.09.2026:
+// оранжевый градиент выбивался из стиля, а сумма на нём не читалась).
 
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
@@ -16,13 +17,13 @@ import {
   ItemDetailModal,
   OwnedItem,
 } from '@/components/inventory';
-import { CoinAmount, HelpButton } from '@/components/shared';
-import { CategoryTabs, IconButton } from '@/components/ui';
+import { CoinAmount, SubpageHeader } from '@/components/shared';
+import { CategoryTabs } from '@/components/ui';
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { useShopStore } from '@/lib/hooks/useShop';
 import { itemMatchesCategoryFilter } from '@/lib/utils/itemCategories';
 import { useResponsive, useTheme } from '@/theme';
-import { colorPalettes, emojiSizes, spacing } from '@/theme/tokens';
+import { emojiSizes, spacing } from '@/theme/tokens';
 import { createInventoryStyles } from '../../styles/screens/modal/_inventory.styles';
 
 export default function InventoryScreen() {
@@ -55,8 +56,6 @@ export default function InventoryScreen() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedItem, setSelectedItem] = useState<OwnedItem | null>(null);
 
-  const headerGradient: [string, string] = [colorPalettes.amber[500], colorPalettes.orange[500]];
-
   const filteredItems = ownedItems.filter((item) =>
     itemMatchesCategoryFilter(item.category, selectedCategory)
   );
@@ -66,19 +65,15 @@ export default function InventoryScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Заголовок */}
-      <LinearGradient
-        colors={headerGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={[styles.header, { paddingTop: scale(56), paddingBottom: scale(spacing.xl) }]}
-      >
-        <View style={styles.headerTopRow}>
-          <IconButton icon="arrow-back" onPress={() => router.back()} variant="onGradient" />
-          <Text style={[styles.headerTitle, { fontSize: scaledFont('xl') }]}>Инвентарь</Text>
-          <HelpButton screen="inventory" variant="onGradient" />
-        </View>
+      <SubpageHeader
+        title="Инвентарь"
+        help="inventory"
+        onBack={() =>
+          router.canGoBack() ? router.back() : router.replace('/(tabs)/shop' as never)
+        }
+      />
 
+      <View style={styles.header}>
         {/* Статистика */}
         <View style={[styles.statsRow, { marginBottom: scale(spacing.lg) }]}>
           <View style={[styles.statTile, { padding: scale(spacing.md) }]}>
@@ -89,14 +84,12 @@ export default function InventoryScreen() {
             <CoinAmount
               amount={totalValue}
               fontSize={scaledFont('lg')}
-              textStyle={[styles.statValue, styles.statValueCoins]}
+              textStyle={styles.statValue}
             />
             <Text style={[styles.statLabel, { fontSize: scaledFont('xs') }]}>Стоимость</Text>
           </View>
           <View style={[styles.statTile, { padding: scale(spacing.md) }]}>
-            <Text
-              style={[styles.statValue, styles.statValueSuccess, { fontSize: scaledFont('xl') }]}
-            >
+            <Text style={[styles.statValue, { fontSize: scaledFont('xl') }]}>
               {placedIds.length}
             </Text>
             <Text style={[styles.statLabel, { fontSize: scaledFont('xs') }]}>В комнате</Text>
@@ -112,7 +105,7 @@ export default function InventoryScreen() {
             setSelectedCategory(categoryId);
           }}
         />
-      </LinearGradient>
+      </View>
 
       {/* Список предметов */}
       <ScrollView

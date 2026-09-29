@@ -37,6 +37,25 @@ export const FOOD_ONLY_WHEN_HUNGRY_MESSAGE =
 export const SKIN_NOT_FOR_SALE_MESSAGE =
   'Облик питомца не продаётся — новый облик приходит сам на новом уровне.';
 
+export const ALREADY_OWNED_MESSAGE = 'Это уже есть у тебя — загляни в хранилище.';
+
+/**
+ * Вещь — одна на игрока (решение пользователя 29.09.2026): купленное
+ * пропадает из магазина и снова появляется, только если его продали. Еда —
+ * расходник, её можно покупать снова.
+ */
+export function isSinglePurchase(item: Pick<ShopItem, 'category'>): boolean {
+  return item.category !== 'food';
+}
+
+/** Товар уже куплен и в магазине больше не продаётся. */
+export function isOwnedSinglePurchase(
+  item: Pick<ShopItem, 'id' | 'category'>,
+  ownedItems: Record<number, number>
+): boolean {
+  return isSinglePurchase(item) && (ownedItems[item.id] ?? 0) > 0;
+}
+
 /** Голоден ли питомец прямо сейчас — от актуальной, а не устаревшей энергии. */
 export function isPetHungryNow(): boolean {
   usePetStore.getState().refreshMood();
@@ -79,11 +98,19 @@ interface ShopState {
   equippedFurniture: { [category: string]: number };
 
   // Actions
+  /**
+   * Покупка: вещь попадает в хранилище и сама в комнату не встаёт —
+   * магазин спрашивает, поставить ли её (решение пользователя 29.09.2026).
+   */
   purchaseItem: (itemId: number, quantity?: number) => ShopActionResult;
   /** §12.4 — продажа купленного декора/еды/скинов за 50% цены. Базовые и скрытые (is_hidden) предметы не продаются. */
   sellItem: (itemId: number, quantity?: number) => ShopActionResult;
-  /** Пополнение инвентаря без оплаты — источник для подарков (§14) и стартовой мебели. */
-  addItem: (itemId: number, quantity?: number) => void;
+  /**
+   * Пополнение инвентаря без оплаты — источник для подарков (§14), стартовой
+   * мебели и цели банка. Декор и мебель сразу встают на место, если не
+   * передано { autoPlace: false } (покупка — там решает ребёнок).
+   */
+  addItem: (itemId: number, quantity?: number, options?: { autoPlace?: boolean }) => void;
   /** §12.2 — еда даёт мгновенную энергию при использовании. */
   consumeItem: (itemId: number) => ShopActionResult;
   /** Размещает декор в подходящий слот по slot_category (§13.1); если все слоты этой категории заняты — заменяет первый. */
@@ -138,6 +165,12 @@ export const useShopStore = create<ShopState>()(
         if (item.category === 'food' && !isPetHungryNow()) {
           return { success: false, message: FOOD_ONLY_WHEN_HUNGRY_MESSAGE };
         }
+        if (
+          isSinglePurchase(item) &&
+          (quantity > 1 || isOwnedSinglePurchase(item, get().ownedItems))
+        ) {
+          return { success: false, message: ALREADY_OWNED_MESSAGE };
+        }
 
         const { user } = useUserStore.getState();
         if (!user) {
@@ -163,7 +196,8 @@ export const useShopStore = create<ShopState>()(
           return { success: false, message: 'Недостаточно монет' };
         }
 
-        get().addItem(itemId, quantity);
+        // В комнату — только если ребёнок согласится (shop.tsx спрашивает).
+        get().addItem(itemId, quantity, { autoPlace: false });
 
         return { success: true, message: `Куплено: ${item.name} x${quantity}` };
       },
@@ -247,7 +281,7 @@ export const useShopStore = create<ShopState>()(
         };
       },
 
-      addItem: (itemId, quantity = 1) => {
+      addItem: (itemId, quantity = 1, options) => {
         const item = SHOP_CATALOG.find((i) => i.id === itemId);
         if (!item) return;
 
@@ -256,16 +290,22 @@ export const useShopStore = create<ShopState>()(
 
         set({ ownedItems: { ...ownedItems, [itemId]: currentQuantity + quantity } });
 
-        // АВТО-РАЗМЕЩЕНИЕ/АВТОНАДЕВАНИЕ: любой полученный декор/мебельный
-        // предмет сразу занимает своё место — не только покупка, но и
-        // подарок/награда (пользовательское правило поверх §13). Скины сюда
-        // не входят: их экипировка (equipSkin, lib/pet/petSkin.ts) пишет в
-        // SQLite-профиль и импортирует этот стор — вызов отсюда был бы циклом
-        // импортов, поэтому вызывающая сторона (онбординг/уровень/подарок)
+        // АВТО-РАЗМЕЩЕНИЕ/АВТОНАДЕВАНИЕ: полученный декор/мебельный предмет
+        // сразу занимает своё место — подарок, награда, цель банка, стартовая
+        // мебель (пользовательское правило поверх §13). Покупка — исключение
+        // (autoPlace: false): магазин спрашивает, поставить ли вещь (решение
+        // 29.09.2026). Скины сюда не входят: их экипировка (equipSkin,
+        // lib/pet/petSkin.ts) пишет в SQLite-профиль и импортирует этот стор —
+        // вызов отсюда был бы циклом импортов, поэтому вызывающая сторона
         // экипирует скин сама, уже после addItem.
-        if (item.category === 'decor' && findPlacedSlot(get().placedDecor, itemId) === null) {
+        const autoPlace = options?.autoPlace !== false;
+        if (
+          autoPlace &&
+          item.category === 'decor' &&
+          findPlacedSlot(get().placedDecor, itemId) === null
+        ) {
           get().placeDecor(itemId);
-        } else if (FURNITURE_CATEGORIES.includes(item.category as FurnitureCategory)) {
+        } else if (autoPlace && FURNITURE_CATEGORIES.includes(item.category as FurnitureCategory)) {
           get().equipFurniture(itemId);
         }
 

@@ -169,3 +169,61 @@ describe('демо-режим — магазин бесплатный', () => {
     expect(useShopStore.getState().purchaseItem(LAPTOP.id).success).toBe(false);
   });
 });
+
+describe('вещь — одна на игрока', () => {
+  const LAPTOP = SHOP_CATALOG.find((i) => i.category === 'laptop' && !i.is_starter)!;
+
+  it('купленную вещь второй раз не купить — баланс и инвентарь не меняются', () => {
+    seedUser(LAPTOP.price * 3);
+    useShopStore.getState().purchaseItem(LAPTOP.id);
+
+    const second = useShopStore.getState().purchaseItem(LAPTOP.id);
+
+    expect(second.success).toBe(false);
+    expect(useUserStore.getState().user?.liquid_balance).toBe(LAPTOP.price * 2);
+    expect(useShopStore.getState().ownedItems[LAPTOP.id]).toBe(1);
+  });
+
+  it('проданную вещь можно купить снова', () => {
+    seedUser(LAPTOP.price * 3);
+    useShopStore.getState().purchaseItem(LAPTOP.id);
+    useShopStore.getState().sellItem(LAPTOP.id);
+
+    expect(useShopStore.getState().purchaseItem(LAPTOP.id).success).toBe(true);
+    expect(useShopStore.getState().ownedItems[LAPTOP.id]).toBe(1);
+  });
+
+  it('вещь не купить сразу несколькими штуками', () => {
+    seedUser(LAPTOP.price * 3);
+
+    expect(useShopStore.getState().purchaseItem(LAPTOP.id, 2).success).toBe(false);
+    expect(useShopStore.getState().ownedItems[LAPTOP.id]).toBeUndefined();
+  });
+});
+
+describe('покупка — в хранилище, в комнату по выбору (29.09.2026)', () => {
+  const LAPTOP = SHOP_CATALOG.find((i) => i.category === 'laptop' && !i.is_starter)!;
+
+  it('купленная вещь сама в комнату не встаёт — лежит в хранилище', () => {
+    seedUser(LAPTOP.price);
+
+    useShopStore.getState().purchaseItem(LAPTOP.id);
+
+    expect(useShopStore.getState().ownedItems[LAPTOP.id]).toBe(1);
+    expect(useShopStore.getState().equippedFurniture.laptop).not.toBe(LAPTOP.id);
+  });
+
+  it('согласился поставить — вещь в комнате', () => {
+    seedUser(LAPTOP.price);
+    useShopStore.getState().purchaseItem(LAPTOP.id);
+
+    expect(useShopStore.getState().equipFurniture(LAPTOP.id).success).toBe(true);
+    expect(useShopStore.getState().equippedFurniture.laptop).toBe(LAPTOP.id);
+  });
+
+  it('подарок, награда, цель банка — как раньше, сразу в комнате', () => {
+    useShopStore.getState().addItem(LAPTOP.id);
+
+    expect(useShopStore.getState().equippedFurniture.laptop).toBe(LAPTOP.id);
+  });
+});

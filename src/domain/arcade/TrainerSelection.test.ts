@@ -182,7 +182,7 @@ describe('контент Аркады', () => {
     }
   });
 
-  it('карточка свайпа — вопрос «да / нет» с вариантами [нет, да]', () => {
+  it('карточка свайпа — вопрос с «?» и двумя вариантами', () => {
     const errors = realSources.swipeCards.flatMap((set) =>
       swipeQuestionErrors(`тема ${set.branch_id}`, set.cards)
     );

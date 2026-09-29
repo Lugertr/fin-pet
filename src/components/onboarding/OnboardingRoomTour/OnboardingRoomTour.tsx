@@ -25,8 +25,8 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PetRoom } from '@/components/pet';
-import { AppHeaderStats } from '@/components/shared';
-import { MAIN_TABS } from '@/constants/mainTabs';
+import { AppHeaderStats, MainTabIcon } from '@/components/shared';
+import { MAIN_TABS, MainTabConfig } from '@/constants/mainTabs';
 import type { PetType } from '@/constants/petAssets';
 import { STARTING_WALLET_BALANCE } from '@/domain/profile/Profile';
 import { getRoomLayout, ROOM_ASPECT_RATIO, RoomBox } from '@/domain/room/RoomLayout';
@@ -76,10 +76,14 @@ function maxBonus(
 
 interface Goal {
   key: 'bed' | 'piggybank' | 'laptop';
-  icon: IconName;
+  /** Ionicons или своя SVG (копилка — свинья, как на вкладке). */
+  icon: MainTabConfig['icon'];
   color: string;
   name: string;
+  /** Полностью — в карточке под комнатой. */
   bonus: string;
+  /** Коротко — в выноске над вещью: полный текст в неё не влезал и обрезался. */
+  shortBonus: string;
   /** Длина линии от выноски до вещи — разная, чтобы выноски не налезали друг на друга. */
   lineLength: number;
 }
@@ -147,14 +151,16 @@ export function OnboardingRoomTour({
       color: colorPalettes.amber[500],
       name: 'Кровать',
       bonus: `до +${maxBonus('bed', 'energy_max_bonus')}⚡`,
+      shortBonus: `до +${maxBonus('bed', 'energy_max_bonus')}⚡`,
       lineLength: scale(18),
     },
     {
       key: 'piggybank',
-      icon: 'wallet-outline',
+      icon: 'pig',
       color: colorPalettes.emerald[500],
       name: 'Копилка',
       bonus: `до +${maxBonus('piggybank', 'savings_bonus_rate')}% в банке`,
+      shortBonus: `до +${maxBonus('piggybank', 'savings_bonus_rate')}%`,
       lineLength: scale(14),
     },
     {
@@ -162,7 +168,8 @@ export function OnboardingRoomTour({
       icon: 'laptop-outline',
       color: colorPalettes.indigo[500],
       name: 'Ноутбук',
-      bonus: `до +${maxBonus('laptop', 'coin_bonus_percent')}% за уроки`,
+      bonus: `до +${maxBonus('laptop', 'coin_bonus_percent')}% за смену`,
+      shortBonus: `до +${maxBonus('laptop', 'coin_bonus_percent')}%`,
       lineLength: scale(40),
     },
   ];
@@ -252,12 +259,12 @@ export function OnboardingRoomTour({
                         },
                       ]}
                     >
-                      <Ionicons name={goal.icon} size={scale(13)} color={goal.color} />
+                      <MainTabIcon icon={goal.icon} size={scale(13)} color={goal.color} />
                       <Text
                         style={[styles.calloutText, { fontSize: scaledFont('xxs') }]}
                         numberOfLines={1}
                       >
-                        {goal.name} · {goal.bonus}
+                        {goal.name} · {goal.shortBonus}
                       </Text>
                     </View>
                     <View
@@ -299,8 +306,8 @@ export function OnboardingRoomTour({
                 key={tab.name}
                 style={[styles.tabItem, badge !== undefined && styles.tabItemMarked]}
               >
-                <Ionicons
-                  name={tab.icon}
+                <MainTabIcon
+                  icon={tab.icon}
                   size={scale(22)}
                   color={isHub || badge !== undefined ? theme.primary : theme.textSecondary}
                 />
@@ -376,7 +383,7 @@ export function OnboardingRoomTour({
                   icon="wallet-outline"
                   color={theme.primary}
                   lead="твой кошелёк:"
-                  text="монеты «C», которые можно тратить. Три цвета полоски — надо, хочу и коплю: так делится бюджет смены"
+                  text="монеты «C», которые можно тратить"
                 />
                 <InfoRow
                   styles={styles}
@@ -433,7 +440,7 @@ export function OnboardingRoomTour({
                     <View
                       style={[styles.goalIcon, { backgroundColor: withAlpha(goal.color, 0.15) }]}
                     >
-                      <Ionicons name={goal.icon} size={scale(20)} color={goal.color} />
+                      <MainTabIcon icon={goal.icon} size={scale(20)} color={goal.color} />
                     </View>
                     <Text style={[styles.goalName, { fontSize: scaledFont('md') }]}>
                       {goal.name}

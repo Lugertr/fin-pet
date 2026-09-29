@@ -1,7 +1,8 @@
 // src/components/savings/SavingsHeader/SavingsHeader.tsx
 // Шапка вкладки «Копилка» по макету (27.09.2026): «назад» на хаб, заголовок,
 // «?», плашка «всего монет» (кошелёк «Хочу» + банк «Коплю») с копилкой и
-// декоративной полоской, как у кошелька в общей шапке, и кнопка профиля.
+// кнопка профиля. Полоски «надо / хочу / коплю» под суммой больше нет — как и
+// в общей шапке (решение пользователя 29.09.2026).
 
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -13,18 +14,10 @@ import { HelpButton } from '@/components/shared';
 import { IconButton } from '@/components/ui';
 import { FURNITURE_ASSETS } from '@/constants/itemAssets';
 import type { ScreenHelpId } from '@/domain/content/ReferenceContent';
-import { PLAN_CATEGORY_COLORS } from '@/constants/planCategories';
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { formatCoins, formatPrice } from '@/lib/utils/formatters';
 import { useResponsive, useTheme } from '@/theme';
 import { createSavingsHeaderStyles } from './SavingsHeader.styles';
-
-/** Та же декоративная полоска, что у кошелька в общей шапке (AppHeaderStats). */
-const PLAN_STRIP_COLORS = [
-  PLAN_CATEGORY_COLORS.need,
-  PLAN_CATEGORY_COLORS.want,
-  PLAN_CATEGORY_COLORS.save,
-];
 
 export function SavingsHeader({
   wallet,
@@ -79,16 +72,9 @@ export function SavingsHeader({
             style={{ width: scale(24), height: scale(20) }}
             contentFit="contain"
           />
-          <View style={styles.totalColumn}>
-            <Text style={[styles.pillText, { fontSize: scaledFont('lg') }]}>
-              {formatPrice(wallet + bank)}
-            </Text>
-            <View style={styles.planStrip}>
-              {PLAN_STRIP_COLORS.map((color) => (
-                <View key={color} style={[styles.planStripSegment, { backgroundColor: color }]} />
-              ))}
-            </View>
-          </View>
+          <Text style={[styles.pillText, { fontSize: scaledFont('lg') }]}>
+            {formatPrice(wallet + bank)}
+          </Text>
         </View>
 
         <TouchableOpacity

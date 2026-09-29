@@ -6,7 +6,7 @@
 // контракта; optionDetails перенесены сюда).
 
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { TouchableOpacity, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
 
@@ -15,6 +15,14 @@ import { useFeedback } from '@/lib/hooks/useFeedback';
 import { useResponsive, useTheme } from '@/theme';
 import { withAlpha } from '@/theme/colorUtils';
 import { createQuizGameStyles, getOptionColors, OptionState } from './QuizGame.styles';
+
+/**
+ * Сколько держится результат, прежде чем вопрос сменится. Неверный ответ —
+ * дольше (решение пользователя 29.09.2026: за 0,8 с верный ответ не успеть
+ * прочитать): «Неверно. Правильный ответ: …» — 2,5 с.
+ */
+const CORRECT_FEEDBACK_MS = 800;
+const WRONG_FEEDBACK_MS = 2500;
 
 interface QuizGameProps {
   question: string;
@@ -41,6 +49,15 @@ export function QuizGame({
 
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
+  // Ушли с экрана, пока показан результат, — ответ не засчитывается (иначе
+  // ошибка в смене списала бы энергию уже после выхода из урока).
+  const answerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (answerTimer.current) clearTimeout(answerTimer.current);
+    },
+    []
+  );
 
   const styles = createQuizGameStyles({ theme });
 
@@ -55,10 +72,11 @@ export function QuizGame({
     setSelectedAnswer(option);
     setShowResult(true);
 
-    // Небольшая задержка перед отправкой для визуального фидбека
-    setTimeout(() => {
-      onAnswer(option, isCorrect);
-    }, 800);
+    // Результат держится на экране, потом — следующий вопрос.
+    answerTimer.current = setTimeout(
+      () => onAnswer(option, isCorrect),
+      isCorrect ? CORRECT_FEEDBACK_MS : WRONG_FEEDBACK_MS
+    );
   };
 
   const getOptionState = (option: string): OptionState => {

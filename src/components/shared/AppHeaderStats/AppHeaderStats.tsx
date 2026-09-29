@@ -1,8 +1,9 @@
 // src/components/shared/AppHeaderStats/AppHeaderStats.tsx
 // Единая шапка приложения — на всех вкладках таб-бара (хаб/уроки/магазин/
 // ИИ-чат/профиль) и экранах приключения, кроме онбординга. По макету
-// пользователя (27.09.2026): лого, плашка кошелька «80 C» с декоративной
-// полоской «надо / хочу / коплю» под суммой, плашка энергии и кнопка профиля.
+// пользователя (27.09.2026): лого, плашка кошелька «80 C», плашка энергии и
+// кнопка профиля. Декоративной полоски «надо / хочу / коплю» под суммой
+// больше нет (решение пользователя 29.09.2026).
 // Банк в шапке не показывается — он в «Банке» (копилка в комнате) и профиле.
 // Принимает уже посчитанные значения — экран сам решает, откуда их брать.
 // С leftAction вместо лого слева стоит кнопка-иконка («назад» на
@@ -17,7 +18,6 @@ import { TouchableOpacity, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
 
 import { IconButton } from '@/components/ui';
-import { PLAN_CATEGORY_COLORS } from '@/constants/planCategories';
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { formatCoins, formatPrice } from '@/lib/utils/formatters';
 import type { ScreenHelpId } from '@/domain/content/ReferenceContent';
@@ -25,13 +25,6 @@ import type { IconName } from '@/types/icons';
 import { useResponsive, useTheme } from '@/theme';
 import { HelpButton } from '../HelpButton';
 import { createAppHeaderStatsStyles } from './AppHeaderStats.styles';
-
-/** Порядок сегментов полоски — как в плане приключения: надо, хочу, коплю. */
-const PLAN_STRIP_COLORS = [
-  PLAN_CATEGORY_COLORS.need,
-  PLAN_CATEGORY_COLORS.want,
-  PLAN_CATEGORY_COLORS.save,
-];
 
 export function AppHeaderStats({
   energy,
@@ -113,18 +106,9 @@ export function AppHeaderStats({
           accessibilityLabel={`В кошельке ${formatCoins(coins)}`}
         >
           <Ionicons name="wallet-outline" size={scale(18)} color={theme.primary} />
-          <View style={styles.walletColumn}>
-            <Text style={[styles.pillText, { fontSize: scaledFont('lg') }]}>
-              {formatPrice(coins)}
-            </Text>
-            {/* Чисто декоративная полоска цветов «надо / хочу / коплю» (§23:
-                смысл суммы передаёт текст, а не цвет). */}
-            <View style={styles.planStrip}>
-              {PLAN_STRIP_COLORS.map((color) => (
-                <View key={color} style={[styles.planStripSegment, { backgroundColor: color }]} />
-              ))}
-            </View>
-          </View>
+          <Text style={[styles.pillText, { fontSize: scaledFont('lg') }]}>
+            {formatPrice(coins)}
+          </Text>
         </View>
 
         <View

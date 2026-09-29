@@ -1,0 +1,1 @@
+export { MainTabIcon } from './MainTabIcon';

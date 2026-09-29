@@ -309,7 +309,7 @@ export function createOnboardingStepsStyles({ theme }: OnboardingStepsStylesPara
       textAlign: 'center',
     },
 
-    // Шаг 4: настройка спутника — цвет корпуса + имя
+    // Шаг 4: настройка спутника — цвет + имя
     customizePreviewBox: {
       alignItems: 'center',
     },

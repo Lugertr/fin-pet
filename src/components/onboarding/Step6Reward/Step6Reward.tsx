@@ -4,10 +4,10 @@
 // живут в общем футере onboarding.tsx — этот компонент только показывает
 // награду.
 
+import { Text } from '@/components/ui/Text';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect } from 'react';
 import { View } from 'react-native';
-import { Text } from '@/components/ui/Text';
 import Animated, {
   FadeInRight,
   useAnimatedStyle,
@@ -61,7 +61,7 @@ export function Step6Reward() {
         style={[styles.rewardCard, { padding: scale(spacing.xl) }]}
       >
         <Text style={[styles.rewardCardLabel, { fontSize: scaledFont('sm') }]}>
-          ПРИВЕТСТВЕННЫЙ КУШ
+          ПРИВЕТСТВЕННЫЙ ПРИЗ
         </Text>
         <CoinAmount
           amount={STARTING_WALLET_BALANCE}

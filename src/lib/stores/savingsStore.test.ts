@@ -242,3 +242,25 @@ describe('savingsStore.setTarget — только то, что ещё можно
     expect(useSavingsStore.getState().lastCompletedGoalId).toBeNull();
   });
 });
+
+describe('savingsStore.releaseOwnedTarget — цель купили в магазине', () => {
+  const laptop = SHOP_CATALOG.find((i) => i.category === 'laptop' && !i.is_starter)!;
+
+  it('цель уже в инвентаре — снимается, накопленное остаётся', async () => {
+    seedSavings({ targetItemId: laptop.id, currentAmount: 40 });
+    useShopStore.getState().addItem(laptop.id);
+
+    expect(await useSavingsStore.getState().releaseOwnedTarget()).toBe(true);
+
+    expect(useSavingsStore.getState().savings?.targetItemId).toBeNull();
+    expect(useSavingsStore.getState().savings?.currentAmount).toBe(40);
+  });
+
+  it('цели ещё нет в инвентаре — остаётся как была', async () => {
+    seedSavings({ targetItemId: laptop.id, currentAmount: 40 });
+
+    expect(await useSavingsStore.getState().releaseOwnedTarget()).toBe(false);
+
+    expect(useSavingsStore.getState().savings?.targetItemId).toBe(laptop.id);
+  });
+});

@@ -78,8 +78,8 @@ export function createTinderSwipeGameStyles({ theme }: TinderSwipeGameStylesPara
       backgroundColor: theme.surface,
       justifyContent: 'center',
     },
-    // Угловые плашки «безопасно»/«рискованно» — какая сторона какая, решает
-    // конкретный вопрос (leftIsSafe в TinderSwipeGame.tsx), не фиксировано.
+    // Угловые плашки «← Нет» / «Да →» — только у вопроса «да / нет»
+    // (LessonPlan.swipeSides); стороны постоянные.
     cornerPill: {
       position: 'absolute',
       top: spacing.lg,
@@ -129,10 +129,13 @@ export function createTinderSwipeGameStyles({ theme }: TinderSwipeGameStylesPara
       textAlign: 'center',
       lineHeight: 28,
     },
+    // Цвет рамки — из TinderSwipeGame (да/нет или нейтральный у выбора из
+    // двух); ширина ограничена — у выбора на бейдже целый ответ.
     likeBadge: {
       position: 'absolute',
       top: spacing.xxl,
       right: spacing.xxl,
+      maxWidth: '70%',
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.xs,
       borderRadius: radius.sm,
@@ -145,6 +148,7 @@ export function createTinderSwipeGameStyles({ theme }: TinderSwipeGameStylesPara
       position: 'absolute',
       top: spacing.xxl,
       left: spacing.xxl,
+      maxWidth: '70%',
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.xs,
       borderRadius: radius.sm,
@@ -163,7 +167,7 @@ export function createTinderSwipeGameStyles({ theme }: TinderSwipeGameStylesPara
       gap: spacing.xxxl,
       marginBottom: spacing.lg,
     },
-    // Колонка кнопки: кружок ✗ / ✓ и под ним — что значит этот ответ.
+    // Колонка кнопки: кружок ✗ / ✓ (или стрелка) и под ним — что значит этот ответ.
     buttonColumn: {
       alignItems: 'center',
       width: 120,

@@ -83,11 +83,13 @@ export function createPetRoomStyles({ theme }: PetRoomStylesParams) {
       height: '100%',
     },
     // Пилюля-подсказка над ноутбуком/кроватью/копилкой (см. PetRoom.tsx
-    // RoomLabelPill) — что это за место и (если есть) какой реальный бонус
-    // даёт сейчас надетый предмет. Не привязана к roomBoxToStyle (не
+    // RoomLabelPill) — что это за место и (если есть) текущий бонус
+    // предметов рядом с названием. Не привязана к roomBoxToStyle (не
     // картинка с реальными пропорциями) — самостоятельный UI-элемент.
     labelPill: {
       position: 'absolute',
+      flexDirection: 'row',
+      gap: spacing.xs,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
@@ -102,17 +104,9 @@ export function createPetRoomStyles({ theme }: PetRoomStylesParams) {
       color: theme.accent,
       fontWeight: fontWeights.semibold,
     },
-    labelPillBadge: {
-      position: 'absolute',
-      top: -10,
-      right: -8,
-      backgroundColor: colorPalettes.slate[900],
-      borderRadius: radius.full,
-      paddingHorizontal: spacing.xs,
-      paddingVertical: 1,
-    },
-    labelPillBadgeText: {
-      color: theme.onGradient,
+    // Бонус рядом с названием — цифрой, цвет только выделяет (§23).
+    labelPillBonus: {
+      color: theme.success,
       fontWeight: fontWeights.bold,
     },
   });

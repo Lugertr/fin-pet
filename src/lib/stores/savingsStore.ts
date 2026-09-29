@@ -36,6 +36,12 @@ interface SavingsState {
   /** Цель — только ещё не купленное улучшение (isSavingsGoalItem). Если на неё
    * уже накоплено, она покупается сразу (§11.3), а не при следующем пополнении. */
   setTarget: (itemId: number | null) => Promise<void>;
+  /**
+   * Цель уже есть в инвентаре (купили в магазине — в демо он бесплатный) —
+   * цель снимается, накопленное остаётся, хаб попросит выбрать новую. Иначе
+   * при достижении цены вещь выдалась бы второй раз. true — цель снята.
+   */
+  releaseOwnedTarget: () => Promise<boolean>;
   /** Поздравление показано — окно выбора цели больше его не повторяет. */
   clearCompletedGoal: () => void;
   /** Переводит монеты из кошелька в накопления и сразу начисляет бонус за новые деньги (§11.4). */
@@ -240,6 +246,14 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
     const updated = await checkGoalCompletion({ ...savings, targetItemId: itemId });
     set({ savings: updated });
     await persistSavings(updated);
+  },
+
+  releaseOwnedTarget: async () => {
+    const targetItemId = get().savings?.targetItemId ?? null;
+    if (targetItemId === null) return false;
+    if ((useShopStore.getState().ownedItems[targetItemId] ?? 0) <= 0) return false;
+    await get().setTarget(null);
+    return true;
   },
 
   clearCompletedGoal: () => set({ lastCompletedGoalId: null }),

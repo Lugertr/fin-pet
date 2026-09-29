@@ -5,6 +5,7 @@
 
 import { SHOP_CATALOG, ShopItem } from '@/lib/hooks/useShop';
 import { isSavingsGoalItem, SAVINGS_GOAL_CATEGORIES } from '@/lib/utils/itemCategories';
+import { getEffectDescription } from '@/lib/utils/shopItems';
 
 /** Все цели: по категориям в порядке ноутбук → копилка → кровать, внутри — по цене. */
 export function getSavingsGoalItems(): ShopItem[] {
@@ -31,17 +32,12 @@ export function getFirstGoalOptions(): ShopItem[] {
   ).filter((item): item is ShopItem => item !== undefined);
 }
 
-const GOAL_BONUS_LABEL: Record<string, string> = {
-  laptop: 'бонус к урокам',
-  piggybank: 'бонус к накоплениям',
-  bed: 'бонус к энергии',
-};
-
-/** Подпись под целью: «бонус к урокам +10%» — с реальным числом вещи. */
+/**
+ * Подпись под целью — что вещь реально даёт, той же фразой, что в магазине:
+ * «+10% к зарплате за смену», «+2% к бонусу копилки», «+15⚡ к максимуму
+ * энергии» (решение пользователя 29.09.2026: раньше ноутбук обещал «бонус к
+ * урокам», а монет за уроки нет — ноутбук прибавляет к зарплате смены).
+ */
 export function goalBonusCaption(item: ShopItem): string {
-  const label = GOAL_BONUS_LABEL[item.category] ?? 'улучшение комнаты';
-  if (item.coin_bonus_percent > 0) return `${label} +${item.coin_bonus_percent}%`;
-  if (item.savings_bonus_rate > 0) return `${label} +${item.savings_bonus_rate}%`;
-  if (item.energy_max_bonus > 0) return `${label} +${item.energy_max_bonus}⚡`;
-  return label;
+  return getEffectDescription(item) ?? 'улучшение комнаты';
 }

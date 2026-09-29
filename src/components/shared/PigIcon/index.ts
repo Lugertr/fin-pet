@@ -1,0 +1,1 @@
+export { PigIcon } from './PigIcon';

@@ -1,5 +1,5 @@
 // src/components/onboarding/Step4PetCustomize/Step4PetCustomize.tsx
-// Шаг 4 онбординга — «Настрой спутника»: цвет корпуса (реальный скин) + имя.
+// Шаг 4 онбординга — «Настрой спутника»: цвет (реальный скин) + имя.
 //
 // Свотчи берутся из настоящих скинов выбранного типа питомца (getSkinsForPetType,
 // content/items.json, category 'skin', pet_type === petType): variant 0 —
@@ -7,9 +7,9 @@
 // инвентарь (см. onboarding.tsx handleSubmit); два остальных питомец получит
 // на уровнях 2 и 3 (PlayerLevel.pickLookToGrant). Облики не продаются.
 
+import { Text, TextInput } from '@/components/ui/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { TouchableOpacity, View } from 'react-native';
-import { Text, TextInput } from '@/components/ui/Text';
 import Animated, { FadeInRight } from 'react-native-reanimated';
 
 import { PetSprite } from '@/components/pet';
@@ -85,7 +85,7 @@ export function Step4PetCustomize({
             },
           ]}
         >
-          Цвет корпуса
+          Цвет
         </Text>
         <View style={styles.swatchRow}>
           {skins.map((swatch) => {

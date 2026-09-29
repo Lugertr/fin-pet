@@ -1,12 +1,14 @@
 // src/components/games/TinderSwipeGame/TinderSwipeGame.tsx
 // Мини-игра в стиле Tinder/Reigns — свайпы для оценки финансовых ситуаций.
 //
-// Карточка — вопрос «да / нет»: влево (✗) — «нет», options[0]; вправо (✓) —
-// «да», options[1] (решение пользователя 28.09.2026; правило контента
-// проверяет LessonPlan.validateNodeLesson и тест карточек Аркады). Стороны,
-// значки и цвета постоянные и не зависят от правильного ответа — раньше ✓ и
-// «безопасно» ставились на верный вариант, и ответ был виден заранее.
-// Верно ли — видно только после свайпа. Под кнопками — что значит ответ.
+// Какой ответ на какой стороне — LessonPlan.swipeSides (решение пользователя
+// 29.09.2026: «да» и «нет» иногда менялись местами — в контенте встречаются
+// оба порядка). Вопрос «да / нет» (ответы «Да…» / «Нет…»): влево ✗ — «Нет»,
+// вправо ✓ — «Да», всегда. Остальное — выбор из двух ответов: стрелки и
+// подписи самими ответами, без «да / нет» (иначе «Составить список» стоял
+// под «Нет»). Стороны, значки и цвета не зависят от правильного ответа —
+// раньше ✓ ставилась на верный вариант, и ответ был виден заранее. Верно
+// ли — видно только после свайпа. Под кнопками — что значит ответ.
 
 import { Ionicons } from '@expo/vector-icons';
 import { useRef, useState } from 'react';
@@ -21,6 +23,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { swipeSides } from '@/domain/lesson/LessonPlan';
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { useResponsive, useTheme } from '@/theme';
 import { formatCoins, formatPrice } from '@/lib/utils/formatters';
@@ -91,8 +94,9 @@ export function TinderSwipeGame({
   const likeOpacity = useSharedValue(0);
   const nopeOpacity = useSharedValue(0);
 
-  const noOption = options[0] || 'Нет';
-  const yesOption = options[1] || 'Да';
+  const sides = swipeSides(options);
+  const leftOption = sides.left || 'Нет';
+  const rightOption = sides.right || 'Да';
 
   const resetCard = () => {
     translateX.value = withSpring(0);
@@ -115,7 +119,7 @@ export function TinderSwipeGame({
     isProcessingRef.current = true;
     setIsAnimating(true);
 
-    const chosenOption = direction === 'left' ? noOption : yesOption;
+    const chosenOption = direction === 'left' ? leftOption : rightOption;
     const isCorrect = chosenOption === correctAnswer;
     setAnsweredOption(chosenOption);
 
@@ -198,6 +202,10 @@ export function TinderSwipeGame({
   }));
 
   const isAnsweredCorrect = answeredOption !== null && answeredOption === correctAnswer;
+  // «Да / нет» — красный и зелёный; выбор из двух — один нейтральный цвет:
+  // цвет не должен намекать, какой ответ верный (смысл — в подписях, §23).
+  const leftColor = sides.yesNo ? theme.error : theme.accent;
+  const rightColor = sides.yesNo ? theme.success : theme.accent;
 
   return (
     <View style={styles.container}>
@@ -238,17 +246,26 @@ export function TinderSwipeGame({
         <GestureDetector gesture={panGesture}>
           <Animated.View style={[styles.card, animatedCardStyle]}>
             <View style={styles.cardInner}>
-              {/* Угловые плашки — постоянные: влево «нет», вправо «да». */}
-              <View
-                style={[styles.cornerPill, styles.cornerPillLeft, { borderColor: theme.error }]}
-              >
-                <Text style={[styles.cornerPillText, { color: theme.error }]}>← Нет</Text>
-              </View>
-              <View
-                style={[styles.cornerPill, styles.cornerPillRight, { borderColor: theme.success }]}
-              >
-                <Text style={[styles.cornerPillText, { color: theme.success }]}>Да →</Text>
-              </View>
+              {/* Угловые плашки — только у вопроса «да / нет»: влево «нет»,
+                  вправо «да». В выборе из двух стороны подписаны кнопками. */}
+              {sides.yesNo && (
+                <>
+                  <View
+                    style={[styles.cornerPill, styles.cornerPillLeft, { borderColor: theme.error }]}
+                  >
+                    <Text style={[styles.cornerPillText, { color: theme.error }]}>← Нет</Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.cornerPill,
+                      styles.cornerPillRight,
+                      { borderColor: theme.success },
+                    ]}
+                  >
+                    <Text style={[styles.cornerPillText, { color: theme.success }]}>Да →</Text>
+                  </View>
+                </>
+              )}
 
               <View style={styles.situationIconContainer}>
                 <Ionicons name="lock-closed" size={32} color={theme.onGradient} />
@@ -258,32 +275,46 @@ export function TinderSwipeGame({
 
               <Text style={styles.questionText}>{question}</Text>
 
-              {/* Индикатор при свайпе вправо — «да» */}
-              <Animated.View style={[styles.likeBadge, animatedLikeStyle]}>
-                <Text style={[styles.swipeFeedbackText, { color: theme.success }]}>✓ Да</Text>
+              {/* Индикатор при свайпе вправо — «да» или правый ответ */}
+              <Animated.View
+                style={[styles.likeBadge, { borderColor: rightColor }, animatedLikeStyle]}
+              >
+                <Text style={[styles.swipeFeedbackText, { color: rightColor }]} numberOfLines={2}>
+                  {sides.yesNo ? '✓ Да' : `${rightOption} →`}
+                </Text>
               </Animated.View>
 
-              {/* Индикатор при свайпе влево — «нет» */}
-              <Animated.View style={[styles.nopeBadge, animatedNopeStyle]}>
-                <Text style={[styles.swipeFeedbackText, { color: theme.error }]}>✗ Нет</Text>
+              {/* Индикатор при свайпе влево — «нет» или левый ответ */}
+              <Animated.View
+                style={[styles.nopeBadge, { borderColor: leftColor }, animatedNopeStyle]}
+              >
+                <Text style={[styles.swipeFeedbackText, { color: leftColor }]} numberOfLines={2}>
+                  {sides.yesNo ? '✗ Нет' : `← ${leftOption}`}
+                </Text>
               </Animated.View>
             </View>
           </Animated.View>
         </GestureDetector>
       </View>
 
-      {/* Кнопки свайпа: ✗ — «нет» (options[0]), ✓ — «да» (options[1]); под
-          кнопкой — что значит этот ответ. */}
+      {/* Кнопки свайпа: у вопроса «да / нет» ✗ — «нет», ✓ — «да», у выбора
+          из двух — стрелки; под кнопкой — что значит этот ответ. */}
       <View style={styles.buttonsContainer}>
         {(
           [
-            { direction: 'left', icon: 'close', color: theme.error, label: noOption, word: 'Нет' },
+            {
+              direction: 'left',
+              icon: sides.yesNo ? 'close' : 'arrow-back',
+              color: leftColor,
+              label: leftOption,
+              word: sides.yesNo ? 'Нет' : 'Влево',
+            },
             {
               direction: 'right',
-              icon: 'checkmark',
-              color: theme.success,
-              label: yesOption,
-              word: 'Да',
+              icon: sides.yesNo ? 'checkmark' : 'arrow-forward',
+              color: rightColor,
+              label: rightOption,
+              word: sides.yesNo ? 'Да' : 'Вправо',
             },
           ] as const
         ).map((button) => (

@@ -190,16 +190,49 @@ function questionErrors(where: string, questions: QuestionContent[]): string[] {
 }
 
 /**
- * «Свайпы» — вопрос «да / нет»: ровно 2 варианта [ответ «нет» (влево ✗),
- * ответ «да» (вправо ✓)], текст заканчивается «?». Стороны в игре
- * постоянные, поэтому порядок вариантов важен (TinderSwipeGame).
+ * «Свайпы» — вопрос с двумя вариантами ответа, текст заканчивается «?».
+ * Какой вариант на какой стороне, решает swipeSides — порядок в контенте
+ * для ответов «Да…/Нет…» не важен.
  */
 export function swipeQuestionErrors(where: string, questions: QuestionContent[]): string[] {
   return questions.flatMap((q) =>
     q.options.length === 2 && q.question_text.trim().endsWith('?')
       ? []
-      : [`${where}: свайп ${q.id} — вопрос «да / нет» с вариантами [нет, да]`]
+      : [`${where}: свайп ${q.id} — вопрос с «?» и ровно двумя вариантами`]
   );
+}
+
+const YES_ANSWER = /^да(?=[\s,.!—–-]|$)/i;
+const NO_ANSWER = /^нет(?=[\s,.!—–-]|$)/i;
+
+export interface SwipeSides {
+  /** Ответ при свайпе влево. */
+  left: string;
+  /** Ответ при свайпе вправо. */
+  right: string;
+  /**
+   * true — вопрос «да / нет»: слева всегда «Нет» (✗), справа «Да» (✓).
+   * false — выбор из двух ответов: стороны подписаны самими ответами.
+   */
+  yesNo: boolean;
+}
+
+/**
+ * Стороны свайпа (решение пользователя 29.09.2026: «да» и «нет» иногда
+ * менялись местами). Ответы «Да…» и «Нет…» раскладываются по смыслу — «Нет»
+ * влево, «Да» вправо — в каком бы порядке их ни записали в контенте (в
+ * уроках встречаются оба). Остальные пары — выбор из двух ответов
+ * («Тетради» / «Наклейки»): порядок из контента, без «да / нет», иначе
+ * «Составить список» оказывался под «Нет» и верный по смыслу свайп «Да»
+ * засчитывался как ошибка.
+ */
+export function swipeSides(options: string[]): SwipeSides {
+  const [first = '', second = ''] = options;
+  const isYes = (text: string) => YES_ANSWER.test(text.trim());
+  const isNo = (text: string) => NO_ANSWER.test(text.trim());
+  if (isNo(first) && isYes(second)) return { left: first, right: second, yesNo: true };
+  if (isYes(first) && isNo(second)) return { left: second, right: first, yesNo: true };
+  return { left: first, right: second, yesNo: false };
 }
 
 /**
@@ -213,7 +246,7 @@ export function swipeQuestionErrors(where: string, questions: QuestionContent[])
  *   запрещались по всему уроку);
  * - вопросы с вариантами и верным ответом, id вопросов в уроке не повторяются;
  * - мини-игра известного типа (quiz и tinder_swipe — с вопросами; свайп —
- *   вопрос «да / нет» с вариантами [нет, да]);
+ *   вопрос с «?» и двумя вариантами, стороны — swipeSides);
  * - событие: 2–3 варианта с разными id, есть бесплатный, трата — с корзиной
  *   (нужное / желаемое), суммы целые (§7.6);
  * - поля экономики (price, nodeEnergyCost, coffee, hintPrice, energyCost) —

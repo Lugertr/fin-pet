@@ -45,24 +45,11 @@ export function createAppHeaderStatsStyles({ theme }: AppHeaderStatsStylesParams
       borderRadius: radius.full,
       paddingVertical: spacing.xxs,
     },
-    walletColumn: {
-      alignItems: 'stretch',
-      gap: 3,
-    },
     pillText: {
       color: theme.textPrimary,
       fontWeight: fontWeights.bold,
       fontSize: fontSizes.lg,
       textAlign: 'center',
-    },
-    planStrip: {
-      flexDirection: 'row',
-      gap: 2,
-    },
-    planStripSegment: {
-      flex: 1,
-      height: 4,
-      borderRadius: radius.full,
     },
     profileButton: {
       backgroundColor: theme.accent,

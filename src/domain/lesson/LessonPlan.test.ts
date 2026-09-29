@@ -17,6 +17,7 @@ import {
   lessonQuestionPools,
   lessonStructureKey,
   nodeKind,
+  swipeSides,
   validateNodeLesson,
 } from './LessonPlan';
 
@@ -293,8 +294,10 @@ describe('validateNodeLesson', () => {
         nodes: [base.nodes[0], { ...base.nodes[1], activities: [swipes(q)] }, base.nodes[2]],
       });
     expect(withSwipes([good])).toEqual([]);
-    expect(withSwipes([noQuestion]).join()).toContain('«да / нет»');
-    expect(withSwipes([threeOptions]).join()).toContain('«да / нет»');
+    // «Да» и «Нет» в обратном порядке — не ошибка: стороны раскладывает swipeSides.
+    expect(withSwipes([{ ...good, options: ['Да', 'Нет'] }])).toEqual([]);
+    expect(withSwipes([noQuestion]).join()).toContain('двумя вариантами');
+    expect(withSwipes([threeOptions]).join()).toContain('двумя вариантами');
   });
 
   it('неизвестная мини-игра', () => {
@@ -309,6 +312,43 @@ describe('validateNodeLesson', () => {
       })
     );
     expect(errors).toEqual([expect.stringContaining('неизвестная мини-игра')]);
+  });
+});
+
+describe('swipeSides — стороны свайпа (29.09.2026: «да» и «нет» менялись местами)', () => {
+  it('«Нет» — всегда влево, «Да» — вправо, в каком бы порядке их ни записали', () => {
+    expect(swipeSides(['Нет', 'Да'])).toEqual({ left: 'Нет', right: 'Да', yesNo: true });
+    expect(swipeSides(['Да', 'Нет'])).toEqual({ left: 'Нет', right: 'Да', yesNo: true });
+    expect(swipeSides(['Да, отложу', 'Нет, потрачу'])).toEqual({
+      left: 'Нет, потрачу',
+      right: 'Да, отложу',
+      yesNo: true,
+    });
+  });
+
+  it('свои ответы — выбор из двух: порядок из контента, без «да / нет»', () => {
+    expect(swipeSides(['Тетради', 'Наклейки'])).toEqual({
+      left: 'Тетради',
+      right: 'Наклейки',
+      yesNo: false,
+    });
+    // «Да» / «Нет» в начале слова — ещё не ответ «да / нет».
+    expect(swipeSides(['Данные', 'Нетто']).yesNo).toBe(false);
+    // Два «да» — не пара «да / нет».
+    expect(swipeSides(['Да', 'Да, но позже']).yesNo).toBe(false);
+  });
+
+  it('во всех свайпах уроков «Нет» слева, «Да» справа, верный ответ — на одной из сторон', () => {
+    const swipes = ALL_LESSONS.flatMap((l) => lessonQuestionPools(l).swipes);
+    expect(swipes.length).toBeGreaterThan(0);
+    for (const q of swipes) {
+      const sides = swipeSides(q.options);
+      expect([sides.left, sides.right]).toContain(q.correct_answer);
+      if (sides.yesNo) {
+        expect(sides.left.toLowerCase().startsWith('нет')).toBe(true);
+        expect(sides.right.toLowerCase().startsWith('да')).toBe(true);
+      }
+    }
   });
 });
 
