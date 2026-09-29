@@ -10,7 +10,8 @@ export interface AdventureRepository {
   setPlan(id: number, branchId: number, plan: AdventureAllocation): Promise<void>;
   /**
    * planning -> active: момент старта, конец смены, стартовый бюджет, урок
-   * смены и сколько в бюджете монет из кошелька.
+   * смены, сколько в бюджете монет из кошелька, зарплата смены и сколько
+   * этапов урока было пройдено к старту (смена платит только за свои).
    */
   activate(
     id: number,
@@ -18,8 +19,12 @@ export interface AdventureRepository {
     plannedEndAt: string,
     budget: number,
     lessonId: number,
-    walletContribution: number
+    walletContribution: number,
+    projectedIncome: number,
+    stagesDoneAtStart: number
   ): Promise<void>;
+  /** Кофе в смене куплен (раз за смену). */
+  setCoffeeBought(id: number): Promise<void>;
   /** Новый остаток бюджета смены (после трат/пополнений событий, выплаты в хаб). */
   setBudget(id: number, budget: number): Promise<void>;
   /** Прибавляет amount к fact[category] — при каждом реальном расходе/пополнении во время смены. */

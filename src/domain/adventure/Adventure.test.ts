@@ -6,13 +6,17 @@ import {
   AdventureRecord,
   actualSpend,
   canAfford,
+  canAffordEnergy,
   computeAdventurePayout,
   planOutcome,
   clampAllocationAmount,
   isPlanBonusEligible,
   isTimeUp,
   plannedSpend,
+  previewEventChoice,
   remainingMs,
+  remainingStagesSalary,
+  shiftCompletionRatio,
   totalAllocation,
 } from './Adventure';
 
@@ -26,6 +30,8 @@ function makeAdventure(overrides: Partial<AdventureRecord> = {}): AdventureRecor
     lessonId: 1,
     projectedIncome: 100,
     walletContribution: 0,
+    coffeeBought: false,
+    stagesDoneAtStart: 0,
     budget: 100,
     plan: { mandatory: 40, optional: 30, savings: 30 },
     fact: { mandatory: 0, optional: 0, savings: 0 },
@@ -207,5 +213,79 @@ describe('computeAdventurePayout — монеты из кошелька (реш�
 
   it('урок пройден — всё как без своих монет', () => {
     expect(computeAdventurePayout(150, 40, 1, 50)).toEqual({ toBank: 40, toWallet: 110 });
+  });
+});
+
+describe('previewEventChoice — как выбор в событии ляжет на план (окно события)', () => {
+  it('трата на нужное: бюджет уменьшается, факт корзины и «Потратить» растут', () => {
+    const adventure = makeAdventure({ fact: { mandatory: 10, optional: 5, savings: 0 } });
+    expect(previewEventChoice(adventure, { coinAmount: -30, category: 'mandatory' })).toEqual({
+      budgetBefore: 100,
+      budgetAfter: 70,
+      category: 'mandatory',
+      cost: 30,
+      factBefore: 10,
+      factAfter: 40,
+      spendPlan: 70,
+      spendBefore: 15,
+      spendAfter: 45,
+      affordable: true,
+    });
+  });
+
+  it('пополнение: бюджет растёт, факт трат не меняется', () => {
+    const preview = previewEventChoice(makeAdventure(), { coinAmount: 10, category: null });
+    expect(preview).toMatchObject({ budgetAfter: 110, category: null, cost: 0, spendAfter: 0 });
+  });
+
+  it('бесплатный вариант ничего не меняет', () => {
+    const preview = previewEventChoice(makeAdventure(), { coinAmount: 0, category: null });
+    expect(preview).toMatchObject({ budgetBefore: 100, budgetAfter: 100, cost: 0 });
+  });
+
+  it('не хватает бюджета — помечено недоступным (§12.3)', () => {
+    const preview = previewEventChoice(makeAdventure({ budget: 20 }), {
+      coinAmount: -30,
+      category: 'optional',
+    });
+    expect(preview.affordable).toBe(false);
+  });
+});
+
+describe('смена платит только за свои этапы (решение 29.09.2026)', () => {
+  it('зарплата — за оставшиеся этапы урока, целыми монетами', () => {
+    expect(remainingStagesSalary(100, 0, 5)).toBe(100);
+    expect(remainingStagesSalary(100, 3, 5)).toBe(40);
+    expect(remainingStagesSalary(60, 2, 5)).toBe(36);
+    expect(remainingStagesSalary(100, 1, 3)).toBe(67);
+  });
+
+  it('доля выплаты — этапы этой смены из оставшихся к её старту', () => {
+    expect(shiftCompletionRatio(3, 0, 5)).toBe(0.6);
+    expect(shiftCompletionRatio(3, 1, 5)).toBe(0.5);
+    // Начал на пройденном наполовину уроке и сразу закончил — ничего.
+    expect(shiftCompletionRatio(3, 3, 5)).toBe(0);
+    expect(shiftCompletionRatio(5, 3, 5)).toBe(1);
+  });
+
+  it('за урок по всем сменам — не больше его зарплаты', () => {
+    const salary = 100;
+    const total = 5;
+    // Смена 1: с нуля прошёл 3 этапа и закончил; смена 2: остальное.
+    const first = remainingStagesSalary(salary, 0, total) * shiftCompletionRatio(3, 0, total);
+    const second = remainingStagesSalary(salary, 3, total) * shiftCompletionRatio(5, 3, total);
+    expect(first + second).toBe(salary);
+  });
+});
+
+describe('canAffordEnergy — вариант события «за энергию»', () => {
+  it('без цены в энергии — всегда можно', () => {
+    expect(canAffordEnergy(undefined, 0)).toBe(true);
+    expect(canAffordEnergy(0, 0)).toBe(true);
+  });
+
+  it('энергии хватает — можно, не хватает — нет', () => {
+    expect(canAffordEnergy(30, 30)).toBe(true);
+    expect(canAffordEnergy(30, 29)).toBe(false);
   });
 });

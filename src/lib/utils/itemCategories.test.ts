@@ -1,5 +1,6 @@
 // lib/utils/itemCategories.test.ts
-// Скины комнаты закрыты флагом room_skins (выключен в content/features.json).
+// Скины комнаты закрыты флагом room_skins (выключен в content/features.json);
+// еда в магазине скрыта (FOOD_IN_SHOP).
 
 import itemsJson from '../../../content/items.json';
 import { isFeatureEnabled } from '@/config/featureFlags';
@@ -33,8 +34,18 @@ describe('скины комнаты закрыты флагом room_skins', () 
 
   it('остальная мебель по-прежнему продаётся', () => {
     const furniture = SHOP_CATALOG.filter(
-      (i) => ['laptop', 'piggybank', 'bed', 'carpet', 'window'].includes(i.category) && !i.is_starter
+      (i) =>
+        ['laptop', 'piggybank', 'bed', 'carpet', 'window'].includes(i.category) && !i.is_starter
     );
     expect(furniture.every((i) => isShopItem(i, 'cat'))).toBe(true);
+  });
+});
+
+describe('еда скрыта из магазина (решение 29.09.2026)', () => {
+  it('нет ни вкладки, ни товаров еды', () => {
+    expect(SHOP_ITEM_CATEGORIES.map((c) => c.id)).not.toContain('food');
+    const food = SHOP_CATALOG.filter((i) => i.category === 'food');
+    expect(food.length).toBeGreaterThan(0);
+    expect(food.some((i) => isShopItem(i, 'cat'))).toBe(false);
   });
 });

@@ -6,6 +6,7 @@
 
 import { AdventureRecord } from '@/domain/adventure/Adventure';
 import { planForLesson } from '@/domain/lesson/LessonPlan';
+import { lessonSalary } from '@/domain/lesson/lessonEconomy';
 import { LessonProgressState, createLessonProgress } from '@/domain/lesson/lessonProgress';
 import { LESSONS, useLessonsStore } from '@/lib/hooks/useLessons';
 import { SHOP_CATALOG, useShopStore } from '@/lib/hooks/useShop';
@@ -30,6 +31,8 @@ function seedActiveAdventure(overrides: Partial<AdventureRecord> = {}): void {
       lessonId: SHIFT_LESSON.id,
       projectedIncome: 100,
       walletContribution: 0,
+      coffeeBought: false,
+      stagesDoneAtStart: 0,
       budget: 100,
       plan: { mandatory: 40, optional: 30, savings: 30 },
       fact: { mandatory: 0, optional: 0, savings: 0 },
@@ -165,7 +168,9 @@ describe('adventureStore.confirmPlan — смена = один урок, 24 ча
 
     await useAdventureStore.getState().confirmPlan();
 
-    expect(useAdventureStore.getState().currentAdventure?.budget).toBe(100);
+    expect(useAdventureStore.getState().currentAdventure?.budget).toBe(
+      lessonSalary(SHIFT_LESSON, 0)
+    );
     expect(useUserStore.getState().user?.liquid_balance).toBe(0);
   });
 
@@ -177,7 +182,7 @@ describe('adventureStore.confirmPlan — смена = один урок, 24 ча
     expect(await useAdventureStore.getState().confirmPlan()).toBe(true);
 
     expect(useAdventureStore.getState().currentAdventure).toMatchObject({
-      budget: 150,
+      budget: lessonSalary(SHIFT_LESSON, 0) + 50,
       walletContribution: 50,
     });
     expect(useUserStore.getState().user?.liquid_balance).toBe(30);
@@ -220,6 +225,229 @@ describe('adventureStore.confirmPlan — смена = один урок, 24 ча
 
     expect(await useAdventureStore.getState().confirmPlan()).toBe(false);
     expect(useAdventureStore.getState().currentAdventure?.status).toBe('planning');
+  });
+});
+
+describe('adventureStore — зарплата смены из price урока (29.09.2026)', () => {
+  const planning: Partial<AdventureRecord> = {
+    status: 'planning',
+    lessonId: null,
+    budget: 0,
+    startedAt: null,
+    plannedEndAt: null,
+  };
+
+  it('выбор темы показывает зарплату её урока, старт — бюджет = зарплата', async () => {
+    seedWallet(0);
+    seedActiveAdventure({ ...planning, branchId: null, projectedIncome: 0 });
+
+    useAdventureStore.getState().setBranch(1);
+    const salary = lessonSalary(SHIFT_LESSON, 0);
+    expect(useAdventureStore.getState().currentAdventure?.projectedIncome).toBe(salary);
+
+    expect(await useAdventureStore.getState().confirmPlan()).toBe(true);
+    expect(useAdventureStore.getState().currentAdventure).toMatchObject({
+      budget: salary,
+      projectedIncome: salary,
+    });
+  });
+
+  it('надбавка ноутбука умножает зарплату', async () => {
+    seedWallet(0);
+    const laptop = SHOP_CATALOG.find(
+      (i) => i.category === 'laptop' && (i.coin_bonus_percent ?? 0) > 0
+    )!;
+    useShopStore.setState({ ownedItems: { [laptop.id]: 1 } });
+    seedActiveAdventure(planning);
+
+    await useAdventureStore.getState().confirmPlan();
+
+    expect(useAdventureStore.getState().currentAdventure?.budget).toBe(
+      lessonSalary(SHIFT_LESSON, laptop.coin_bonus_percent!)
+    );
+  });
+});
+
+describe('adventureStore — траты смены: подсказки и кофе', () => {
+  it('подсказка — «хочу» из бюджета смены', async () => {
+    seedActiveAdventure();
+    expect(await useAdventureStore.getState().spendOnWant(5)).toBe(true);
+    expect(useAdventureStore.getState().currentAdventure).toMatchObject({
+      budget: 95,
+      fact: { mandatory: 0, optional: 5, savings: 0 },
+    });
+  });
+
+  it('не хватает бюджета — трата отклонена, бюджет не в минус (§12.3)', async () => {
+    seedActiveAdventure({ budget: 3 });
+    expect(await useAdventureStore.getState().spendOnWant(5)).toBe(false);
+    expect(useAdventureStore.getState().currentAdventure).toMatchObject({
+      budget: 3,
+      fact: { mandatory: 0, optional: 0, savings: 0 },
+    });
+  });
+
+  it('кофе: из бюджета смены, +энергия, только раз за смену', async () => {
+    seedActiveAdventure();
+    seedShiftLesson(1); // первый этап смены пройден — кофе открыт
+    usePetStore.setState({ currentMood: 20 });
+    const coffee = { price: 30, energy: 10 };
+
+    expect(await useAdventureStore.getState().buyCoffee(coffee)).toBe(true);
+    expect(useAdventureStore.getState().currentAdventure).toMatchObject({
+      budget: 70,
+      coffeeBought: true,
+    });
+    expect(usePetStore.getState().currentMood).toBe(30);
+
+    expect(await useAdventureStore.getState().buyCoffee(coffee)).toBe(false);
+    expect(useAdventureStore.getState().currentAdventure?.budget).toBe(70);
+    expect(usePetStore.getState().currentMood).toBe(30);
+  });
+
+  it('кофе не по карману — не куплен и остаётся доступным', async () => {
+    seedActiveAdventure({ budget: 10 });
+    seedShiftLesson(1);
+    usePetStore.setState({ currentMood: 20 });
+    expect(await useAdventureStore.getState().buyCoffee({ price: 30, energy: 10 })).toBe(false);
+    expect(useAdventureStore.getState().currentAdventure).toMatchObject({
+      budget: 10,
+      coffeeBought: false,
+    });
+  });
+});
+
+describe('adventureStore — смена платит только за свои этапы (29.09.2026)', () => {
+  const planning: Partial<AdventureRecord> = {
+    status: 'planning',
+    lessonId: null,
+    budget: 0,
+    startedAt: null,
+    plannedEndAt: null,
+  };
+  const TOTAL = SHIFT_PLAN.nodes.length + 1;
+
+  it('урок уже начат — зарплата за оставшиеся этапы, этапы к старту запоминаются', async () => {
+    seedWallet(0);
+    seedShiftLesson(2);
+    seedActiveAdventure(planning);
+
+    expect(await useAdventureStore.getState().confirmPlan()).toBe(true);
+
+    const salary = lessonSalary(SHIFT_LESSON, 0);
+    expect(useAdventureStore.getState().currentAdventure).toMatchObject({
+      stagesDoneAtStart: 2,
+      budget: Math.round((salary * (TOTAL - 2)) / TOTAL),
+    });
+  });
+
+  it('начал смену на начатом уроке и сразу закончил — выплаты нет, и так снова', async () => {
+    seedWallet(0);
+    seedShiftLesson(3);
+
+    seedActiveAdventure({ stagesDoneAtStart: 3 });
+    const first = await useAdventureStore.getState().completeAdventure();
+    seedActiveAdventure({ id: 2, stagesDoneAtStart: 3 });
+    const second = await useAdventureStore.getState().completeAdventure();
+
+    expect(first).toMatchObject({ completionRatio: 0, toWallet: 0, toBank: 0 });
+    expect(second).toMatchObject({ completionRatio: 0, toWallet: 0, toBank: 0 });
+    expect(useUserStore.getState().user?.liquid_balance).toBe(0);
+  });
+
+  it('досрочно — доля этапов этой смены из оставшихся к её старту', async () => {
+    seedWallet(0);
+    seedShiftLesson(3);
+    seedActiveAdventure({ stagesDoneAtStart: 1 });
+
+    const result = await useAdventureStore.getState().completeAdventure();
+
+    expect(result?.completionRatio).toBe(2 / (TOTAL - 1));
+    expect(result?.lesson).toMatchObject({ nodesDone: 3, nodesDoneAtStart: 1 });
+  });
+
+  it('урок дойден в этой смене — полная выплата её бюджета', async () => {
+    seedWallet(0);
+    seedShiftLesson(SHIFT_PLAN.nodes.length);
+    seedActiveAdventure({ stagesDoneAtStart: 3, budget: 40 });
+
+    const result = await useAdventureStore.getState().completeAdventure();
+
+    expect(result?.completionRatio).toBe(1);
+  });
+
+  it('урок смены убрали из контента — зарплаты нет, свои монеты возвращаются', async () => {
+    seedWallet(0);
+    seedActiveAdventure({ lessonId: 999_999, budget: 120, walletContribution: 20 });
+
+    const result = await useAdventureStore.getState().completeAdventure();
+
+    expect(result?.completionRatio).toBe(0);
+    expect(result?.lesson).toBeNull();
+    expect((result?.toWallet ?? 0) + (result?.toBank ?? 0)).toBe(20);
+  });
+});
+
+describe('adventureStore — траты смены без гонок (29.09.2026)', () => {
+  const coffee = { price: 30, energy: 10 };
+
+  it('кофе до первого этапа этой смены не продаётся — энергия не даром', async () => {
+    seedShiftLesson(2);
+    // Два этапа пройдены до смены, в самой смене — ещё ни одного.
+    seedActiveAdventure({ stagesDoneAtStart: 2 });
+    usePetStore.setState({ currentMood: 20 });
+
+    expect(await useAdventureStore.getState().buyCoffee(coffee)).toBe(false);
+    expect(useAdventureStore.getState().currentAdventure).toMatchObject({
+      budget: 100,
+      coffeeBought: false,
+    });
+
+    // Прошёл этап в смене — кофе открылся.
+    seedShiftLesson(3);
+    expect(await useAdventureStore.getState().buyCoffee(coffee)).toBe(true);
+  });
+
+  it('кофе при полной энергии не продаётся — монеты не уходят впустую', async () => {
+    seedActiveAdventure();
+    seedShiftLesson(1);
+    usePetStore.setState({ currentMood: 100, moodMaxBonus: 0 });
+
+    expect(await useAdventureStore.getState().buyCoffee(coffee)).toBe(false);
+    expect(useAdventureStore.getState().currentAdventure).toMatchObject({
+      budget: 100,
+      coffeeBought: false,
+    });
+  });
+
+  it('двойной тап по кофе — куплен один раз', async () => {
+    seedActiveAdventure();
+    seedShiftLesson(1);
+    usePetStore.setState({ currentMood: 20 });
+
+    const results = await Promise.all([
+      useAdventureStore.getState().buyCoffee(coffee),
+      useAdventureStore.getState().buyCoffee(coffee),
+    ]);
+
+    expect(results.filter(Boolean)).toHaveLength(1);
+    expect(useAdventureStore.getState().currentAdventure?.budget).toBe(70);
+    expect(usePetStore.getState().currentMood).toBe(30);
+  });
+
+  it('две траты подряд — каждая проверяется по актуальному бюджету, в минус нельзя', async () => {
+    seedActiveAdventure({ budget: 100 });
+
+    const results = await Promise.all([
+      useAdventureStore.getState().spendOnWant(60),
+      useAdventureStore.getState().spendOnWant(60),
+    ]);
+
+    expect(results.filter(Boolean)).toHaveLength(1);
+    expect(useAdventureStore.getState().currentAdventure).toMatchObject({
+      budget: 40,
+      fact: { mandatory: 0, optional: 60, savings: 0 },
+    });
   });
 });
 
@@ -392,20 +620,20 @@ describe('adventureStore — бюджет смены (отдельный кон�
     expect(useUserStore.getState().user?.liquid_balance).toBe(80);
   });
 
-  it('урок пройден наполовину — выплачивается половина, без бонуса копилки', async () => {
+  it('урок пройден не весь — выплачивается пройденная доля, без бонуса копилки', async () => {
     seedWallet(0);
     seedBank();
-    // Урок из 3 этапов + финал: 2 из 4 — ровно половина.
-    expect(SHIFT_PLAN.nodes.length + 1).toBe(4);
+    // «Теория» + 3 этапа заданий + финиш: пройдено 2 из 5.
+    expect(SHIFT_PLAN.nodes.length + 1).toBe(5);
     seedShiftLesson(2);
     seedActiveAdventure({ budget: 100 });
 
     const result = await useAdventureStore.getState().completeAdventure();
 
-    expect(result?.completionRatio).toBe(0.5);
-    // floor((100 + 10) × 0.5) = 55: в банк floor(30 × 0.5) = 15, в кошелёк 40.
-    expect(result?.toBank).toBe(15);
-    expect(result?.toWallet).toBe(40);
+    expect(result?.completionRatio).toBe(0.4);
+    // floor((100 + 10) × 0.4) = 44: в банк floor(30 × 0.4) = 12, в кошелёк 32.
+    expect(result?.toBank).toBe(12);
+    expect(result?.toWallet).toBe(32);
     expect(result?.bankBonus).toBe(0);
   });
 });

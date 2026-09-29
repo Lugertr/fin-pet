@@ -1,8 +1,8 @@
 // lib/hooks/useLessons.ts
 // Хук для работы с уроками: ветки, прогресс, мини-игры, награды за урок.
-// Награда за урок (вариант B, domain/lesson/lessonRewards.ts) начисляется
-// здесь, в finishLesson, — ровно в одном месте: экран награды её только
-// показывает.
+// Награда за урок (опыт и звезда, domain/lesson/lessonRewards.ts)
+// начисляется здесь, в finishLesson, — ровно в одном месте: экран награды её
+// только показывает. Монет за урок нет — урок оплачивается зарплатой смены.
 //
 // Учебный прогресс — в SQLite (миграция v9, решение пользователя 28.09.2026):
 // состояние каждого урока из узлов (domain/lesson/lessonProgress.ts) и опыт
@@ -31,11 +31,7 @@ import {
   createLessonProgress,
   settleLesson,
 } from '@/domain/lesson/lessonProgress';
-import {
-  LessonRewardAmounts,
-  SHIFT_LESSON_COIN_BONUS_PERCENT,
-  lessonRewardAmounts,
-} from '@/domain/lesson/lessonRewards';
+import { lessonRewardXp } from '@/domain/lesson/lessonRewards';
 import { create } from 'zustand';
 import { importLegacyLessonProgress } from '../lessons/importLegacyLessonProgress';
 import { useAchievementsStore } from '../stores/achievementsStore';
@@ -119,9 +115,9 @@ export interface LessonProgress {
 }
 
 /** Награда за урок — уже начислена (finishLesson), для экрана награды. */
-export interface LessonRewardResult extends LessonRewardAmounts {
-  /** Всего монет на счёт: базовые + бонус за идеальное прохождение. */
-  coins: number;
+export interface LessonRewardResult {
+  /** Опыт за первое прохождение (0 — повтор). */
+  xp: number;
   /** Переход уровня от опыта урока, если случился. */
   levelUp: LevelUpResult | null;
 }
@@ -132,8 +128,6 @@ export interface LessonFinishResult {
   firstPerfect: boolean;
   reward: LessonRewardResult;
 }
-
-const NO_REWARD: LessonRewardAmounts = { completionCoins: 0, perfectCoins: 0, xp: 0 };
 
 export interface LevelUpResult {
   from: number;
@@ -247,16 +241,10 @@ interface LessonsState {
   saveLessonState: (state: LessonProgressState) => void;
   /**
    * Финальный узел или перепрохождение завершённого урока: фиксирует
-   * завершение и звезду (settleLesson), сохраняет и начисляет награду
-   * (вариант B): первое завершение — опыт и монеты, первая звезда — бонус;
-   * при первом завершении — ещё прогресс ветки и достижения. shiftLesson —
-   * урок смены (+10% монет).
+   * завершение и звезду (settleLesson), сохраняет и начисляет опыт за первое
+   * завершение; при первом завершении — ещё прогресс ветки и достижения.
    */
-  finishLesson: (
-    plan: LessonPlan,
-    state: LessonProgressState,
-    options?: { shiftLesson?: boolean }
-  ) => LessonFinishResult;
+  finishLesson: (plan: LessonPlan, state: LessonProgressState) => LessonFinishResult;
   startLesson: (lessonId: number) => Lesson;
   isLessonAvailable: (lessonId: number) => boolean;
   getBranchProgress: (branchId: number) => { completed: number; total: number };
@@ -327,44 +315,25 @@ export const useLessonsStore = create<LessonsState>()((set, get) => {
       persistLessonState(stamped);
     },
 
-    finishLesson: (plan, state, options = {}) => {
+    finishLesson: (plan, state) => {
       const result = settleLesson(plan, state, new Date().toISOString());
       get().saveLessonState(result.state);
 
       const lesson = LESSONS.find((l) => l.id === plan.lessonId);
-      const amounts = lesson
-        ? lessonRewardAmounts({
-            plan,
+      const xp = lesson
+        ? lessonRewardXp({
             lesson,
             lessons: LESSONS,
             firstCompletion: result.firstCompletion,
-            firstPerfect: result.firstPerfect,
-            coinBonusPercent:
-              (options.shiftLesson ? SHIFT_LESSON_COIN_BONUS_PERCENT : 0) +
-              useShopStore.getState().getTotalCoinBonusPercent(),
             isDemo: useUserStore.getState().user?.is_demo ?? false,
           })
-        : NO_REWARD;
-      const { recordTransaction } = useUserStore.getState();
-      if (amounts.completionCoins > 0) {
-        recordTransaction(amounts.completionCoins, 'lesson_reward', `Урок «${lesson?.title}»`);
-      }
-      if (amounts.perfectCoins > 0) {
-        recordTransaction(
-          amounts.perfectCoins,
-          'lesson_reward',
-          `Звезда за урок «${lesson?.title}»`
-        );
-      }
-      const levelUp = amounts.xp > 0 ? get().addXp(amounts.xp) : null;
+        : 0;
+      const levelUp = xp > 0 ? get().addXp(xp) : null;
 
       if (result.firstCompletion) {
         reportLessonCompleted(plan.lessonId, get().lessonStates, get().getBranchProgress);
       }
-      return {
-        ...result,
-        reward: { ...amounts, coins: amounts.completionCoins + amounts.perfectCoins, levelUp },
-      };
+      return { ...result, reward: { xp, levelUp } };
     },
 
     startLesson: (lessonId) => {

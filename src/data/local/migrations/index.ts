@@ -276,4 +276,21 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE adventures ADD COLUMN wallet_contribution INTEGER NOT NULL DEFAULT 0;
     `,
   },
+  {
+    version: 15,
+    // Кофе в смене — один раз за смену, из бюджета работы (решение
+    // пользователя 29.09.2026): отметка, что он уже куплен.
+    sql: `
+      ALTER TABLE adventures ADD COLUMN coffee_bought INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
+  {
+    version: 16,
+    // Смена платит только за этапы, пройденные в ней (решение пользователя
+    // 29.09.2026): сколько этапов урока было пройдено к её старту. У смен,
+    // начатых до этой версии, — 0: для них доля считается как раньше.
+    sql: `
+      ALTER TABLE adventures ADD COLUMN stages_done_at_start INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
 ];

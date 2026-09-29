@@ -12,16 +12,31 @@
 // звезда и бонус (в том числе при перепрохождении); остальные повторы — без
 // награды (§9.7). Тап по пройденному этапу на треке смены открывает обзор
 // одного этапа (focusNode) — так же.
-// Урок смены: +10% монет, события платит бюджет смены, ошибка стоит энергии,
+// Экономика урока — в lessons.json (lessonEconomy.ts): в смене этап стоит
+// энергии (списывается, когда этап пройден), вариант события может стоить
+// энергии, подсказка в игре — монет (в смене из бюджета работы, вне смены —
+// из кошелька). Монет за урок нет — урок оплачивается зарплатой смены.
+// Урок смены: события платит бюджет смены, ошибка стоит энергии,
 // проходится по этапам — одно «Начать задание» на экране работы — один этап
-// (после него — «Этап пройден» и назад к работе), урок пройден — смена
-// завершается (итоги на хабе). Вне смены урок идёт целиком.
+// (после него — «Этап пройден» и назад к работе). После последнего задания
+// заключение идёт сразу, без возврата к работе; «К итогам смены» на экране
+// награды ведёт прямо на хаб, где итоги (решение 29.09.2026: меньше экранов
+// в конце). Вне смены урок идёт целиком.
+// Экран урока, у которого смена закончилась не здесь (устаревшая копия в
+// стеке, время вышло), не продолжает урок «вне смены», а уходит на хаб.
+// Повтор пройденного (обзор урока или этап с трека смены) — бесплатная
+// тренировка (решение 29.09.2026): ошибки не стоят энергии, подсказки
+// бесплатные — и в смене, и вне её.
+// Вариант события «за энергию» при нехватке энергии недоступен; оплата
+// события не прошла — выбор не засчитывается.
 
+import { useIsFocused } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import type { ScreenHelpId } from '@/domain/content/ReferenceContent';
 import { FiveLettersWordContent, LessonEventContent } from '@/domain/content/LessonContent';
+import { hintPrice } from '@/domain/lesson/lessonEconomy';
 import {
   LessonPlan,
   PlanActivity,
@@ -48,12 +63,12 @@ import {
   LessonRewardResult,
   useLessonsStore,
 } from '@/lib/hooks/useLessons';
+import { canAffordEnergy, isCoffeeUnlocked } from '@/domain/adventure/Adventure';
 import { useAdventureStore } from '@/lib/stores/adventureStore';
 import { usePetStore } from '@/lib/stores/petStore';
 import { useUserStore } from '@/lib/stores/userStore';
 import { Alert } from '@/lib/utils/alert';
 import { formatPrice } from '@/lib/utils/formatters';
-import { CompleteStage } from '../CompleteStage';
 import { StageDoneStep } from '../StageDoneStep';
 import { LessonEventStep } from '../LessonEventStep';
 import { LessonOverview } from '../LessonOverview';
@@ -72,6 +87,7 @@ const MINIGAME_HELP: Record<string, ScreenHelpId> = {
 
 /** Что дальше после этапа урока смены — по типу следующего этапа на треке. */
 const NEXT_STAGE_LABELS: Record<PlanNode['kind'], string> = {
+  theory: 'теория',
   test: 'тест',
   minigame: 'мини-игра',
   event: 'событие',
@@ -96,9 +112,10 @@ type Segment =
       reward: LessonRewardResult;
       isReplay: boolean;
       hasStar: boolean;
+      /** Звезда получена только что. */
+      firstPerfect: boolean;
       isShift: boolean;
     }
-  | { kind: 'complete'; coins: number; isReplay: boolean; isShift: boolean }
   /** Урок смены: этап трека пройден — назад к работе, следующий этап — оттуда. */
   | { kind: 'stageDone'; nodesDone: number; nodesTotal: number; nextLabel: string };
 
@@ -143,6 +160,7 @@ export function LessonPlayer({
   focusNode,
   onExit,
   onBackToWork,
+  onShiftOver,
   onRequestExit,
   onExitGuardChange,
 }: {
@@ -152,6 +170,8 @@ export function LessonPlayer({
   onExit: () => void;
   /** Этап урока смены пройден — на экран работы. */
   onBackToWork: () => void;
+  /** Смена закрыта — на хаб (там итоги), минуя экраны смены и урока. */
+  onShiftOver: () => void;
   /** Выход посреди урока — через подтверждение (модалка паузы экрана). */
   onRequestExit: () => void;
   /** Нужно ли подтверждение выхода сейчас (для аппаратной кнопки «назад»). */
@@ -161,14 +181,15 @@ export function LessonPlayer({
   const plan = useMemo(() => planForLesson(lesson, isDemo), [lesson, isDemo]);
   const saveLessonState = useLessonsStore((s) => s.saveLessonState);
   const finishLesson = useLessonsStore((s) => s.finishLesson);
-  // Урок смены: +10% монет, события платит бюджет смены, ошибка стоит
+  // Урок смены: события, подсказки платит бюджет смены, этап и ошибка стоят
   // энергии, урок пройден — смена завершается. Повтор пройденного урока
   // уроком смены не считается (§9.7).
   const isShiftLesson = useAdventureStore((s) => s.isShiftLesson(lesson.id, lesson.branch_id));
-  const adventureBudget = useAdventureStore((s) =>
-    s.currentAdventure?.status === 'active' ? s.currentAdventure.budget : null
+  const activeAdventure = useAdventureStore((s) =>
+    s.currentAdventure?.status === 'active' ? s.currentAdventure : null
   );
   const applyLessonEventChoice = useAdventureStore((s) => s.applyLessonEventChoice);
+  const spendOnWant = useAdventureStore((s) => s.spendOnWant);
   const completeAdventure = useAdventureStore((s) => s.completeAdventure);
   const currentMood = usePetStore((s) => s.currentMood);
 
@@ -190,6 +211,9 @@ export function LessonPlayer({
   // Перечитать/перепройти (обзор) — сегменты возвращают к обзору, без наград.
   const isRevisit = isReplay || focusNode !== undefined;
   const isAdventureQuest = !isReplay && isShiftLesson;
+  // Платное прохождение смены: этапы, энергия за ошибки, подсказки и события
+  // из бюджета смены. Повтор пройденного — бесплатная тренировка, даже в смене.
+  const isPaidShiftPlay = isAdventureQuest && !isRevisit;
 
   const [progress, setProgress] = useState(start.state);
   const progressRef = useRef(start.state);
@@ -203,6 +227,25 @@ export function LessonPlayer({
     // Выпавшее при открытии событие запоминаем сразу — после перезапуска то же.
     if (start.dirty) saveLessonState(start.state);
   }, [start, saveLessonState]);
+
+  // Смена закончилась не на этом экране (устаревшая копия урока в стеке или
+  // вышло время) — не продолжаем урок «вне смены»: объясняем и уходим на хаб.
+  // Только на видимом экране: скрытая копия сработает, когда станет видна.
+  const isFocused = useIsFocused();
+  const wasShiftRef = useRef(false);
+  useEffect(() => {
+    if (isPaidShiftPlay) {
+      wasShiftRef.current = true;
+      return;
+    }
+    if (!wasShiftRef.current || !isFocused || segment.kind === 'reward') return;
+    wasShiftRef.current = false;
+    Alert.alert(
+      'Смена закончилась',
+      'Итоги ждут на хабе. Урок продолжится в следующую смену с того же места.'
+    );
+    onShiftOver();
+  }, [isPaidShiftPlay, isFocused, segment.kind, onShiftOver]);
 
   const guarded =
     segment.kind === 'reading' || segment.kind === 'activity' || segment.kind === 'conclusion';
@@ -244,7 +287,7 @@ export function LessonPlayer({
         if (result.firstPerfect) {
           Alert.alert(
             '★ Идеально!',
-            `Все тесты и игры урока пройдены без ошибок — у урока появилась звезда и бонус +${formatPrice(result.reward.perfectCoins)} на твой счёт.`
+            'Все тесты и игры урока пройдены без ошибок — у урока появилась звезда.'
           );
         }
       }
@@ -257,15 +300,18 @@ export function LessonPlayer({
       position.kind === 'final' ||
       ((position.kind === 'reading' || position.kind === 'activity') &&
         position.node.index !== finishedNodeIndex);
-    if (isAdventureQuest && stageFinished) {
+    if (isPaidShiftPlay && stageFinished) {
+      // Этап пройден — его энергия (lessons.json: nodeEnergyCost / energyCost).
+      usePetStore.getState().spendEnergy(plan.nodes[finishedNodeIndex]?.energyCost ?? 0);
+    }
+    // Дальше — ещё один этап: назад к работе. Финал (заключение и награда,
+    // энергии не стоит) — сразу, без лишнего круга через экран работы.
+    if (isPaidShiftPlay && stageFinished && position.kind !== 'final') {
       show({
         kind: 'stageDone',
         nodesDone: completedNodeCount(plan, next),
         nodesTotal: totalNodeCount(plan),
-        nextLabel:
-          position.kind === 'reading' || position.kind === 'activity'
-            ? NEXT_STAGE_LABELS[position.node.kind]
-            : 'завершение урока',
+        nextLabel: NEXT_STAGE_LABELS[position.node.kind],
       });
       return;
     }
@@ -288,17 +334,35 @@ export function LessonPlayer({
     afterSegment(next, activity.nodeIndex);
   };
 
+  /** Выбор в событии; false — не засчитан (не хватило энергии или бюджета). */
   const handleEventChoice = async (
     activity: PlanActivity,
     event: LessonEventContent,
     optionId: string
-  ) => {
+  ): Promise<boolean> => {
     const option = event.options.find((o) => o.id === optionId);
-    if (!option) return;
-    if (isAdventureQuest) await applyLessonEventChoice(event.id, option);
+    if (!option) return false;
+    if (isPaidShiftPlay) {
+      // Вариант «без денег, но с энергией» (например, «0 C, −30⚡»): энергии
+      // должно хватать, как монет на платный вариант (решение 29.09.2026).
+      usePetStore.getState().refreshMood();
+      if (!canAffordEnergy(option.energyCost, usePetStore.getState().currentMood)) {
+        Alert.alert(
+          'Не хватает энергии',
+          `Этот вариант стоит ${option.energyCost}⚡. Выбери другой — или выйди и подожди, пока энергия восстановится.`
+        );
+        return false;
+      }
+      if (!(await applyLessonEventChoice(event.id, option))) {
+        Alert.alert('Не получилось', 'В бюджете смены не хватает монет на этот вариант.');
+        return false;
+      }
+      if (option.energyCost) usePetStore.getState().spendEnergy(option.energyCost);
+    }
     const next = recordActivityResult(progressRef.current, activity, { perfect: true, optionId });
     commit(next);
     afterSegment(next, activity.nodeIndex);
+    return true;
   };
 
   const handleConclusionDone = () => {
@@ -306,19 +370,39 @@ export function LessonPlayer({
       show({ kind: 'overview' });
       return;
     }
-    // Награда (монеты, опыт, звезда и бонус) начисляется здесь же, в сторе.
-    const result = finishLesson(plan, progressRef.current, { shiftLesson: isAdventureQuest });
+    // Награда (опыт, звезда) начисляется здесь же, в сторе.
+    const result = finishLesson(plan, progressRef.current);
     progressRef.current = result.state;
     setProgress(result.state);
     // Урок смены пройден — смена завершается (полная доля), итоги — на хабе.
-    if (result.firstCompletion && isAdventureQuest) void completeAdventure();
+    if (result.firstCompletion && isPaidShiftPlay) void completeAdventure();
     show({
       kind: 'reward',
       reward: result.reward,
       isReplay: !result.firstCompletion,
       hasStar: hasStar(result.state),
-      isShift: isAdventureQuest,
+      firstPerfect: result.firstPerfect,
+      isShift: isPaidShiftPlay,
     });
+  };
+
+  /**
+   * Подсказка в игре платная (hintPrice в lessons.json): в смене — из бюджета
+   * работы (желаемое), вне смены — из кошелька. Не хватает — объяснение.
+   */
+  const buyHint = async (price: number): Promise<boolean> => {
+    const paid = isPaidShiftPlay
+      ? await spendOnWant(price)
+      : useUserStore.getState().recordTransaction(-price, 'hint', `Подсказка: ${lesson.title}`);
+    if (!paid) {
+      Alert.alert(
+        'Не хватает монет',
+        isPaidShiftPlay
+          ? `Подсказка стоит ${formatPrice(price)}, а в бюджете смены меньше.`
+          : `Подсказка стоит ${formatPrice(price)}, а в кошельке меньше.`
+      );
+    }
+    return paid;
   };
 
   const renderActivity = (
@@ -333,7 +417,7 @@ export function LessonPlayer({
           key={segmentKey}
           step={{ type: 'test', questions: content.questions, passThreshold: TEST_PASS_THRESHOLD }}
           onPass={() => handleActivityDone(activity)}
-          isAdventureQuest={isAdventureQuest}
+          isAdventureQuest={isPaidShiftPlay}
           onWrongAnswer={() => setWrongAnswers((n) => n + 1)}
         />
       );
@@ -349,8 +433,11 @@ export function LessonPlayer({
             words,
           }}
           onDone={() => handleActivityDone(activity)}
-          isAdventureQuest={isAdventureQuest}
+          isAdventureQuest={isPaidShiftPlay}
           onWrongAnswer={() => setWrongAnswers((n) => n + 1)}
+          // Повтор пройденного — бесплатная тренировка: подсказки даром.
+          hintPrice={isRevisit ? 0 : hintPrice(content)}
+          onBuyHint={isRevisit ? undefined : buyHint}
         />
       );
     }
@@ -359,8 +446,15 @@ export function LessonPlayer({
       <LessonEventStep
         key={segmentKey}
         event={event}
-        budget={isAdventureQuest ? adventureBudget : null}
-        onChoose={(optionId) => void handleEventChoice(activity, event, optionId)}
+        adventure={isPaidShiftPlay ? activeAdventure : null}
+        showEnergy={isPaidShiftPlay}
+        coffeeAvailable={
+          isPaidShiftPlay &&
+          !!activeAdventure &&
+          !activeAdventure.coffeeBought &&
+          isCoffeeUnlocked(completedNodeCount(plan, progress), activeAdventure.stagesDoneAtStart)
+        }
+        onChoose={(optionId) => handleEventChoice(activity, event, optionId)}
       />
     );
   };
@@ -407,14 +501,8 @@ export function LessonPlayer({
             isAdventureQuest={segment.isShift}
             isReplay={segment.isReplay}
             hasStar={segment.hasStar}
-            onCollect={() =>
-              show({
-                kind: 'complete',
-                coins: segment.reward.coins,
-                isReplay: segment.isReplay,
-                isShift: segment.isShift,
-              })
-            }
+            firstPerfect={segment.firstPerfect}
+            onCollect={segment.isShift ? onShiftOver : onExit}
           />
         );
       case 'stageDone':
@@ -424,15 +512,6 @@ export function LessonPlayer({
             nodesTotal={segment.nodesTotal}
             nextLabel={segment.nextLabel}
             onBackToWork={onBackToWork}
-          />
-        );
-      case 'complete':
-        return (
-          <CompleteStage
-            onExit={onExit}
-            bonusCoins={segment.coins}
-            isAdventureQuest={segment.isShift}
-            isReplay={segment.isReplay}
           />
         );
     }

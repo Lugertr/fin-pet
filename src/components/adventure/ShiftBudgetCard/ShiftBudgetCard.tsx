@@ -72,13 +72,13 @@ export function ShiftBudgetCard({
       activeOpacity={0.85}
       style={styles.card}
       accessibilityRole="button"
-      accessibilityLabel={`Бюджет работы ${formatCoins(adventure.budget)}. Открыть план`}
+      accessibilityLabel={`Бюджет смены ${formatCoins(adventure.budget)}. Открыть план`}
     >
       <View style={styles.header}>
         <View style={styles.iconBox}>
           <Ionicons name="briefcase-outline" size={scale(18)} color={theme.primary} />
         </View>
-        <Text style={[styles.title, { fontSize: scaledFont('lg') }]}>Бюджет работы</Text>
+        <Text style={[styles.title, { fontSize: scaledFont('lg') }]}>Бюджет смены</Text>
         <View style={styles.amountChip}>
           <Text style={[styles.amountText, { fontSize: scaledFont('md') }]}>
             {formatPrice(adventure.budget)}

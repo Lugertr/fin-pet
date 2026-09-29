@@ -5,7 +5,7 @@
 // не растягивалась на весь экран.
 
 import type { Theme } from '@/theme';
-import { fontSizes, fontWeights, radius, shadows, spacing } from '@/theme/tokens';
+import { fontSizes, fontWeights, radius, spacing } from '@/theme/tokens';
 import { StyleSheet } from 'react-native';
 
 interface AdventureActiveViewStylesParams {
@@ -57,36 +57,6 @@ export function createAdventureActiveViewStyles({ theme }: AdventureActiveViewSt
       color: theme.textSecondary,
       fontSize: fontSizes.md,
       textAlign: 'center',
-    },
-    // Карточка текущего шага: иконка типа, название, пояснение, стрелка.
-    stepCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.md,
-      minHeight: 72,
-      backgroundColor: theme.surface,
-      borderRadius: radius.xl,
-      padding: spacing.md,
-      ...shadows.sm,
-    },
-    stepIconBox: {
-      width: 48,
-      height: 48,
-      borderRadius: radius.lg,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    stepText: {
-      flex: 1,
-    },
-    stepTitle: {
-      color: theme.textPrimary,
-      fontWeight: fontWeights.bold,
-      fontSize: fontSizes.lg,
-    },
-    stepSubtitle: {
-      color: theme.textSecondary,
-      fontSize: fontSizes.md,
     },
     primaryButton: {
       minHeight: 56,

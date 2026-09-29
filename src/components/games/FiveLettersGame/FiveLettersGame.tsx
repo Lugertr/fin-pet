@@ -5,6 +5,10 @@
 // конце: true, если слово отгадано в пределах попыток, иначе false — тогда
 // MinigameStep переигрывает то же слово заново (см. MinigameStep.tsx), и
 // игрок уже видел разгадку в feedback-баннере ниже.
+// Подсказки (решение пользователя 29.09.2026) — две, каждая один раз на
+// слово: описание слова и «Открыть букву» (первая ещё не отгаданная буква —
+// текстом над полем и бледной буквой в её клетке текущей строки). В уроке
+// каждая стоит hintPrice (lessons.json), в Аркаде — бесплатно.
 
 import { Ionicons } from '@expo/vector-icons';
 import { useRef, useState } from 'react';
@@ -12,9 +16,10 @@ import { TouchableOpacity, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
 
 import { useFeedback } from '@/lib/hooks/useFeedback';
+import { formatCoins, formatPrice } from '@/lib/utils/formatters';
 import { useResponsive, useTheme } from '@/theme';
 import { withAlpha } from '@/theme/colorUtils';
-import { evaluateGuess, LetterResult } from './evaluateGuess';
+import { evaluateGuess, LetterResult, letterToReveal } from './evaluateGuess';
 import {
   CELL_SIZE,
   CellState,
@@ -41,11 +46,34 @@ const STATE_RANK: Record<CellState, number> = {
 interface FiveLettersGameProps {
   word: string;
   hint?: string;
+  /** Цена подсказки (урок: hintPrice в lessons.json); 0/нет — бесплатно. */
+  hintPrice?: number;
+  /** Подсказка куплена — показывается. */
+  hintUnlocked?: boolean;
+  /** Купить подсказку (платит вызывающий код). */
+  onUnlockHint?: () => void;
+  /** Открытая буква (позиция в слове). Передаёт урок: куплена — видна и при
+   * повторе раунда. Без onRevealLetter (Аркада) игра хранит её сама. */
+  revealedLetterIndex?: number;
+  /** Купить «Открыть букву» (цена — hintPrice, платит вызывающий код). */
+  onRevealLetter?: (index: number) => void;
   onAnswer: (answer: string, isCorrect: boolean) => void;
   disabled?: boolean;
 }
 
-export function FiveLettersGame({ word, hint, onAnswer, disabled = false }: FiveLettersGameProps) {
+export function FiveLettersGame({
+  word,
+  hint,
+  hintPrice = 0,
+  hintUnlocked = false,
+  onUnlockHint,
+  revealedLetterIndex,
+  onRevealLetter,
+  onAnswer,
+  disabled = false,
+}: FiveLettersGameProps) {
+  // Платная подсказка (решение 29.09.2026): пока не куплена — кнопка с ценой.
+  const hintLocked = Boolean(hint) && hintPrice > 0 && !hintUnlocked;
   const { theme } = useTheme();
   const { scale, scaledFont } = useResponsive();
   const { trigger, triggerHaptic } = useFeedback();
@@ -65,6 +93,17 @@ export function FiveLettersGame({ word, hint, onAnswer, disabled = false }: Five
   const isSubmittingRef = useRef(false);
 
   const isDone = gameState !== 'playing';
+
+  // «Открыть букву» — один раз на слово.
+  const [localRevealed, setLocalRevealed] = useState<number | undefined>(undefined);
+  const revealedIndex = onRevealLetter ? revealedLetterIndex : localRevealed;
+  const handleRevealLetter = () => {
+    if (disabled || isDone || revealedIndex !== undefined) return;
+    const index = letterToReveal(results, WORD_LENGTH);
+    if (onRevealLetter) onRevealLetter(index);
+    else setLocalRevealed(index);
+  };
+  const priceSuffix = hintPrice > 0 ? ` · ${formatPrice(hintPrice)}` : '';
 
   const handleKeyPress = (letter: string) => {
     if (disabled || isDone || currentGuess.length >= WORD_LENGTH) return;
@@ -120,9 +159,51 @@ export function FiveLettersGame({ word, hint, onAnswer, disabled = false }: Five
 
   return (
     <View style={styles.container}>
-      {hint && (
+      {hint && !hintLocked && (
         <View style={styles.hintCard}>
           <Text style={[styles.hintText, { fontSize: scaledFont('sm') }]}>💡 {hint}</Text>
+        </View>
+      )}
+      {revealedIndex !== undefined && (
+        <View style={styles.hintCard}>
+          <Text style={[styles.hintText, { fontSize: scaledFont('sm') }]}>
+            🔤 {revealedIndex + 1}-я буква — {target[revealedIndex]}
+          </Text>
+        </View>
+      )}
+      {!isDone && (hintLocked || revealedIndex === undefined) && (
+        <View style={styles.hintButtons}>
+          {hint && hintLocked && (
+            <TouchableOpacity
+              onPress={onUnlockHint}
+              activeOpacity={0.7}
+              style={styles.hintButton}
+              accessibilityRole="button"
+              accessibilityLabel={`Описание слова за ${formatCoins(hintPrice)}`}
+            >
+              <Text style={[styles.hintButtonText, { fontSize: scaledFont('sm') }]}>
+                💡 Описание слова{priceSuffix}
+              </Text>
+            </TouchableOpacity>
+          )}
+          {revealedIndex === undefined && (
+            <TouchableOpacity
+              onPress={handleRevealLetter}
+              disabled={disabled}
+              activeOpacity={0.7}
+              style={styles.hintButton}
+              accessibilityRole="button"
+              accessibilityLabel={
+                hintPrice > 0
+                  ? `Открыть одну букву за ${formatCoins(hintPrice)}`
+                  : 'Открыть одну букву'
+              }
+            >
+              <Text style={[styles.hintButtonText, { fontSize: scaledFont('sm') }]}>
+                🔤 Открыть букву{priceSuffix}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
@@ -140,6 +221,11 @@ export function FiveLettersGame({ word, hint, onAnswer, disabled = false }: Five
             <View key={rowIndex} style={styles.row}>
               {Array.from({ length: WORD_LENGTH }).map((_, colIndex) => {
                 const letter = rowLetters[colIndex] ?? '';
+                // Открытая буква — бледно в пустой клетке текущей строки.
+                const ghost =
+                  isCurrentRow && !isDone && !letter && colIndex === revealedIndex
+                    ? target[colIndex]
+                    : '';
                 const state: CellState = isSubmittedRow
                   ? results[rowIndex][colIndex]
                   : letter
@@ -161,9 +247,16 @@ export function FiveLettersGame({ word, hint, onAnswer, disabled = false }: Five
                     ]}
                   >
                     <Text
-                      style={[styles.cellText, { color: colors.text, fontSize: scaledFont('xl') }]}
+                      style={[
+                        styles.cellText,
+                        {
+                          color: ghost ? theme.textMuted : colors.text,
+                          fontSize: scaledFont('xl'),
+                        },
+                        ghost ? styles.cellGhost : null,
+                      ]}
                     >
-                      {letter}
+                      {letter || ghost}
                     </Text>
                   </View>
                 );

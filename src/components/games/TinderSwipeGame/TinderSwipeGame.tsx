@@ -23,6 +23,7 @@ import Animated, {
 
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { useResponsive, useTheme } from '@/theme';
+import { formatCoins, formatPrice } from '@/lib/utils/formatters';
 import { withAlpha } from '@/theme/colorUtils';
 import { createTinderSwipeGameStyles, SWIPE_THRESHOLD } from './TinderSwipeGame.styles';
 
@@ -35,6 +36,12 @@ interface TinderSwipeGameProps {
   explanation?: string;
   /** Текст под ссылкой «Подсказка» — сама ссылка не показывается без него. */
   hint?: string;
+  /** Цена подсказки (урок: hintPrice в lessons.json); 0/нет — бесплатно. */
+  hintPrice?: number;
+  /** Подсказка куплена. */
+  hintUnlocked?: boolean;
+  /** Купить подсказку (платит вызывающий код). */
+  onUnlockHint?: () => void;
   /** Показать «N / M утверждений» внизу — оба значения нужны вместе. */
   progressCurrent?: number;
   progressTotal?: number;
@@ -48,6 +55,9 @@ export function TinderSwipeGame({
   correctAnswer,
   explanation,
   hint,
+  hintPrice = 0,
+  hintUnlocked = false,
+  onUnlockHint,
   progressCurrent,
   progressTotal,
   onAnswer,
@@ -55,11 +65,19 @@ export function TinderSwipeGame({
 }: TinderSwipeGameProps) {
   const { theme } = useTheme();
   const { width } = useResponsive();
-  const { trigger, playSound, triggerHaptic } = useFeedback();
+  const { trigger, playSound, stopSound, triggerHaptic } = useFeedback();
 
   const [isAnimating, setIsAnimating] = useState(false);
   const [answeredOption, setAnsweredOption] = useState<string | null>(null);
-  const [isHintRevealed, setIsHintRevealed] = useState(false);
+  const [isHintRevealed, setIsHintRevealed] = useState(hintUnlocked);
+  const hintLocked = Boolean(hint) && hintPrice > 0 && !hintUnlocked;
+  // Подсказку только что купили — сразу показываем (подстройка состояния
+  // при рендере, без эффекта).
+  const [prevHintUnlocked, setPrevHintUnlocked] = useState(hintUnlocked);
+  if (hintUnlocked !== prevHintUnlocked) {
+    setPrevHintUnlocked(hintUnlocked);
+    if (hintUnlocked) setIsHintRevealed(true);
+  }
   // Ref, а не только state: гарантирует, что повторный swipe/tap в ту же
   // самую задачу микротасков не проскочит мимо проверки isAnimating из-за
   // устаревшего замыкания до того, как React применит setIsAnimating(true).
@@ -102,7 +120,8 @@ export function TinderSwipeGame({
     setAnsweredOption(chosenOption);
 
     // Звук свайпа — сразу, «верно / неверно» (звук + haptic) — когда карточка
-    // улетела, чтобы звуки не накладывались.
+    // улетела. card_flip.mp3 длится ~1 с, дольше вылета карточки, поэтому
+    // перед звуком результата свайп обрываем — звуки не накладываются.
     playSound('cardFlip');
 
     // Анимируем вылет карточки
@@ -111,6 +130,7 @@ export function TinderSwipeGame({
     rotate.value = withTiming(direction === 'left' ? -30 : 30, { duration: 300 });
 
     setTimeout(() => {
+      stopSound('cardFlip');
       trigger(isCorrect ? 'correctAnswer' : 'wrongAnswer');
       onAnswer(chosenOption, isCorrect);
       setTimeout(() => {
@@ -294,13 +314,26 @@ export function TinderSwipeGame({
             {progressCurrent} / {progressTotal} утверждений
           </Text>
         )}
-        {hint && (
-          <TouchableOpacity onPress={() => setIsHintRevealed((v) => !v)} activeOpacity={0.7}>
-            <Text style={styles.hintLink}>{isHintRevealed ? 'Скрыть подсказку' : 'Подсказка'}</Text>
-          </TouchableOpacity>
-        )}
+        {hint &&
+          (hintLocked ? (
+            // Платная подсказка (решение 29.09.2026): цена — у кнопки.
+            <TouchableOpacity
+              onPress={onUnlockHint}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`Подсказка за ${formatCoins(hintPrice)}`}
+            >
+              <Text style={styles.hintLink}>Подсказка · {formatPrice(hintPrice)}</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity onPress={() => setIsHintRevealed((v) => !v)} activeOpacity={0.7}>
+              <Text style={styles.hintLink}>
+                {isHintRevealed ? 'Скрыть подсказку' : 'Подсказка'}
+              </Text>
+            </TouchableOpacity>
+          ))}
       </View>
-      {hint && isHintRevealed && <Text style={styles.hintText}>{hint}</Text>}
+      {hint && !hintLocked && isHintRevealed && <Text style={styles.hintText}>{hint}</Text>}
     </View>
   );
 }

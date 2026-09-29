@@ -30,6 +30,8 @@ export function MinigameStep({
   onDone,
   isAdventureQuest = false,
   onWrongAnswer,
+  hintPrice = 0,
+  onBuyHint,
 }: {
   step: MinigameStepData;
   onDone: () => void;
@@ -37,6 +39,10 @@ export function MinigameStep({
   /** Копится в StepRunner на весь урок — «идеальный урок» для RewardStep
    * значит ровно 0 вызовов, включая переигранные раунды. */
   onWrongAnswer?: () => void;
+  /** Цена подсказки (lessons.json: hintPrice); 0 — бесплатно. */
+  hintPrice?: number;
+  /** Оплатить подсказку; true — оплачено. Купленная видна и при повторе раунда. */
+  onBuyHint?: (price: number) => Promise<boolean>;
 }) {
   const { theme } = useTheme();
   const { scaledFont } = useResponsive();
@@ -49,6 +55,26 @@ export function MinigameStep({
   const [attempt, setAttempt] = useState(0);
   const question: Question | undefined = step.questions[index];
   const wordRound = step.words?.[index];
+  const [unlockedHints, setUnlockedHints] = useState<Set<string>>(() => new Set());
+  const hintKey = isFiveLetters ? `w:${wordRound?.word}` : `q:${question?.id}`;
+  const unlockHint = async () => {
+    if (!onBuyHint || !(await onBuyHint(hintPrice))) return;
+    setUnlockedHints((prev) => new Set(prev).add(hintKey));
+  };
+  const hintProps = {
+    hintPrice: onBuyHint ? hintPrice : 0,
+    hintUnlocked: unlockedHints.has(hintKey),
+    onUnlockHint: () => void unlockHint(),
+  };
+  // «5 букв»: «Открыть букву» — один раз на слово, по той же цене; открытая
+  // позиция остаётся и при повторе раунда.
+  const [revealedLetters, setRevealedLetters] = useState<Record<string, number>>({});
+  const revealLetter = async (position: number) => {
+    const word = wordRound?.word;
+    if (!word || revealedLetters[word] !== undefined) return;
+    if (onBuyHint && !(await onBuyHint(hintPrice))) return;
+    setRevealedLetters((prev) => ({ ...prev, [word]: position }));
+  };
 
   // Без искусственной паузы здесь: QuizGame/TinderSwipeGame/FiveLettersGame
   // уже сами держат результат на экране (свои внутренние задержки) и
@@ -93,6 +119,9 @@ export function MinigameStep({
           key={`${wordRound.word}-${attempt}`}
           word={wordRound.word}
           hint={wordRound.hint}
+          {...hintProps}
+          revealedLetterIndex={revealedLetters[wordRound.word]}
+          onRevealLetter={(position) => void revealLetter(position)}
           onAnswer={handleAnswer}
         />
       ) : step.minigameType === 'tinder_swipe' && question ? (
@@ -103,6 +132,7 @@ export function MinigameStep({
           correctAnswer={question.correct_answer}
           explanation={question.explanation}
           hint={question.hint}
+          {...hintProps}
           progressCurrent={index + 1}
           progressTotal={totalRounds}
           onAnswer={handleAnswer}

@@ -45,6 +45,8 @@ const ACTIVE: AdventureRecord = {
   lessonId: null,
   projectedIncome: 100,
   walletContribution: 0,
+  coffeeBought: false,
+  stagesDoneAtStart: 0,
   budget: 100,
   plan: { mandatory: 40, optional: 30, savings: 30 },
   fact: { mandatory: 0, optional: 0, savings: 0 },
@@ -116,5 +118,18 @@ describe('итоги смены переживают перезапуск', () =
   it('битые сохранённые итоги не показываются', () => {
     expect(parseCompletionSummary(ACTIVE, '{не json')).toBeNull();
     expect(parseCompletionSummary(ACTIVE, JSON.stringify({ toWallet: 'много' }))).toBeNull();
+  });
+
+  it('итоги, записанные до 29.09.2026, — этапов к старту смены 0', () => {
+    const old = JSON.stringify({
+      bonusAwarded: 0,
+      toBank: 0,
+      bankBonus: 0,
+      toWallet: 50,
+      completionRatio: 0.5,
+      autoCompleted: false,
+      lesson: { id: 1, title: 'Урок', nodesDone: 2, nodesTotal: 4, finished: false },
+    });
+    expect(parseCompletionSummary(ACTIVE, old)?.lesson).toMatchObject({ nodesDoneAtStart: 0 });
   });
 });

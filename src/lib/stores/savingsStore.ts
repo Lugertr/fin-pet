@@ -5,6 +5,7 @@ import { getSavingsRepository } from '@/data/local/repositories';
 import {
   BASE_SAVINGS_BONUS_RATE,
   SavingsRecord,
+  SavingsTransactionRecord,
   computeDepositBonus,
   goalCompletionBonus,
 } from '@/domain/savings/Savings';
@@ -96,19 +97,30 @@ async function checkGoalCompletion(record: SavingsRecord): Promise<SavingsRecord
 }
 
 /**
- * Общая часть пополнения банка: бонус (§11.4) только за новые деньги, запись
- * операций, достижение «Первая копилка», проверка цели. fromWallet — деньги из
- * кошелька (гасят ранее снятое, см. computeDepositBonus); иначе — «коплю» из
- * приключения, это новые деньги целиком. Банк хаба — отдельный контур от
- * бюджета приключения, поэтому в факт приключения пополнение не пишется.
+ * Пополнение банка, рассчитанное, но ещё не записанное: новое состояние банка
+ * (до проверки цели), бонус и операции для истории. Разделено на расчёт,
+ * запись и применение, чтобы завершение смены могло записать выплату одной
+ * транзакцией вместе со сменой и кошельком (adventureStore, §4.5).
  */
-async function applyDeposit(
+export interface PlannedDeposit {
+  updated: SavingsRecord;
+  bonus: number;
+  entries: Omit<SavingsTransactionRecord, 'id' | 'createdAt'>[];
+}
+
+/**
+ * Расчёт пополнения: бонус (§11.4) только за новые деньги. fromWallet — деньги
+ * из кошелька (гасят ранее снятое, см. computeDepositBonus); иначе — «коплю»
+ * из смены, это новые деньги целиком. withBonus=false — «коплю» досрочно
+ * завершённой смены: без бонуса банка. Банк хаба — отдельный контур от
+ * бюджета смены, поэтому в факт смены пополнение не пишется.
+ */
+function planDeposit(
   savings: SavingsRecord,
   amount: number,
   fromWallet: boolean,
   withBonus = true
-): Promise<number> {
-  // withBonus=false — «коплю» досрочно завершённого приключения: без бонуса банка.
+): PlannedDeposit {
   const effectiveBonusRate = withBonus
     ? BASE_SAVINGS_BONUS_RATE + useShopStore.getState().getSavingsBonusRateBonus()
     : 0;
@@ -118,20 +130,18 @@ async function applyDeposit(
     effectiveBonusRate
   );
   const balanceAfterDeposit = savings.currentAmount + amount;
-
-  useAchievementsStore.getState().recordSavingsDeposit(); // §15.2 «Первая копилка»
-
-  const repo = getSavingsRepository();
   const periodId = currentPeriodId();
-  await repo.addTransaction({
-    savingsId: savings.id,
-    operationType: 'deposit',
-    amount,
-    balanceAfter: balanceAfterDeposit,
-    periodId,
-  });
+  const entries: PlannedDeposit['entries'] = [
+    {
+      savingsId: savings.id,
+      operationType: 'deposit',
+      amount,
+      balanceAfter: balanceAfterDeposit,
+      periodId,
+    },
+  ];
   if (bonus > 0) {
-    await repo.addTransaction({
+    entries.push({
       savingsId: savings.id,
       operationType: 'bonus',
       amount: bonus,
@@ -139,17 +149,57 @@ async function applyDeposit(
       periodId,
     });
   }
-
-  let updated: SavingsRecord = {
-    ...savings,
-    currentAmount: balanceAfterDeposit + bonus,
-    withdrawalCredit: fromWallet ? creditLeft : savings.withdrawalCredit,
+  return {
+    updated: {
+      ...savings,
+      currentAmount: balanceAfterDeposit + bonus,
+      withdrawalCredit: fromWallet ? creditLeft : savings.withdrawalCredit,
+    },
+    bonus,
+    entries,
   };
-  updated = await checkGoalCompletion(updated);
+}
 
-  useSavingsStore.setState({ savings: updated });
-  await persistSavings(updated);
-  return bonus;
+/** Запись пополнения: операции и новое состояние банка (можно внутри транзакции). */
+export async function persistPlannedDeposit(deposit: PlannedDeposit): Promise<void> {
+  const repo = getSavingsRepository();
+  for (const entry of deposit.entries) await repo.addTransaction(entry);
+  await persistSavings(deposit.updated);
+}
+
+/**
+ * Пополнение уже записано — память стора, достижение «Первая копилка» и
+ * проверка цели (§11.3: накоплено ≥ цены — покупка). Возвращает бонус.
+ */
+export async function finishPlannedDeposit(deposit: PlannedDeposit): Promise<number> {
+  useAchievementsStore.getState().recordSavingsDeposit(); // §15.2 «Первая копилка»
+  const afterGoal = await checkGoalCompletion(deposit.updated);
+  useSavingsStore.setState({ savings: afterGoal });
+  if (afterGoal !== deposit.updated) await persistSavings(afterGoal);
+  return deposit.bonus;
+}
+
+/**
+ * «Коплю» смены в банк — только расчёт, без записи (для завершения смены
+ * одной транзакцией). null — банк ещё не загружен (тогда вызывающий кладёт
+ * деньги в кошелёк, чтобы они не пропали).
+ */
+export function planAdventureDeposit(amount: number, withBonus: boolean): PlannedDeposit | null {
+  const { savings } = useSavingsStore.getState();
+  if (!savings || amount <= 0) return null;
+  return planDeposit(savings, amount, false, withBonus);
+}
+
+/** Пополнение банка целиком: расчёт → запись → применение. */
+async function applyDeposit(
+  savings: SavingsRecord,
+  amount: number,
+  fromWallet: boolean,
+  withBonus = true
+): Promise<number> {
+  const deposit = planDeposit(savings, amount, fromWallet, withBonus);
+  await persistPlannedDeposit(deposit);
+  return finishPlannedDeposit(deposit);
 }
 
 export const useSavingsStore = create<SavingsState>((set, get) => ({

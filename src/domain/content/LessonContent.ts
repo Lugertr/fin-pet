@@ -85,6 +85,9 @@ export interface LessonEventOptionContent {
   category: 'mandatory' | 'optional' | null;
   /** Целые монеты бюджета смены: отрицательное — трата, положительное — пополнение. */
   coinAmount: number;
+  /** Сколько энергии стоит этот вариант в смене (например, «0 C, −30⚡»
+   * вместо траты на нужное). Нет — 0. */
+  energyCost?: number;
 }
 
 /** Событие внутри урока — выбор, связанный с ситуацией урока; не привязано ко времени. */
@@ -92,7 +95,10 @@ export interface LessonEventContent {
   id: string;
   title: string;
   description: string;
+  /** Эмодзи, "question" / "reward" (персонаж — питомец ребёнка) или ключ
+   * картинки из constants/eventIcons.ts (например, "laptop"). */
   icon: string;
+  /** Первый вариант — главный: выделенная кнопка, под ней — как он ляжет на план. */
   options: LessonEventOptionContent[];
 }
 
@@ -109,6 +115,10 @@ export interface LessonMinigameActivityContent {
   /** five_letters: слово из общего банка (content/five_letters_words.json);
    * без него — случайное слово темы урока. */
   word?: string;
+  /** Цена подсказки в игре (свайпы — hint вопроса, «5 букв» — hint слова): в
+   * смене — из бюджета работы, вне смены — из кошелька. Нет — по умолчанию
+   * (domain/lesson/lessonEconomy.ts); 0 — бесплатно. */
+  hintPrice?: number;
 }
 
 export interface LessonEventActivityContent {
@@ -124,6 +134,16 @@ export interface LessonNodeContent {
   /** Блок чтения узла — всегда первым, его можно перечитать. */
   cards: TheoryCardContent[];
   activities: LessonActivityContent[];
+  /** Энергия за этот этап в смене — вместо nodeEnergyCost урока. */
+  energyCost?: number;
+}
+
+/** Кофе в смене — один раз за смену, из бюджета работы (в «Хочу»). */
+export interface LessonCoffeeContent {
+  /** Цена, монеты бюджета работы. */
+  price: number;
+  /** Сколько энергии прибавляет. */
+  energy: number;
 }
 
 /** Урок — как он лежит в content/lessons.json (формат — README, «Формат урока»). */
@@ -135,6 +155,13 @@ export interface LessonContent {
   situation: LessonSituationContent;
   nodes: LessonNodeContent[];
   conclusion: LessonConclusionContent;
+  /** Зарплата смены по этому уроку — стартовый бюджет работы (до надбавки
+   * предметов: ноутбук, декор). Нет — по умолчанию (lessonEconomy.ts). */
+  price?: number;
+  /** Энергия за каждый этап урока в смене (кроме финального). Нет — по умолчанию. */
+  nodeEnergyCost?: number;
+  /** Кофе в смене по этому уроку. Нет — по умолчанию. */
+  coffee?: LessonCoffeeContent;
 }
 
 export interface BranchContent {

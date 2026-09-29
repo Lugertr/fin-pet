@@ -56,7 +56,7 @@ export function StageDoneStep({
             Этап {nodesDone} из {nodesTotal} пройден!
           </Text>
           <Text style={[styles.completeSubtitle, { fontSize: scaledFont('lg') }]}>
-            Работа продвигается. Дальше — {nextLabel}: начнёшь на экране работы кнопкой «Начать
+            Смена продвигается. Дальше — {nextLabel}: начнёшь на экране смены кнопкой «Начать
             задание».
           </Text>
         </ScrollView>
@@ -76,9 +76,7 @@ export function StageDoneStep({
             style={[styles.gradientButtonInner, { padding: scale(spacing.lg) }]}
           >
             <Ionicons name="briefcase" size={scale(24)} color={theme.onGradient} />
-            <Text style={[styles.gradientButtonText, { fontSize: scaledFont('lg') }]}>
-              К работе
-            </Text>
+            <Text style={[styles.gradientButtonText, { fontSize: scaledFont('lg') }]}>К смене</Text>
           </LinearGradient>
         </TouchableOpacity>
       </ScreenFooter>

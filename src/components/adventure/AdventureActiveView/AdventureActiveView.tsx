@@ -2,10 +2,11 @@
 // Экран смены «Работа» (макет, 28.09.2026) — отдельный экран
 // (app/(modal)/adventure.tsx), открывается с хаба. Смена = один урок:
 // сверху — сцена «питомец работает» (work.svg вида и скина), плашка
-// «Работа: 2 из 5» и трек этапов урока; дальше — карточка текущего шага и
-// «Начать задание» (урок продолжается с того же места), под ними — «Бюджет
-// работы» (тап — окно «План»). Пройденный этап на треке открывает его, чтобы
-// перечитать и перепройти. В шапке: «назад» на хаб, «?» и ✕ — закончить
+// «Работа: 2 из 5» и трек этапов урока; дальше — «Начать задание» (этап
+// начинается с ситуации и теории, урок продолжается с того же места), под
+// ним — «Бюджет работы» (тап — окно «План»). Отдельной карточки «Ситуация и
+// теория» нет (решение 29.09.2026): это начало этапа, а пройденный этап на
+// треке открывается, чтобы перечитать и перепройти. В шапке: «назад» на хаб, «?» и ✕ — закончить
 // смену раньше. Итоги здесь не показываются: смена завершилась (урок пройден,
 // ✕ или 24 часа вышли) — экран сам возвращается на хаб, там итоги.
 
@@ -21,11 +22,11 @@ import { IconButton } from '@/components/ui';
 import {
   AdventureRecord,
   computeAdventurePayout,
+  isCoffeeUnlocked,
   planSpendRemaining,
 } from '@/domain/adventure/Adventure';
-import { LessonPlan, planForLesson } from '@/domain/lesson/LessonPlan';
+import { planForLesson } from '@/domain/lesson/LessonPlan';
 import {
-  LessonPosition,
   completedNodeCount,
   createLessonProgress,
   currentPosition,
@@ -38,18 +39,19 @@ import { useAdventureCountdown } from '@/lib/adventure/useAdventureCountdown';
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { LESSONS, Lesson, useLessonsStore } from '@/lib/hooks/useLessons';
 import { useAdventureStore } from '@/lib/stores/adventureStore';
-import { usePetStore } from '@/lib/stores/petStore';
+import { isPetEnergyFull, usePetStore } from '@/lib/stores/petStore';
 import { usePreferencesStore } from '@/lib/stores/preferencesStore';
 import { useUserStore } from '@/lib/stores/userStore';
 import { Alert } from '@/lib/utils/alert';
-import { formatPrice, pluralize } from '@/lib/utils/formatters';
-import { colorPalettes } from '@/theme/tokens';
+import { formatPrice } from '@/lib/utils/formatters';
 import { useResponsive, useTheme } from '@/theme';
 import { withAlpha } from '@/theme/colorUtils';
-import type { IconName } from '@/types/icons';
 import { AdventureAmountCard } from '../AdventureAmountCard';
-import { AdventureNodeTrack, NODE_KIND_ICONS } from '../AdventureNodeTrack';
+import { AdventureNodeTrack } from '../AdventureNodeTrack';
 import { AdventurePlanFactCard } from '../AdventurePlanFactCard';
+import { CoffeeButton } from '../CoffeeButton';
+import { lessonCoffee } from '@/domain/lesson/lessonEconomy';
+import { ensureStageEnergy } from '@/lib/adventure/stageEnergy';
 import { ShiftBudgetCard } from '../ShiftBudgetCard';
 import { createAdventureActiveViewStyles } from './AdventureActiveView.styles';
 
@@ -60,66 +62,10 @@ const SCENE_MAX_WIDTH = 520;
 const SCENE_ASPECT_RATIO = 297 / 275;
 const SCENE_HORIZONTAL_PADDING = 16;
 
-const MINIGAME_NAMES: Record<string, string> = {
-  quiz: 'Викторина',
-  tinder_swipe: 'Свайпы',
-  five_letters: '5 букв',
-};
-
 /** Урок смены: зафиксированный при старте; у смены старой модели — следующий урок темы. */
 function shiftLesson(adventure: AdventureRecord, nextInBranch: Lesson | null): Lesson | null {
   if (adventure.lessonId !== null) return LESSONS.find((l) => l.id === adventure.lessonId) ?? null;
   return nextInBranch;
-}
-
-/** Карточка текущего шага: что делать дальше. */
-function describeStep(
-  position: LessonPosition,
-  plan: LessonPlan
-): { icon: IconName; color: string; title: string; subtitle: string } {
-  if (position.kind === 'reading') {
-    return {
-      icon: 'book-outline',
-      color: colorPalettes.indigo[500],
-      title: position.node.situation ? 'Ситуация и теория' : 'Теория',
-      subtitle: 'прочитай — дальше будет задание',
-    };
-  }
-  if (position.kind === 'activity') {
-    const { content } = position.activity;
-    if (content.type === 'event') {
-      return {
-        icon: NODE_KIND_ICONS.event,
-        color: colorPalettes.amber[500],
-        title: 'Событие',
-        subtitle: 'твоё решение повлияет на бюджет работы',
-      };
-    }
-    if (content.type === 'minigame') {
-      return {
-        icon: NODE_KIND_ICONS.minigame,
-        color: colorPalettes.violet[500],
-        title: `Мини-игра «${MINIGAME_NAMES[content.minigame_type] ?? 'Игра'}»`,
-        subtitle: 'пройдёшь — продвинешь работу',
-      };
-    }
-    const count = content.questions.length;
-    return {
-      icon: NODE_KIND_ICONS.test,
-      color: colorPalettes.indigo[500],
-      title: `Тест · ${count} ${pluralize(count, 'вопрос', 'вопроса', 'вопросов')}`,
-      subtitle: 'пройдёшь — продвинешь работу',
-    };
-  }
-  return {
-    icon: 'flag',
-    color: colorPalettes.emerald[500],
-    title: position.kind === 'final' ? 'Завершение урока' : 'Урок пройден',
-    subtitle:
-      position.kind === 'final'
-        ? `итог урока «${plan.title}» и награда`
-        : 'заверши смену — итоги ждут на хабе',
-  };
 }
 
 export function AdventureActiveView() {
@@ -130,6 +76,7 @@ export function AdventureActiveView() {
   const { triggerHaptic } = useFeedback();
   const completeAdventure = useAdventureStore((s) => s.completeAdventure);
   const completeIfExpired = useAdventureStore((s) => s.completeIfExpired);
+  const buyCoffee = useAdventureStore((s) => s.buyCoffee);
   const getNextLessonInBranch = useLessonsStore((s) => s.getNextLessonInBranch);
   const lessonStates = useLessonsStore((s) => s.lessonStates);
   const petType = usePreferencesStore((s) => s.petType);
@@ -173,6 +120,9 @@ export function AdventureActiveView() {
 
   const openLesson = (node?: number) => {
     if (!lesson) return;
+    // Новый этап стоит энергии (lessons.json) — не хватает, не пускаем с
+    // объяснением; перечитать пройденный этап (node) — бесплатно.
+    if (node === undefined && !ensureStageEnergy(lesson.id, lesson.branch_id)) return;
     triggerHaptic('light');
     router.push(
       `/(modal)/lesson/${lesson.id}${node !== undefined ? `?node=${node}` : ''}` as never
@@ -183,6 +133,47 @@ export function AdventureActiveView() {
   const done = plan && progress ? completedNodeCount(plan, progress) : 0;
   const total = plan ? totalNodeCount(plan) : 0;
   const lessonDone = position?.kind === 'done';
+  // Урок смены убрали из lessons.json (обновление контента) — проходить нечего.
+  const lessonMissing = adventure.lessonId !== null && !lesson;
+  // Цена текущего этапа — в кнопке «Начать задание» (финальный этап бесплатный).
+  const stageCost =
+    position?.kind === 'reading' || position?.kind === 'activity' ? position.node.energyCost : 0;
+  // Первый этап — «Теория» (решение 29.09.2026): кнопка так и называется.
+  const isTheoryStage = position?.kind === 'reading' && position.node.kind === 'theory';
+  const startLabel = isTheoryStage ? 'Читать теорию' : 'Начать задание';
+  // Кофе — раз за смену, из бюджета работы (lessons.json: coffee).
+  const coffee = lesson ? lessonCoffee(lesson) : null;
+  // Кофе — только после первого этапа этой смены (иначе энергия даром).
+  const coffeeLocked =
+    adventure.lessonId !== null && !isCoffeeUnlocked(done, adventure.stagesDoneAtStart);
+  const handleCoffee = async () => {
+    if (!coffee) return;
+    triggerHaptic('light');
+    if (!adventure.coffeeBought && coffeeLocked) {
+      Alert.alert(
+        'Кофе — после первого этапа',
+        'Пройди первый этап этой смены — и кофе откроется. Он продаётся один раз за смену.'
+      );
+      return;
+    }
+    // Энергия и так полная — кофе не продаётся, монеты ушли бы впустую.
+    if (!adventure.coffeeBought && isPetEnergyFull()) {
+      Alert.alert(
+        'Энергия и так полная',
+        'Кофе пригодится, когда энергии станет меньше. Он продаётся один раз за смену.'
+      );
+      return;
+    }
+    const bought = await buyCoffee(coffee);
+    if (!bought) {
+      Alert.alert(
+        'Кофе не купить',
+        adventure.coffeeBought
+          ? 'Кофе уже был в этой смене — он один раз за смену.'
+          : `Кофе стоит ${formatPrice(coffee.price)}, а в бюджете смены меньше.`
+      );
+    }
+  };
 
   const performComplete = async () => {
     triggerHaptic('medium');
@@ -195,9 +186,21 @@ export function AdventureActiveView() {
 
   // ✕ — закончить смену раньше. Всегда через подтверждение: крестик легко
   // задеть, а завершение необратимо. Это не провал (§8): урок сохранится и
-  // продолжится в следующую смену, а бюджет выплатится по пройденной доле.
+  // продолжится в следующую смену, а выплата — за этапы, пройденные в этой
+  // смене (решение 29.09.2026).
   const handleCompletePress = () => {
     triggerHaptic('light');
+    if (lessonMissing) {
+      Alert.alert(
+        'Закончить смену?',
+        'Урок этой смены обновили — за неё зарплата не начислится. Закончи смену и начни новую.',
+        [
+          { text: 'Продолжать', style: 'cancel' },
+          { text: 'Закончить', onPress: performComplete },
+        ]
+      );
+      return;
+    }
     if (lessonDone || isDemo || total === 0) {
       Alert.alert('Закончить смену?', 'Итоги появятся на хабе.', [
         { text: 'Продолжать', style: 'cancel' },
@@ -205,10 +208,13 @@ export function AdventureActiveView() {
       ]);
       return;
     }
-    const percent = Math.round((done / total) * 100);
+    const doneAtStart = Math.min(adventure.stagesDoneAtStart, done);
+    const remaining = total - doneAtStart;
+    const doneInShift = done - doneAtStart;
+    const percent = remaining > 0 ? Math.round((doneInShift / remaining) * 100) : 0;
     Alert.alert(
       'Закончить смену раньше?',
-      `Пройдено ${done} из ${total} этапов урока — получишь ${percent}% бюджета, а бонус копилки не начислится. Урок сохранится: в следующую смену продолжишь с того же места.`,
+      `За эту смену пройдено этапов: ${doneInShift} из ${remaining} — получишь ${percent}% того, что осталось в бюджете смены, а бонус копилки не начислится. Урок сохранится: в следующую смену продолжишь с того же места.`,
       [
         { text: 'Продолжать', style: 'cancel' },
         { text: 'Закончить сейчас', onPress: performComplete },
@@ -231,7 +237,6 @@ export function AdventureActiveView() {
   const remainingLabel = countdown.expired
     ? 'Смена закончилась — итоги уже скоро'
     : `Смена закончится через ${formatDuration(countdown.remaining)}`;
-  const step = position && plan ? describeStep(position, plan) : null;
   const savingsSoFar = computeAdventurePayout(adventure.budget, adventure.plan.savings).toBank;
   const spendLeft = planSpendRemaining(adventure);
 
@@ -239,7 +244,7 @@ export function AdventureActiveView() {
     <View style={styles.container}>
       <View style={headerPadding}>
         <AppHeaderStats
-          title="Работа"
+          title="Смена"
           help="adventure"
           helpPosition="right"
           energy={currentMood}
@@ -272,6 +277,15 @@ export function AdventureActiveView() {
               contentFit="contain"
               accessibilityLabel={`${species.displayName} работает`}
             />
+            {/* Кофе — квадратная кнопка в углу сцены (макет 29.09.2026). */}
+            {coffee && !lessonDone && (
+              <CoffeeButton
+                coffee={coffee}
+                used={adventure.coffeeBought}
+                locked={coffeeLocked}
+                onPress={() => void handleCoffee()}
+              />
+            )}
           </View>
         </View>
 
@@ -279,7 +293,7 @@ export function AdventureActiveView() {
           <>
             <View style={styles.progressPill}>
               <Text style={[styles.progressPillText, { fontSize: scaledFont('md') }]}>
-                Работа: {done} из {total}
+                Смена: {done} из {total}
               </Text>
             </View>
             <AdventureNodeTrack plan={plan} progress={progress} onPressNode={handleNodePress} />
@@ -288,26 +302,10 @@ export function AdventureActiveView() {
         <Text style={[styles.remainingTimeText, { fontSize: scaledFont('md') }]}>
           {remainingLabel}
         </Text>
-
-        {step && (
-          <TouchableOpacity
-            onPress={() => (lessonDone ? handleCompletePress() : openLesson())}
-            activeOpacity={0.85}
-            style={styles.stepCard}
-            accessibilityRole="button"
-            accessibilityLabel={`${step.title}. ${step.subtitle}`}
-          >
-            <View style={[styles.stepIconBox, { backgroundColor: withAlpha(step.color, 0.16) }]}>
-              <Ionicons name={step.icon} size={scale(24)} color={step.color} />
-            </View>
-            <View style={styles.stepText}>
-              <Text style={[styles.stepTitle, { fontSize: scaledFont('lg') }]}>{step.title}</Text>
-              <Text style={[styles.stepSubtitle, { fontSize: scaledFont('md') }]}>
-                {step.subtitle}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={scale(20)} color={theme.textSecondary} />
-          </TouchableOpacity>
+        {lessonMissing && (
+          <Text style={[styles.remainingTimeText, { fontSize: scaledFont('md') }]}>
+            Урок этой смены обновили. Закончи смену крестиком сверху и начни новую.
+          </Text>
         )}
 
         <TouchableOpacity
@@ -318,7 +316,11 @@ export function AdventureActiveView() {
           accessibilityRole="button"
         >
           <Text style={[styles.primaryButtonText, { fontSize: scaledFont('lg') }]}>
-            {lessonDone ? 'Закончить смену' : 'Начать задание'}
+            {lessonDone
+              ? 'Закончить смену'
+              : stageCost > 0
+                ? `${startLabel} · −${stageCost}⚡`
+                : startLabel}
           </Text>
         </TouchableOpacity>
 
@@ -360,7 +362,7 @@ export function AdventureActiveView() {
                 <AdventureAmountCard
                   icon={<Ionicons name="wallet-outline" size={scale(26)} color={theme.primary} />}
                   iconBackground={withAlpha(theme.primary, 0.15)}
-                  title="Бюджет работы:"
+                  title="Бюджет смены:"
                   amount={adventure.budget}
                   lines={[
                     spendLeft >= 0

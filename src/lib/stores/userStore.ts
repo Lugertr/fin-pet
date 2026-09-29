@@ -29,8 +29,23 @@ interface UserState {
     transactionType: TransactionType,
     description?: string
   ) => boolean;
+  /**
+   * Операция уже записана в SQLite (баланс и леджер — в общей транзакции,
+   * например при завершении смены): только баланс в памяти и статистика.
+   */
+  applyPersistedTransaction: (amount: number, transactionType: TransactionType) => void;
   setLoading: (value: boolean) => void;
   reset: () => void;
+}
+
+/**
+ * «Монет заработано» — только реальный доход: снятие своих же накоплений это
+ * перевод, а не заработок (иначе цикл пополнил/снял раздувал статистику).
+ */
+function countCoinsEarned(amount: number, transactionType: TransactionType): void {
+  if (amount > 0 && transactionType !== 'savings_withdraw') {
+    useLifetimeStatsStore.getState().recordCoinsEarned(amount);
+  }
 }
 
 export const useUserStore = create<UserState>((set, get) => ({
@@ -70,11 +85,7 @@ export const useUserStore = create<UserState>((set, get) => ({
       return false;
     }
     updateBalance(newBalance);
-    // «Монет заработано» — только реальный доход: снятие своих же накоплений
-    // это перевод, а не заработок (иначе цикл пополнил/снял раздувал статистику).
-    if (amount > 0 && transactionType !== 'savings_withdraw') {
-      useLifetimeStatsStore.getState().recordCoinsEarned(amount);
-    }
+    countCoinsEarned(amount, transactionType);
 
     getTransactionRepository()
       .add({
@@ -85,6 +96,15 @@ export const useUserStore = create<UserState>((set, get) => ({
       })
       .catch((error) => console.warn('[UserStore] Не удалось записать транзакцию:', error));
     return true;
+  },
+
+  applyPersistedTransaction: (amount, transactionType) => {
+    set((state) => ({
+      user: state.user
+        ? { ...state.user, liquid_balance: state.user.liquid_balance + amount }
+        : null,
+    }));
+    countCoinsEarned(amount, transactionType);
   },
 
   setLoading: (value) => set({ isLoading: value }),

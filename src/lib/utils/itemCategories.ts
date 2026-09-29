@@ -24,13 +24,21 @@ export function isLockedRoomSkin(item: Pick<ItemContent, 'category' | 'is_starte
   return item.category === 'room' && !item.is_starter && !isFeatureEnabled('room_skins');
 }
 
+/** Еды в магазине нет (решение пользователя 29.09.2026): энергию в смене
+ * пополняет кофе (раз за смену, lessons.json), остальное — время. Товары и
+ * код еды остаются. */
+export const FOOD_IN_SHOP = false;
+
 /** Вкладки магазина — без «Скинов»: облик питомца не продаётся, он приходит
  * с новым уровнем (решение пользователя 27.09.2026). В инвентаре вкладка есть.
+ * «Еды» нет, пока FOOD_IN_SHOP выключен.
  * «Комнаты» нет, пока скины комнаты закрыты (isLockedRoomSkin) — иначе
  * вкладка была бы пустой: стартовая комната не продаётся. */
 export const SHOP_ITEM_CATEGORIES = ITEM_CATEGORIES.filter(
   (category) =>
-    category.id !== 'skin' && (category.id !== 'room' || isFeatureEnabled('room_skins'))
+    category.id !== 'skin' &&
+    (category.id !== 'food' || FOOD_IN_SHOP) &&
+    (category.id !== 'room' || isFeatureEnabled('room_skins'))
 );
 
 /** Вкладка «Декор» объединяет обычный decor и обязательные предметы комнаты
@@ -87,6 +95,7 @@ export function isShopItem(
     !item.is_hidden &&
     !item.is_starter &&
     item.category !== 'skin' &&
+    (item.category !== 'food' || FOOD_IN_SHOP) &&
     !isLockedRoomSkin(item) &&
     itemMatchesPetType(item, petType)
   );

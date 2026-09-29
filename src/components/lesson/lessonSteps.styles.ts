@@ -150,7 +150,7 @@ export function createLessonStepsStyles({ theme }: LessonStepsStylesParams) {
 
     // Завершение — контент в ScrollView (flexGrow вместо flex, чтобы
     // justifyContent:'center' продолжал работать при коротком содержимом),
-    // кнопка «Вернуться в Хаб» в ScreenFooter снаружи (см. CompleteStage.tsx).
+    // кнопка в ScreenFooter снаружи (см. StageDoneStep.tsx).
     completeScrollArea: {
       flex: 1,
     },

@@ -85,6 +85,15 @@ export function AdventureSummaryModal({
     `${summary.toBank} на цель`,
     ...(summary.bankBonus > 0 ? [`+${summary.bankBonus} бонус копилки`] : []),
   ].join(', ');
+  // Смена платит только за свои этапы (решение 29.09.2026): сколько из
+  // оставшихся к её старту пройдено сейчас.
+  const shiftLesson = summary.lesson;
+  const doneAtStart = shiftLesson
+    ? Math.min(shiftLesson.nodesDoneAtStart, shiftLesson.nodesDone)
+    : 0;
+  const shiftStagesText = shiftLesson
+    ? `За смену пройдено этапов: ${shiftLesson.nodesDone - doneAtStart} из ${shiftLesson.nodesTotal - doneAtStart} — `
+    : '';
   // Опыта смена не даёт — его (и новый уровень) приносит урок, см. экран награды урока.
   const rewardsLine = summary.bonusAwarded > 0 ? `бонус за план +${summary.bonusAwarded}` : null;
 
@@ -164,9 +173,11 @@ export function AdventureSummaryModal({
           {(summary.autoCompleted || summary.completionRatio < 1) && (
             <Text style={[styles.note, { fontSize: scaledFont('md') }]}>
               {summary.autoCompleted ? '24 часа смены вышли. ' : ''}
-              {summary.completionRatio < 1
-                ? `Урок пройден на ${Math.round(summary.completionRatio * 100)}% — столько же бюджета, бонус копилки не начислялся.`
-                : 'Вот что получилось.'}
+              {summary.completionRatio >= 1
+                ? 'Вот что получилось.'
+                : shiftLesson
+                  ? `${shiftStagesText}выплачено ${Math.round(summary.completionRatio * 100)}% того, что осталось в бюджете, бонус копилки не начислялся.`
+                  : 'Урок этой смены обновили — зарплата за неё не начислялась, свои монеты вернулись.'}
             </Text>
           )}
           {/* Урок не закончен — прогресс сохранён, следующая смена продолжит его. */}
@@ -217,7 +228,7 @@ export function AdventureSummaryModal({
             accessibilityRole="button"
           >
             <Text style={[styles.secondaryButtonText, { fontSize: scaledFont('lg') }]}>
-              Новая работа
+              Новая смена
             </Text>
           </TouchableOpacity>
         </View>

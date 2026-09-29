@@ -1,18 +1,13 @@
 // lib/hooks/useLessons.rewards.test.ts
-// Награда за урок — вариант B (решение пользователя 28.09.2026), начисляется
-// ровно в одном месте — useLessonsStore.finishLesson: первое прохождение —
-// монеты и опыт; первая звезда (сразу или при перепрохождении) — бонус,
-// один раз; повтор — ничего (§9); тема целиком — ровно +1 уровень; в демо
-// урок — уровень. Подарков уроки не дают (только за 7 дней подряд).
+// Награда за урок начисляется ровно в одном месте —
+// useLessonsStore.finishLesson: первое прохождение — опыт; первая звезда
+// (сразу или при перепрохождении) — только звезда; монет за урок нет —
+// урок оплачивается зарплатой смены (решение 29.09.2026); тема целиком —
+// ровно +1 уровень; в демо урок — уровень. Подарков уроки не дают.
 
 import { LessonPlan, planForLesson } from '@/domain/lesson/LessonPlan';
 import { LessonProgressState, createLessonProgress, hasStar } from '@/domain/lesson/lessonProgress';
-import {
-  LESSON_PERFECT_BONUS,
-  SHIFT_LESSON_COIN_BONUS_PERCENT,
-  lessonCompletionCoins,
-  lessonXp,
-} from '@/domain/lesson/lessonRewards';
+import { lessonXp } from '@/domain/lesson/lessonRewards';
 import { computeLevel } from '@/domain/player/PlayerLevel';
 import { useGiftsStore } from '@/lib/stores/giftsStore';
 import { useUserStore } from '@/lib/stores/userStore';
@@ -62,65 +57,39 @@ beforeEach(() => {
   seedUser();
 });
 
-describe('finishLesson — награда за урок (вариант B)', () => {
-  it('первое прохождение с ошибками — монеты и опыт, без звезды; повтор — ничего', () => {
+describe('finishLesson — награда за урок: опыт и звезда, без монет', () => {
+  it('первое прохождение — опыт, монет в кошелёк нет; повтор — ничего', () => {
     const first = useLessonsStore.getState().finishLesson(PLAN, allDone(PLAN, false));
 
-    expect(first.reward).toMatchObject({
-      completionCoins: lessonCompletionCoins(PLAN),
-      perfectCoins: 0,
-      xp: lessonXp(LESSON, LESSONS),
-    });
-    expect(wallet()).toBe(lessonCompletionCoins(PLAN));
+    expect(first.reward).toMatchObject({ xp: lessonXp(LESSON, LESSONS) });
+    expect(wallet()).toBe(0);
     expect(useLessonsStore.getState().totalXp).toBe(lessonXp(LESSON, LESSONS));
     expect(hasStar(first.state)).toBe(false);
 
     const again = useLessonsStore.getState().finishLesson(PLAN, first.state);
-    expect(again.reward).toMatchObject({ coins: 0, xp: 0, levelUp: null });
-    expect(wallet()).toBe(lessonCompletionCoins(PLAN));
+    expect(again.reward).toMatchObject({ xp: 0, levelUp: null });
   });
 
-  it('звезда при перепрохождении — бонус один раз, без повторных монет и опыта', () => {
+  it('звезда при перепрохождении — один раз, без опыта и монет', () => {
     const first = useLessonsStore.getState().finishLesson(PLAN, allDone(PLAN, false));
-    const afterFirst = wallet();
     const xpAfterFirst = useLessonsStore.getState().totalXp;
 
     const retried = { ...allDone(PLAN, true), completedAt: first.state.completedAt };
     const perfect = useLessonsStore.getState().finishLesson(PLAN, retried);
     expect(perfect.firstPerfect).toBe(true);
-    expect(perfect.reward).toMatchObject({
-      completionCoins: 0,
-      perfectCoins: LESSON_PERFECT_BONUS,
-    });
-    expect(wallet()).toBe(afterFirst + LESSON_PERFECT_BONUS);
     expect(hasStar(perfect.state)).toBe(true);
+    expect(perfect.reward.xp).toBe(0);
 
     const again = useLessonsStore.getState().finishLesson(PLAN, perfect.state);
-    expect(again.reward.coins).toBe(0);
-    expect(wallet()).toBe(afterFirst + LESSON_PERFECT_BONUS);
+    expect(again.firstPerfect).toBe(false);
     expect(useLessonsStore.getState().totalXp).toBe(xpAfterFirst);
-  });
-
-  it('сразу без ошибок — монеты, бонус и опыт вместе', () => {
-    const result = useLessonsStore.getState().finishLesson(PLAN, allDone(PLAN, true));
-    expect(result.reward.coins).toBe(lessonCompletionCoins(PLAN) + LESSON_PERFECT_BONUS);
-    expect(wallet()).toBe(lessonCompletionCoins(PLAN) + LESSON_PERFECT_BONUS);
-  });
-
-  it('урок смены — +10% к монетам', () => {
-    const result = useLessonsStore
-      .getState()
-      .finishLesson(PLAN, allDone(PLAN, false), { shiftLesson: true });
-    expect(result.reward.completionCoins).toBe(
-      Math.round(lessonCompletionCoins(PLAN) * (1 + SHIFT_LESSON_COIN_BONUS_PERCENT / 100))
-    );
+    expect(wallet()).toBe(0);
   });
 
   it('не всё пройдено — урок не завершён и ничего не начислено', () => {
     const result = useLessonsStore.getState().finishLesson(PLAN, createLessonProgress(LESSON.id));
     expect(result.firstCompletion).toBe(false);
-    expect(result.reward).toMatchObject({ coins: 0, xp: 0, levelUp: null });
-    expect(wallet()).toBe(0);
+    expect(result.reward).toMatchObject({ xp: 0, levelUp: null });
   });
 
   it('уроки подарков не выдают — ни в первый раз, ни при повторе', () => {

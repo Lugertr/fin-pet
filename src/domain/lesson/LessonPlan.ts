@@ -1,9 +1,13 @@
 // domain/lesson/LessonPlan.ts
 // Урок из узлов (решение пользователя 28.09.2026): ситуация по теме → узлы-
-// блоки → заключение. Узел = блок чтения (ситуация у первого узла + карточки
-// теории, всегда первым и перечитываемый) + действия: тест, мини-игра,
-// событие. Каждый узел — точка прогресс-трека смены, последняя точка трека —
-// завершение урока с заключением.
+// блоки → заключение. В контенте узел = карточки теории + действия: тест,
+// мини-игра, событие.
+// План урока (решение пользователя 29.09.2026): первым — этап «Теория»
+// (ситуация и карточки всех узлов, перечитываемый), затем по этапу на
+// каждый узел контента — только его действия; после последнего — сразу
+// заключение и итоги. Каждый этап — точка трека смены, в конце трека —
+// флажок финиша (отметка, не кнопка). Этап «Теория» стоит энергии как
+// обычный (nodeEnergyCost урока).
 //
 // Здесь — чистые функции над контентом: план урока для плеера
 // (planForLesson) и правила состава урока (validateNodeLesson), которые
@@ -19,6 +23,7 @@ import {
   QuestionContent,
   TheoryCardContent,
 } from '@/domain/content/LessonContent';
+import { economyErrors, nodeEnergyCost, theoryEnergyCost } from './lessonEconomy';
 
 /** §9.5 — доля верных ответов, чтобы тест засчитался. */
 export const TEST_PASS_THRESHOLD = 0.7;
@@ -35,23 +40,37 @@ export const DEMO_NODE_LESSON_LIMITS = {
   testQuestions: 2,
 } as const;
 
-/** Тип узла на треке — по его первому действию. */
-export type LessonNodeKind = LessonActivityContent['type'];
+/** Тип этапа на треке: «Теория» или по первому действию (nodeKind). */
+export type LessonNodeKind = LessonActivityContent['type'] | 'theory';
+
+/** Викторина по сути — тест, а не игра (решение пользователя 29.09.2026):
+ * на треке у неё иконка и название теста. */
+export function nodeKind(activity: LessonActivityContent | undefined): LessonNodeKind {
+  if (!activity) return 'test';
+  if (activity.type === 'minigame' && activity.minigame_type === 'quiz') return 'test';
+  return activity.type;
+}
 
 export interface PlanActivity {
-  /** «узел.действие» (например, «0.1») — ключ результата в прогрессе урока. */
+  /** «узел контента.действие» (например, «0.1») — ключ результата в прогрессе
+   * урока. По узлу контента, а не этапу плана: появление этапа «Теория» не
+   * сдвинуло ключи, и начатые уроки не сбросились. */
   id: string;
+  /** Этап плана, к которому относится действие. */
   nodeIndex: number;
   content: LessonActivityContent;
 }
 
 export interface PlanNode {
   index: number;
-  /** Ситуация урока — только у первого узла. */
+  /** Ситуация урока — только у этапа «Теория». */
   situation: LessonSituationContent | null;
+  /** Карточки — только у этапа «Теория» (все карточки урока). */
   cards: TheoryCardContent[];
   activities: PlanActivity[];
   kind: LessonNodeKind;
+  /** Энергия за этап в смене (lessons.json: nodeEnergyCost / energyCost узла). */
+  energyCost: number;
 }
 
 export interface LessonPlan {
@@ -67,22 +86,24 @@ export function activityId(nodeIndex: number, activityIndex: number): string {
   return `${nodeIndex}.${activityIndex}`;
 }
 
-function makeNode(
+/** Этап заданий: действия узла контента contentIndex на этапе плана index. */
+function makeTaskNode(
   index: number,
-  situation: LessonSituationContent | null,
-  cards: TheoryCardContent[],
-  activities: LessonActivityContent[]
+  contentIndex: number,
+  activities: LessonActivityContent[],
+  energyCost: number
 ): PlanNode {
   return {
     index,
-    situation,
-    cards,
+    situation: null,
+    cards: [],
     activities: activities.map((content, activityIndex) => ({
-      id: activityId(index, activityIndex),
+      id: activityId(contentIndex, activityIndex),
       nodeIndex: index,
       content,
     })),
-    kind: activities[0]?.type ?? 'test',
+    kind: nodeKind(activities[0]),
+    energyCost,
   };
 }
 
@@ -97,18 +118,31 @@ function trimForDemo(activity: LessonActivityContent): LessonActivityContent {
 /** План урока для плеера и трека смены; demo — укороченный урок (§18). */
 export function planForLesson(lesson: LessonContent, demo = false): LessonPlan {
   const nodes = demo ? lesson.nodes.slice(0, DEMO_NODE_LESSON_LIMITS.nodes) : lesson.nodes;
+  const theory: PlanNode = {
+    index: 0,
+    situation: lesson.situation,
+    cards: nodes.flatMap((node) =>
+      demo ? node.cards.slice(0, DEMO_NODE_LESSON_LIMITS.cardsPerNode) : node.cards
+    ),
+    activities: [],
+    kind: 'theory',
+    energyCost: theoryEnergyCost(lesson),
+  };
   return {
     lessonId: lesson.id,
     branchId: lesson.branch_id,
     title: lesson.title,
-    nodes: nodes.map((node, index) =>
-      makeNode(
-        index,
-        index === 0 ? lesson.situation : null,
-        demo ? node.cards.slice(0, DEMO_NODE_LESSON_LIMITS.cardsPerNode) : node.cards,
-        demo ? node.activities.map(trimForDemo) : node.activities
-      )
-    ),
+    nodes: [
+      theory,
+      ...nodes.map((node, contentIndex) =>
+        makeTaskNode(
+          contentIndex + 1,
+          contentIndex,
+          demo ? node.activities.map(trimForDemo) : node.activities,
+          nodeEnergyCost(lesson, contentIndex)
+        )
+      ),
+    ],
     conclusion: lesson.conclusion,
   };
 }
@@ -123,7 +157,9 @@ export function planForLesson(lesson: LessonContent, demo = false): LessonPlan {
  * полному плану (не демо): номера действий у демо-плана те же.
  */
 export function lessonStructureKey(plan: LessonPlan): string {
+  // Этап «Теория» без действий в отпечаток не входит — ключи прогресса те же.
   return plan.nodes
+    .filter((node) => node.activities.length > 0)
     .map((node) =>
       node.activities
         .map(({ content }) =>
@@ -176,7 +212,9 @@ export function swipeQuestionErrors(where: string, questions: QuestionContent[])
  * - мини-игра известного типа (quiz и tinder_swipe — с вопросами; свайп —
  *   вопрос «да / нет» с вариантами [нет, да]);
  * - событие: 2–3 варианта с разными id, есть бесплатный, трата — с корзиной
- *   (нужное / желаемое), суммы целые (§7.6).
+ *   (нужное / желаемое), суммы целые (§7.6);
+ * - поля экономики (price, nodeEnergyCost, coffee, hintPrice, energyCost) —
+ *   целые ≥ 0 (lessonEconomy.ts).
  */
 export function validateNodeLesson(lesson: LessonContent): string[] {
   const errors: string[] = [];
@@ -189,6 +227,7 @@ export function validateNodeLesson(lesson: LessonContent): string[] {
     errors.push(`${at}: нет заключения`);
   }
   if (lesson.nodes.length === 0) errors.push(`${at}: нет узлов`);
+  errors.push(...economyErrors(lesson));
 
   const questionIds = new Set<number>();
   const eventIds = new Set<string>();

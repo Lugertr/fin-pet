@@ -37,7 +37,8 @@ function activityRow(
   }
   if (content.type === 'minigame') {
     return {
-      icon: 'game-controller-outline',
+      // Викторина по сути — тест (решение 29.09.2026): иконка теста.
+      icon: content.minigame_type === 'quiz' ? 'help-circle-outline' : 'game-controller-outline',
       label: `Мини-игра «${MINIGAME_NAMES[content.minigame_type] ?? 'Игра'}»`,
     };
   }
@@ -118,13 +119,15 @@ export function LessonOverview({
               <Text style={[styles.sectionTitle, { fontSize: scaledFont('md') }]}>
                 Этап {node.index + 1}
               </Text>
-              {renderRow(
-                `reading-${node.index}`,
-                'book-outline',
-                node.situation ? 'Ситуация и теория' : 'Теория',
-                null,
-                { label: 'Перечитать', onPress: () => onOpenReading(node) }
-              )}
+              {/* Чтение — только у этапа «Теория», у этапов заданий карточек нет. */}
+              {(node.situation || node.cards.length > 0) &&
+                renderRow(
+                  `reading-${node.index}`,
+                  'book-outline',
+                  node.situation ? 'Ситуация и теория' : 'Теория',
+                  null,
+                  { label: 'Перечитать', onPress: () => onOpenReading(node) }
+                )}
               {node.activities.map((activity) => {
                 const result = progress.results[activity.id];
                 const { icon, label } = activityRow(activity, eventFor(activity));

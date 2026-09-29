@@ -1,18 +1,11 @@
 // domain/lesson/lessonRewards.test.ts
-// Награда за урок — вариант B (решение пользователя 28.09.2026) и опыт:
-// тема уроков целиком — ровно +1 уровень (CLAUDE.md: рост «стадии» — здесь
-// уровня игрока), монеты только целые.
+// Награда за урок — опыт: тема уроков целиком — ровно +1 уровень (CLAUDE.md:
+// рост «стадии» — здесь уровня игрока). Монет за урок нет (29.09.2026).
 
 import lessonsJson from '../../../content/lessons.json';
 import { LessonContent } from '@/domain/content/LessonContent';
 import { XP_PER_LEVEL, computeLevel } from '@/domain/player/PlayerLevel';
-import { planForLesson } from './LessonPlan';
-import {
-  LESSON_PERFECT_BONUS,
-  lessonCompletionCoins,
-  lessonRewardAmounts,
-  lessonXp,
-} from './lessonRewards';
+import { lessonRewardXp, lessonXp } from './lessonRewards';
 
 const LESSONS = lessonsJson as unknown as LessonContent[];
 const BRANCH_IDS = [...new Set(LESSONS.map((l) => l.branch_id))];
@@ -48,68 +41,19 @@ describe('lessonXp — опыт темы делится между её урок
   });
 });
 
-describe('lessonRewardAmounts — вариант B', () => {
+describe('lessonRewardXp — опыт за урок (монет за урок нет, решение 29.09.2026)', () => {
   const lesson = LESSONS.find((l) => l.branch_id === 1 && l.order_index === 1)!;
-  const plan = planForLesson(lesson);
-  const base = {
-    plan,
-    lesson,
-    lessons: LESSONS,
-    coinBonusPercent: 0,
-    isDemo: false,
-  };
+  const base = { lesson, lessons: LESSONS, isDemo: false };
 
-  it('первое прохождение с ошибками — монеты и опыт, без бонуса', () => {
-    expect(lessonRewardAmounts({ ...base, firstCompletion: true, firstPerfect: false })).toEqual({
-      completionCoins: lessonCompletionCoins(plan),
-      perfectCoins: 0,
-      xp: lessonXp(lesson, LESSONS),
-    });
+  it('первое прохождение — опыт урока', () => {
+    expect(lessonRewardXp({ ...base, firstCompletion: true })).toBe(lessonXp(lesson, LESSONS));
   });
 
-  it('первое прохождение без ошибок — ещё и бонус за звезду', () => {
-    const reward = lessonRewardAmounts({ ...base, firstCompletion: true, firstPerfect: true });
-    expect(reward.completionCoins).toBe(lessonCompletionCoins(plan));
-    expect(reward.perfectCoins).toBe(LESSON_PERFECT_BONUS);
-  });
-
-  it('звезда при перепрохождении — только бонус, без монет за прохождение и опыта', () => {
-    expect(lessonRewardAmounts({ ...base, firstCompletion: false, firstPerfect: true })).toEqual({
-      completionCoins: 0,
-      perfectCoins: LESSON_PERFECT_BONUS,
-      xp: 0,
-    });
-  });
-
-  it('повтор без новой звезды — ничего', () => {
-    expect(lessonRewardAmounts({ ...base, firstCompletion: false, firstPerfect: false })).toEqual({
-      completionCoins: 0,
-      perfectCoins: 0,
-      xp: 0,
-    });
-  });
-
-  it('надбавки (урок смены, ноутбук) — на монеты, суммы целые; опыт не меняют', () => {
-    const reward = lessonRewardAmounts({
-      ...base,
-      coinBonusPercent: 10 + 5,
-      firstCompletion: true,
-      firstPerfect: true,
-    });
-    expect(reward.completionCoins).toBe(Math.round(lessonCompletionCoins(plan) * 1.15));
-    expect(reward.perfectCoins).toBe(Math.round(LESSON_PERFECT_BONUS * 1.15));
-    expect(Number.isInteger(reward.completionCoins)).toBe(true);
-    expect(Number.isInteger(reward.perfectCoins)).toBe(true);
-    expect(reward.xp).toBe(lessonXp(lesson, LESSONS));
+  it('повтор — ничего', () => {
+    expect(lessonRewardXp({ ...base, firstCompletion: false })).toBe(0);
   });
 
   it('демо-режим — урок даёт целый уровень опыта', () => {
-    const reward = lessonRewardAmounts({
-      ...base,
-      isDemo: true,
-      firstCompletion: true,
-      firstPerfect: false,
-    });
-    expect(reward.xp).toBe(XP_PER_LEVEL);
+    expect(lessonRewardXp({ ...base, isDemo: true, firstCompletion: true })).toBe(XP_PER_LEVEL);
   });
 });

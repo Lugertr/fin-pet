@@ -11,27 +11,21 @@ import lessonsJson from '../../../content/lessons.json';
 import { AchievementDefinition } from '@/domain/achievement/Achievement';
 import { ItemContent } from '@/domain/content/ItemContent';
 import { LessonContent } from '@/domain/content/LessonContent';
-import {
-  LESSON_PERFECT_BONUS,
-  LESSON_STEP_REWARDS,
-  SHIFT_LESSON_COIN_BONUS_PERCENT,
-} from '@/domain/lesson/lessonRewards';
+import { lessonSalary } from '@/domain/lesson/lessonEconomy';
 import { QUIZ_TRAINER_QUESTION_COUNT } from '@/domain/arcade/TrainerSelection';
 import { ARCADE_COINS_PER_CORRECT, ARCADE_ENERGY_COST } from '@/constants/gameplay';
 
 const ITEMS = itemsJson as ItemContent[];
 const LESSONS = lessonsJson as unknown as LessonContent[];
 
-/** Бюджет смены (ADVENTURE_BASE_INCOME) + бонус за план. */
-const SHIFT_BUDGET_WITH_PLAN_BONUS = 100 + 10;
-/** Надбавка за урок смены (+10%, см. lessonRewards.ts). */
-const QUEST_COIN_MULTIPLIER = 1 + SHIFT_LESSON_COIN_BONUS_PERCENT / 100;
+/** Бонус за план — в бюджет смены. */
+const PLAN_BONUS = 10;
 
 /**
- * Верхняя граница денег за одну идеальную смену (смена = один урок): весь
- * бюджет с бонусом за план, самые щедрые варианты всех событий самого
- * «денежного» урока и монеты за урок вместе с бонусом за звезду (стартовый
- * ноутбук без бонуса).
+ * Верхняя граница денег за одну идеальную смену (смена = один урок): самая
+ * большая зарплата урока (price из lessons.json, стартовый ноутбук без
+ * надбавки) с бонусом за план и самые щедрые варианты всех событий самого
+ * «денежного» урока. Монет за урок в кошелёк нет (решение 29.09.2026).
  * Награды за уровень — отдельные вехи, в эту границу не входят.
  */
 function perfectShiftMaxIncome(): number {
@@ -50,12 +44,8 @@ function perfectShiftMaxIncome(): number {
         )
     )
   );
-  const lessonCoins =
-    Math.round(
-      (LESSON_STEP_REWARDS.theory + LESSON_STEP_REWARDS.minigame + LESSON_STEP_REWARDS.test) *
-        QUEST_COIN_MULTIPLIER
-    ) + Math.round(LESSON_PERFECT_BONUS * QUEST_COIN_MULTIPLIER);
-  return SHIFT_BUDGET_WITH_PLAN_BONUS + eventRewards + lessonCoins;
+  const salary = Math.max(...LESSONS.map((lesson) => lessonSalary(lesson, 0)));
+  return salary + PLAN_BONUS + eventRewards;
 }
 
 describe('экономика магазина', () => {

@@ -1,6 +1,7 @@
 // domain/lesson/lessonProgress.test.ts
-// Прогресс урока из узлов (28.09.2026): порядок «чтение → действия», трек
-// «N из M», продолжение с того же места, перепрохождение и «идеально».
+// Прогресс урока из узлов (28.09.2026): порядок «Теория → этапы заданий»
+// (29.09.2026), трек «N из M», продолжение с того же места, перепрохождение
+// и «идеально».
 
 import { LessonContent } from '@/domain/content/LessonContent';
 import { LessonPlan, planForLesson } from './LessonPlan';
@@ -60,8 +61,9 @@ const LESSON: LessonContent = {
 };
 
 const plan: LessonPlan = planForLesson(LESSON);
-const [testActivity, eventActivity] = plan.nodes[0].activities;
-const [gameActivity] = plan.nodes[1].activities;
+// Этап 0 — «Теория», задания — в этапах 1 и 2.
+const [testActivity, eventActivity] = plan.nodes[1].activities;
+const [gameActivity] = plan.nodes[2].activities;
 
 /** Проходит весь урок; perfectTest — без ошибок ли тест. */
 function playThrough(perfectTest: boolean): LessonProgressState {
@@ -69,13 +71,12 @@ function playThrough(perfectTest: boolean): LessonProgressState {
   state = markReadingDone(state, 0);
   state = recordActivityResult(state, testActivity, { perfect: perfectTest });
   state = recordActivityResult(state, eventActivity, { perfect: true, optionId: 'skip' });
-  state = markReadingDone(state, 1);
   state = recordActivityResult(state, gameActivity, { perfect: true });
   return state;
 }
 
-describe('currentPosition — порядок внутри узла', () => {
-  it('сначала блок чтения, потом действия по порядку, потом заключение', () => {
+describe('currentPosition — порядок урока', () => {
+  it('сначала «Теория», потом задания по порядку, потом заключение', () => {
     let state = createLessonProgress(LESSON.id);
     expect(currentPosition(plan, state)).toMatchObject({ kind: 'reading', node: { index: 0 } });
 
@@ -91,10 +92,14 @@ describe('currentPosition — порядок внутри узла', () => {
       activity: { id: '0.1' },
     });
 
+    // У этапа заданий нет карточек — сразу задание, без чтения.
     state = recordActivityResult(state, eventActivity, { perfect: true, optionId: 'go' });
-    expect(currentPosition(plan, state)).toMatchObject({ kind: 'reading', node: { index: 1 } });
+    expect(currentPosition(plan, state)).toMatchObject({
+      kind: 'activity',
+      node: { index: 2 },
+      activity: { id: '1.0' },
+    });
 
-    state = markReadingDone(state, 1);
     state = recordActivityResult(state, gameActivity, { perfect: false });
     expect(currentPosition(plan, state)).toEqual({ kind: 'final' });
 
@@ -114,22 +119,26 @@ describe('currentPosition — порядок внутри узла', () => {
 });
 
 describe('трек «N из M»', () => {
-  it('узлы урока плюс финальный узел', () => {
-    expect(totalNodeCount(plan)).toBe(3);
+  it('«Теория» + этапы заданий + финиш', () => {
+    expect(totalNodeCount(plan)).toBe(4);
     let state = createLessonProgress(LESSON.id);
     expect(completedNodeCount(plan, state)).toBe(0);
 
+    state = markReadingDone(state, 0);
+    expect(completedNodeCount(plan, state)).toBe(1);
+
     state = playThrough(true);
-    expect(completedNodeCount(plan, state)).toBe(2);
-    state = settleLesson(plan, state, '2026-09-28T10:00:00.000Z').state;
     expect(completedNodeCount(plan, state)).toBe(3);
+    state = settleLesson(plan, state, '2026-09-28T10:00:00.000Z').state;
+    expect(completedNodeCount(plan, state)).toBe(4);
   });
 
-  it('открыть можно пройденные узлы и текущий, будущие — нет', () => {
+  it('открыть можно пройденные этапы и текущий, будущие — нет', () => {
     const state = markReadingDone(createLessonProgress(LESSON.id), 0);
     expect(isNodeUnlocked(plan, state, 0)).toBe(true);
-    expect(isNodeUnlocked(plan, state, 1)).toBe(false);
-    expect(isNodeUnlocked(plan, playThrough(true), 1)).toBe(true);
+    expect(isNodeUnlocked(plan, state, 1)).toBe(true);
+    expect(isNodeUnlocked(plan, state, 2)).toBe(false);
+    expect(isNodeUnlocked(plan, playThrough(true), 2)).toBe(true);
   });
 });
 

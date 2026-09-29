@@ -29,7 +29,7 @@ export interface ItemContent {
   energy_max_bonus: number;
   /** Уют/освещение — +скорость восстановления энергии в час */
   energy_recovery_bonus: number;
-  /** Ноутбуки/декор стен — +% монет за уроки */
+  /** Ноутбуки/декор стен — +% к зарплате смены (price урока) */
   coin_bonus_percent: number;
   /** Копилки — +bonus_rate накоплений (§11.4) */
   savings_bonus_rate: number;

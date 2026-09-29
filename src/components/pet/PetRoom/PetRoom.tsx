@@ -158,7 +158,7 @@ export function PetRoom({
   const piggybankBonusText = piggybank?.savings_bonus_rate
     ? `+${piggybank.savings_bonus_rate}%`
     : null;
-  // Ноутбук — надбавка к монетам за уроки (у стартового 0 — бейджа нет).
+  // Ноутбук — надбавка к зарплате смены (у стартового 0 — бейджа нет).
   const laptopBonusText = laptop?.coin_bonus_percent ? `+${laptop.coin_bonus_percent}% C` : null;
 
   return (
@@ -242,7 +242,7 @@ export function PetRoom({
             <RoomLabelPill
               top={layout.laptop.top}
               left={layout.laptop.left}
-              label="Работа"
+              label="Смена"
               badge={laptopBonusText}
               styles={styles}
             />

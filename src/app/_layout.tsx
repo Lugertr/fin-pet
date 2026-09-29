@@ -72,7 +72,14 @@ function RootStack() {
         <Stack.Screen name="(modal)/theme-reward" options={{ presentation: 'modal' }} />
         <Stack.Screen name="(modal)/arcade-lobby" options={{ presentation: 'modal' }} />
         <Stack.Screen name="(modal)/arcade" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="(modal)/lesson/[id]" options={{ presentation: 'modal' }} />
+        {/* Экран урока в стеке всегда один (решение 29.09.2026): двойной тап
+            или открытие урока поверх урока не оставляют под ним копию, которая
+            потом всплыла бы «вне смены». */}
+        <Stack.Screen
+          name="(modal)/lesson/[id]"
+          options={{ presentation: 'modal' }}
+          dangerouslySingular={() => 'lesson'}
+        />
         <Stack.Screen name="(modal)/adult-section" options={{ presentation: 'modal' }} />
         {/* Подэкраны вкладки «Прогресс» — обычный переход вправо, как на макетах. */}
         <Stack.Screen name="(modal)/settings" />

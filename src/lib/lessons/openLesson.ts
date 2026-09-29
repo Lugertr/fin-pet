@@ -11,6 +11,7 @@
 
 import { router } from 'expo-router';
 
+import { ensureStageEnergy } from '@/lib/adventure/stageEnergy';
 import { LESSONS, useLessonsStore } from '@/lib/hooks/useLessons';
 import { useUserStore } from '@/lib/stores/userStore';
 import { Alert } from '@/lib/utils/alert';
@@ -24,12 +25,15 @@ export function canOpenLessonDirectly(lessonId: number): boolean {
 
 /** Открывает урок, если можно; иначе показывает объяснение. Возвращает, открыт ли урок. */
 export function openLessonOrExplain(lessonId: number): boolean {
+  const lesson = LESSONS.find((l) => l.id === lessonId);
   if (canOpenLessonDirectly(lessonId)) {
+    // Урок смены с вкладки: новый этап стоит энергии, как и с экрана работы.
+    const completed = useLessonsStore.getState().progress[lessonId]?.status === 'completed';
+    if (lesson && !completed && !ensureStageEnergy(lesson.id, lesson.branch_id)) return false;
     router.push(`/(modal)/lesson/${lessonId}` as never);
     return true;
   }
 
-  const lesson = LESSONS.find((l) => l.id === lessonId);
   // Ближайший предыдущий урок темы — его и нужно пройти.
   const previous = LESSONS.filter((l) => l.branch_id === lesson?.branch_id)
     .sort((a, b) => b.order_index - a.order_index)

@@ -16,6 +16,7 @@ import {
   fiveLettersWordFor,
   lessonQuestionPools,
   lessonStructureKey,
+  nodeKind,
   validateNodeLesson,
 } from './LessonPlan';
 
@@ -75,21 +76,37 @@ function lesson(overrides: Partial<LessonContent> = {}): LessonContent {
 }
 
 describe('planForLesson', () => {
-  it('узлы с id действий «узел.действие», ситуация только у первого узла', () => {
-    const plan = planForLesson(lesson());
-    expect(plan.nodes).toHaveLength(3);
-    expect(plan.nodes[0].situation?.title).toBe('Карманные деньги');
-    expect(plan.nodes[1].situation).toBeNull();
-    expect(plan.nodes[2].activities.map((a) => a.id)).toEqual(['2.0', '2.1']);
+  it('первый этап — «Теория»: ситуация и все карточки урока, без заданий', () => {
+    const content = lesson();
+    const plan = planForLesson(content);
+    expect(plan.nodes).toHaveLength(content.nodes.length + 1);
+    const [theory] = plan.nodes;
+    expect(theory.kind).toBe('theory');
+    expect(theory.situation?.title).toBe('Карманные деньги');
+    expect(theory.cards).toEqual(content.nodes.flatMap((node) => node.cards));
+    expect(theory.activities).toEqual([]);
     expect(plan.conclusion?.title).toBe('Итог');
+  });
+
+  it('дальше — по этапу на узел: только задания, id «узел контента.действие»', () => {
+    const plan = planForLesson(lesson());
+    for (const node of plan.nodes.slice(1)) {
+      expect(node.situation).toBeNull();
+      expect(node.cards).toEqual([]);
+      expect(node.activities.length).toBeGreaterThan(0);
+      expect(node.activities.every((a) => a.nodeIndex === node.index)).toBe(true);
+    }
+    // Ключи прогресса — по узлу контента: этап «Теория» их не сдвинул.
+    expect(plan.nodes[3].activities.map((a) => a.id)).toEqual(['2.0', '2.1']);
   });
 
   it('отпечаток структуры — типы действий по этапам; тексты на него не влияют', () => {
     const plan = planForLesson(lesson());
     const key = lessonStructureKey(plan);
-    expect(key.split('|')).toHaveLength(plan.nodes.length);
+    // «Теория» без заданий в отпечаток не входит.
+    expect(key.split('|')).toHaveLength(plan.nodes.length - 1);
     expect(key.split('|')[0]).toBe(
-      plan.nodes[0].activities
+      plan.nodes[1].activities
         .map(({ content }) =>
           content.type === 'minigame' ? `minigame:${content.minigame_type}` : content.type
         )
@@ -102,15 +119,37 @@ describe('planForLesson', () => {
     expect(key.startsWith(lessonStructureKey(planForLesson(lesson(), true)))).toBe(true);
   });
 
-  it('тип узла на треке — по первому действию', () => {
-    expect(planForLesson(lesson()).nodes.map((n) => n.kind)).toEqual(['test', 'minigame', 'event']);
+  it('тип этапа на треке — «Теория», дальше по первому действию', () => {
+    expect(planForLesson(lesson()).nodes.map((n) => n.kind)).toEqual([
+      'theory',
+      'test',
+      'minigame',
+      'event',
+    ]);
+  });
+
+  it('энергия этапа: «Теория» — как обычный этап, у этапа заданий — своя, если задана', () => {
+    const content = lesson({ nodeEnergyCost: 12 });
+    content.nodes[1] = { ...content.nodes[1], energyCost: 20 };
+    expect(planForLesson(content).nodes.map((n) => n.energyCost)).toEqual([12, 12, 20, 12]);
+  });
+
+  it('викторина на треке — тест, остальные мини-игры — игра', () => {
+    expect(nodeKind({ type: 'minigame', minigame_type: 'quiz', questions: [] })).toBe('test');
+    expect(nodeKind({ type: 'minigame', minigame_type: 'tinder_swipe', questions: [] })).toBe(
+      'minigame'
+    );
+    expect(nodeKind({ type: 'minigame', minigame_type: 'five_letters' })).toBe('minigame');
   });
 
   it('демо: первые узлы, по одной карточке, короткие тесты', () => {
     const plan = planForLesson(lesson(), true);
-    expect(plan.nodes).toHaveLength(DEMO_NODE_LESSON_LIMITS.nodes);
-    expect(plan.nodes[0].cards).toHaveLength(DEMO_NODE_LESSON_LIMITS.cardsPerNode);
-    const firstTest = plan.nodes[0].activities[0].content;
+    // «Теория» + первые узлы.
+    expect(plan.nodes).toHaveLength(DEMO_NODE_LESSON_LIMITS.nodes + 1);
+    expect(plan.nodes[0].cards).toHaveLength(
+      DEMO_NODE_LESSON_LIMITS.nodes * DEMO_NODE_LESSON_LIMITS.cardsPerNode
+    );
+    const firstTest = plan.nodes[1].activities[0].content;
     expect(firstTest.type === 'test' && firstTest.questions).toHaveLength(
       DEMO_NODE_LESSON_LIMITS.testQuestions
     );
@@ -371,11 +410,12 @@ describe('content/lessons.json', () => {
     expect(errors).toEqual([]);
   });
 
-  it('у каждого урока есть этапы с действиями', () => {
+  it('у каждого урока — «Теория» с карточками и этапы с действиями', () => {
     for (const item of lessons) {
-      const plan = planForLesson(item);
-      expect(plan.nodes.length).toBeGreaterThan(0);
-      for (const node of plan.nodes) expect(node.activities.length).toBeGreaterThan(0);
+      const [theory, ...tasks] = planForLesson(item).nodes;
+      expect(theory.cards.length).toBeGreaterThan(0);
+      expect(tasks.length).toBeGreaterThan(0);
+      for (const node of tasks) expect(node.activities.length).toBeGreaterThan(0);
     }
   });
 });

@@ -108,6 +108,17 @@ class FeedbackService {
     }
   }
 
+  /** Обрывает звук, если он ещё играет (например, свайп перед «верно / неверно»). */
+  stopSound(type: SoundType): void {
+    const player = this.soundCache.get(type);
+    if (!player) return;
+    try {
+      player.pause();
+    } catch (error) {
+      console.warn(`[Feedback] Не удалось остановить звук ${type}:`, error);
+    }
+  }
+
   async triggerHaptic(type: HapticType): Promise<void> {
     if (!this.isEnabled || !this.hapticsEnabled) return;
     if (Platform.OS === 'web') return;

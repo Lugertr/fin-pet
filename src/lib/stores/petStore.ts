@@ -183,3 +183,15 @@ export const usePetStore = create<PetState>((set, get) => ({
       equippedSkinVariant: 0,
     }),
 }));
+
+/**
+ * Энергия питомца уже полная (с бонусом кровати): прибавлять нечего — кофе в
+ * смене в этот момент не продаётся (решение 29.09.2026), иначе монеты ушли бы
+ * впустую. Сначала пересчитывает энергию по времени.
+ */
+export function isPetEnergyFull(): boolean {
+  const store = usePetStore.getState();
+  store.refreshMood();
+  const { currentMood, moodMaxBonus } = usePetStore.getState();
+  return currentMood >= MOOD_MAX + moodMaxBonus;
+}

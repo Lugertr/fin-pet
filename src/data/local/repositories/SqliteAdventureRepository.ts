@@ -13,6 +13,8 @@ interface AdventureRow {
   lesson_id: number | null;
   projected_income: number;
   wallet_contribution?: number | null;
+  coffee_bought?: number | null;
+  stages_done_at_start?: number | null;
   budget: number;
   plan_mandatory: number;
   plan_optional: number;
@@ -37,6 +39,8 @@ function rowToAdventure(row: AdventureRow): AdventureRecord {
     lessonId: row.lesson_id ?? null,
     projectedIncome: row.projected_income,
     walletContribution: row.wallet_contribution ?? 0,
+    coffeeBought: Boolean(row.coffee_bought),
+    stagesDoneAtStart: row.stages_done_at_start ?? 0,
     budget: row.budget ?? 0,
     plan: {
       mandatory: row.plan_mandatory,
@@ -131,16 +135,32 @@ export class SqliteAdventureRepository implements AdventureRepository {
     plannedEndAt: string,
     budget: number,
     lessonId: number,
-    walletContribution: number
+    walletContribution: number,
+    projectedIncome: number,
+    stagesDoneAtStart: number
   ): Promise<void> {
     const db = await this.getDb();
     await db.runAsync(
       `UPDATE adventures
        SET status = 'active', started_at = ?, planned_end_at = ?, budget = ?, lesson_id = ?,
-           wallet_contribution = ?
+           wallet_contribution = ?, projected_income = ?, stages_done_at_start = ?
        WHERE id = ?`,
-      [startedAt, plannedEndAt, budget, lessonId, walletContribution, id]
+      [
+        startedAt,
+        plannedEndAt,
+        budget,
+        lessonId,
+        walletContribution,
+        projectedIncome,
+        stagesDoneAtStart,
+        id,
+      ]
     );
+  }
+
+  async setCoffeeBought(id: number): Promise<void> {
+    const db = await this.getDb();
+    await db.runAsync('UPDATE adventures SET coffee_bought = 1 WHERE id = ?', [id]);
   }
 
   async setBudget(id: number, budget: number): Promise<void> {

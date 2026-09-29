@@ -56,10 +56,10 @@ export function HubHeader({
   // начать её (или вернуться к недоделанному планированию).
   const mainCtaLabel =
     adventureStatus === 'active'
-      ? 'Продолжить работу'
+      ? 'Продолжить смену'
       : adventureStatus === 'planning'
         ? 'Продолжить планирование'
-        : 'Начать работу';
+        : 'Начать смену';
   // Во время смены хаб остаётся хабом — кнопка открывает экран смены.
   const countdown = useAdventureCountdown();
   const remainingCaption = countdown.active

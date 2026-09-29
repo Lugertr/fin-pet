@@ -90,6 +90,12 @@ export default function LessonScreen() {
         onExit={() => router.back()}
         // Экран работы — вне зависимости от того, откуда открыт урок смены.
         onBackToWork={() => router.dismissTo('/(modal)/adventure' as never)}
+        // Смена закрыта — прямо на хаб (там итоги): закрываем все экраны над
+        // вкладками, а не «назад» по цепочке, которая зависит от формы стека.
+        onShiftOver={() => {
+          if (router.canDismiss()) router.dismissAll();
+          router.navigate('/(tabs)' as never);
+        }}
         onRequestExit={handleBackPress}
         onExitGuardChange={setNeedsExitConfirm}
       />

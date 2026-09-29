@@ -38,16 +38,22 @@ describe('buildLessonPath', () => {
     expect(byId[FIRST.id].status).toBe('perfect');
     expect(byId[SECOND.id].status).toBe('completed');
     expect(byId[SECOND.id].nodesDone).toBe(byId[SECOND.id].nodesTotal);
+    // Прочитанная «Теория» — уже пройденный этап (29.09.2026).
     expect(byId[THIRD.id]).toMatchObject({
       status: 'started',
-      nodesDone: 0,
+      nodesDone: 1,
       nodesTotal: totalNodeCount(planForLesson(THIRD)),
     });
   });
 
   it('первый урок пройден — «следующим» становится второй', () => {
     const path = buildLessonPath(BUDGET, { [FIRST.id]: done(FIRST.id, false) });
-    expect(path.map((item) => item.status)).toEqual(['completed', 'next', 'locked']);
+    // Сколько уроков в теме — неважно (в «Бюджете» есть и пример урока).
+    expect(path.map((item) => item.status)).toEqual([
+      'completed',
+      'next',
+      ...Array(path.length - 2).fill('locked'),
+    ]);
   });
 
   it('демо — этапов столько же, сколько на треке демо-смены', () => {

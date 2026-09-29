@@ -1,0 +1,236 @@
+[
+  {
+    "id": 900,
+    "branch_id": 1,
+    "title": "Неделя на карманные",
+    "order_index": 1,
+    "price": 60,
+    "nodeEnergyCost": 10,
+    "coffee": { "price": 30, "energy": 10 },
+    "situation": {
+      "title": "Деньги на неделю",
+      "text": "В понедельник ты получаешь **60 C** карманных на всю неделю. В среду — экскурсия, а в пятницу друзья зовут в кино. Хватит ли на всё?"
+    },
+    "nodes": [
+      {
+        "cards": [
+          {
+            "title": "Бюджет на неделю",
+            "text": "**Бюджет** — это план: сколько денег есть и на что они пойдут. Сначала запиши обязательные траты.",
+            "bonusFact": "Даже взрослые планируют деньги на месяц вперёд — так спокойнее."
+          },
+          {
+            "title": "Нужное и желаемое",
+            "text": "Экскурсия — **нужное**: за неё платят первой. Кино — **желаемое**: на него идёт то, что осталось."
+          }
+        ],
+        "activities": [
+          {
+            "type": "test",
+            "questions": [
+              {
+                "id": 99001,
+                "question_text": "На что потратить деньги в первую очередь?",
+                "options": ["На экскурсию", "На кино", "На сладости", "Ни на что"],
+                "correct_answer": "На экскурсию",
+                "question_type": "test",
+                "optionDetails": [
+                  { "icon": "🚌", "sublabel": "нужное" },
+                  { "icon": "🎬", "sublabel": "желаемое" },
+                  { "icon": "🍬", "sublabel": "желаемое" },
+                  { "icon": "🤷", "sublabel": "не план" }
+                ]
+              },
+              {
+                "id": 99002,
+                "question_text": "Что такое бюджет?",
+                "options": ["План доходов и трат", "Копилка", "Магазин", "Подарок"],
+                "correct_answer": "План доходов и трат",
+                "question_type": "test"
+              }
+            ]
+          },
+          {
+            "type": "event",
+            "pool": [
+              {
+                "id": "example-excursion",
+                "title": "Билет на экскурсию",
+                "description": "Учитель собирает деньги на экскурсию — 20 C. Можно заплатить или пойти пешком: дорога длинная и утомит питомца.",
+                "icon": "🚌",
+                "options": [
+                  {
+                    "id": "pay",
+                    "label": "Заплатить за автобус",
+                    "category": "mandatory",
+                    "coinAmount": -20
+                  },
+                  {
+                    "id": "walk",
+                    "label": "Пойти пешком",
+                    "category": null,
+                    "coinAmount": 0,
+                    "energyCost": 30
+                  }
+                ]
+              },
+              {
+                "id": "example-notebook",
+                "title": "Тетрадь к уроку",
+                "description": "Закончилась тетрадь, а завтра контрольная. Новая стоит 20 C — или можно помочь соседке и получить 10 C.",
+                "icon": "question",
+                "options": [
+                  {
+                    "id": "buy",
+                    "label": "Купить тетрадь",
+                    "category": "mandatory",
+                    "coinAmount": -20
+                  },
+                  {
+                    "id": "sticker",
+                    "label": "Купить тетрадь с наклейками",
+                    "category": "optional",
+                    "coinAmount": -25
+                  },
+                  {
+                    "id": "help",
+                    "label": "Помочь соседке и взять тетрадь у неё",
+                    "category": null,
+                    "coinAmount": 10,
+                    "energyCost": 30
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "energyCost": 15,
+        "cards": [
+          {
+            "title": "Остаток — на желаемое",
+            "text": "Что осталось после нужного, можно потратить на желаемое — или отложить."
+          }
+        ],
+        "activities": [
+          {
+            "type": "minigame",
+            "minigame_type": "quiz",
+            "questions": [
+              {
+                "id": 99003,
+                "question_text": "Было 60 C, экскурсия стоила 20 C. Сколько осталось?",
+                "options": ["40", "20", "60", "80"],
+                "correct_answer": "40",
+                "question_type": "minigame"
+              }
+            ]
+          },
+          {
+            "type": "minigame",
+            "minigame_type": "tinder_swipe",
+            "hintPrice": 5,
+            "questions": [
+              {
+                "id": 99004,
+                "question_text": "Осталось 40 C, билет в кино — 30 C. Купить ещё и попкорн за 15 C?",
+                "options": ["Не покупать попкорн", "Купить попкорн"],
+                "correct_answer": "Не покупать попкорн",
+                "question_type": "minigame",
+                "explanation": "30 + 15 = 45 C — больше, чем осталось. Попкорн подождёт.",
+                "hint": "Сложи цены и сравни с остатком."
+              },
+              {
+                "id": 99005,
+                "question_text": "После кино осталось 10 C. Отложить их?",
+                "options": ["Потратить сразу", "Отложить"],
+                "correct_answer": "Отложить",
+                "question_type": "minigame",
+                "explanation": "Даже 10 C в неделю — 40 C за месяц.",
+                "hint": "Маленькие суммы складываются в большие."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "cards": [
+          {
+            "title": "Доход",
+            "text": "**Доход** — деньги, которые ты получаешь: карманные, подарки, плата за помощь."
+          }
+        ],
+        "activities": [
+          {
+            "type": "minigame",
+            "minigame_type": "five_letters",
+            "word": "ДОХОД",
+            "hintPrice": 5
+          },
+          {
+            "type": "event",
+            "pool": [
+              {
+                "id": "example-cinema",
+                "title": "Кино в пятницу",
+                "description": "Друзья идут в кино — билет 30 C. Можно посмотреть фильм дома.",
+                "icon": "reward",
+                "options": [
+                  {
+                    "id": "go",
+                    "label": "Пойти в кино",
+                    "category": "optional",
+                    "coinAmount": -30
+                  },
+                  {
+                    "id": "home",
+                    "label": "Посмотреть дома",
+                    "category": null,
+                    "coinAmount": 0
+                  }
+                ]
+              },
+              {
+                "id": "example-laptop",
+                "title": "Ноутбук сломался",
+                "description": "Ремонт стоит 30 C. Починить сейчас или отложить?",
+                "icon": "laptop",
+                "options": [
+                  {
+                    "id": "fix",
+                    "label": "Починить сейчас",
+                    "category": "mandatory",
+                    "coinAmount": -30
+                  },
+                  {
+                    "id": "later",
+                    "label": "Отложить",
+                    "category": null,
+                    "coinAmount": 0
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "test",
+            "questions": [
+              {
+                "id": 99006,
+                "question_text": "Что из этого — доход?",
+                "options": ["Карманные деньги", "Билет в кино", "Покупка тетради", "Попкорн"],
+                "correct_answer": "Карманные деньги",
+                "question_type": "test"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "conclusion": {
+      "title": "План на неделю",
+      "text": "Сначала **нужное**, потом **желаемое** из остатка — и немного отложить. Так карманных хватает на всю неделю."
+    }
+  }
+]

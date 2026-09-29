@@ -35,6 +35,34 @@ export function createFiveLettersGameStyles({ theme }: FiveLettersGameStylesPara
       fontSize: fontSizes.sm,
       textAlign: 'center',
     },
+    // Подсказки — две кнопки в ряд (≥48 dp, §23).
+    hintButtons: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      width: '100%',
+      marginBottom: spacing.lg,
+    },
+    hintButton: {
+      flex: 1,
+      minHeight: 48,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: spacing.sm,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: theme.border,
+      backgroundColor: theme.surface,
+    },
+    hintButtonText: {
+      color: theme.textPrimary,
+      fontWeight: fontWeights.semibold,
+      fontSize: fontSizes.sm,
+      textAlign: 'center',
+    },
+    // Открытая буква в пустой клетке — бледно, пока её не ввели.
+    cellGhost: {
+      opacity: 0.5,
+    },
     grid: {
       gap: CELL_GAP,
       marginBottom: spacing.xl,

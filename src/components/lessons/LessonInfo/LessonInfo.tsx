@@ -63,6 +63,7 @@ export function LessonInfo({
         >
           {lessonStatusLabel(item)}
         </Text>
+        {/* Тема идущей смены (раньше «+10%» — надбавки за урок в смене больше нет). */}
         {isPriority && !isDone && (
           <Text
             style={{
@@ -71,7 +72,7 @@ export function LessonInfo({
               fontWeight: fontWeights.bold,
             }}
           >
-            +10%
+            В смене
           </Text>
         )}
       </View>

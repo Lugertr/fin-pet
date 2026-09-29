@@ -56,7 +56,7 @@ const TAB_BADGES: Partial<Record<string, number>> = {
 };
 
 const NAVIGATION_ITEMS = [
-  { label: 'Начать работу', text: 'главный цикл: план бюджета, урок, итоги и монеты в копилку' },
+  { label: 'Начать смену', text: 'главный цикл: план бюджета, урок, итоги и монеты в копилку' },
   { label: 'Уроки', text: 'темы и карта знаний' },
   { label: 'Копилка', text: 'банк: накопления и цель, на которую копишь' },
   { label: 'Магазин', text: 'еда, мебель и декор для комнаты' },
@@ -329,7 +329,7 @@ export function OnboardingRoomTour({
         >
           <View style={styles.ctaButton}>
             <Ionicons name="briefcase-outline" size={scale(18)} color={theme.onGradient} />
-            <Text style={[styles.ctaText, { fontSize: scaledFont('lg') }]}>Начать работу</Text>
+            <Text style={[styles.ctaText, { fontSize: scaledFont('lg') }]}>Начать смену</Text>
             <Ionicons name="chevron-forward" size={scale(16)} color={theme.onGradient} />
           </View>
           {renderBadge(1)}
@@ -376,7 +376,7 @@ export function OnboardingRoomTour({
                   icon="wallet-outline"
                   color={theme.primary}
                   lead="твой кошелёк:"
-                  text="монеты «C», которые можно тратить. Три цвета полоски — надо, хочу и коплю: так делится бюджет работы"
+                  text="монеты «C», которые можно тратить. Три цвета полоски — надо, хочу и коплю: так делится бюджет смены"
                 />
                 <InfoRow
                   styles={styles}

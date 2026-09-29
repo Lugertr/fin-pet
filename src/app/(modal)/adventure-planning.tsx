@@ -1,16 +1,19 @@
 // app/(modal)/adventure-planning.tsx
-// Планирование смены («Работа») в 2 шага (решение пользователя 27.09.2026):
-//   1. бюджет смены делится на «Потратить» и «Коплю» (§7.3); в каждом поле
-//      заливка и «N%» показывают долю бюджета. Нужное/желаемое здесь не
-//      планируется — его показывает факт трат в событиях урока;
-//   2. выбор темы. Смена = один урок — следующий непройденный урок темы
+// Планирование смены («Работа») в 2 шага:
+//   1. выбор темы. Смена = один урок — следующий непройденный урок темы
 //      (решение пользователя 28.09.2026); тема с начатым уроком выбрана сразу
-//      (урок продолжится с того же места), пройденную тему выбрать нельзя.
+//      (урок продолжится с того же места), пройденную тему выбрать нельзя. У
+//      темы видна зарплата её урока — price из lessons.json × надбавка
+//      предметов (решение 29.09.2026), поэтому тема выбирается первой;
+//   2. зарплата делится на «Потратить» и «Коплю» (§7.3); в каждом поле
+//      заливка и «N%» показывают долю бюджета. Нужное/желаемое здесь не
+//      планируется — его показывает факт трат в урока.
 // Бюджет смены — отдельный от хаба контур денег: его тратят события урока, а
 // остаток в конце уходит в хаб («коплю» — в банк, остальное — в кошелёк).
 // К доходу смены можно добавить монеты из своего кошелька (решение
 // пользователя 28.09.2026): кнопки «Из кошелька», списываются при «Начать
 // работу»; при досрочном завершении возвращаются целиком (не по доле урока).
+// Пока скрыто (SHOW_WALLET_CONTRIBUTION, решение 29.09.2026).
 // Открывается с хаба — тап по ноутбуку или кнопка «Начать работу».
 
 import { Ionicons } from '@expo/vector-icons';
@@ -31,7 +34,8 @@ import {
 } from '@/domain/adventure/Adventure';
 import { useFeedback } from '@/lib/hooks/useFeedback';
 import { BRANCHES, useLessonsStore } from '@/lib/hooks/useLessons';
-import { useAdventureStore } from '@/lib/stores/adventureStore';
+import { useShopStore } from '@/lib/hooks/useShop';
+import { shiftSalary, useAdventureStore } from '@/lib/stores/adventureStore';
 import { usePetStore } from '@/lib/stores/petStore';
 import { useUserStore } from '@/lib/stores/userStore';
 import { Alert } from '@/lib/utils/alert';
@@ -68,7 +72,11 @@ const CATEGORIES: {
 
 const STEP = 10;
 
-type WizardStep = 'allocate' | 'branch';
+/** «Добавить из кошелька» на планировании — пока не используется (решение
+ * пользователя 29.09.2026); механика и хранение остаются. */
+const SHOW_WALLET_CONTRIBUTION = false;
+
+type WizardStep = 'branch' | 'allocate';
 
 const STEP_SUBTITLES: Record<WizardStep, string> = {
   allocate: 'Сколько потратить, а сколько отложить?',
@@ -104,7 +112,7 @@ export default function AdventurePlanningScreen() {
     }
   }, [currentAdventure, user?.id, startPlanning]);
 
-  const [wizardStep, setWizardStep] = useState<WizardStep>('allocate');
+  const [wizardStep, setWizardStep] = useState<WizardStep>('branch');
   const [amounts, setAmounts] = useState<AdventureAllocation>({
     mandatory: 0,
     optional: 0,
@@ -121,12 +129,9 @@ export default function AdventurePlanningScreen() {
   const remainder = available - total;
   const canProceed = remainder >= 0 && total > 0;
 
-  /** Сколько взять из кошелька (0…весь кошелёк); распределённое не больше бюджета. */
-  const changeFromWallet = (next: number) => {
-    const value = Math.max(0, Math.min(next, wallet));
-    const nextAvailable = income + value;
-    setFromWallet(value);
-    // Бюджет уменьшился — сначала урезаем «Коплю», затем «Потратить».
+  /** Бюджет уменьшился (другая тема, меньше из кошелька) — распределённое
+   * урезается: сначала «Коплю», затем «Потратить». */
+  const fitToBudget = (nextAvailable: number) =>
     setAmounts((prev) => {
       const excess = totalAllocation(prev) - nextAvailable;
       if (excess <= 0) return prev;
@@ -134,7 +139,19 @@ export default function AdventurePlanningScreen() {
       const mandatory = Math.max(0, prev.mandatory - (excess - (prev.savings - savings)));
       return { ...prev, mandatory, savings };
     });
+
+  /** Сколько взять из кошелька (0…весь кошелёк); распределённое не больше бюджета. */
+  const changeFromWallet = (next: number) => {
+    const value = Math.max(0, Math.min(next, wallet));
+    setFromWallet(value);
+    fitToBudget(income + value);
   };
+
+  /** Зарплата смены по теме — для подписи на карточке темы: урок уже начат —
+   * за оставшиеся этапы (смена платит только за свои, решение 29.09.2026).
+   * Подписка на бонус предметов — чтобы подпись обновилась с покупкой. */
+  useShopStore((s) => s.getTotalCoinBonusPercent());
+  const salaryFor = (branchId: number) => shiftSalary(branchId);
 
   const setAmount = (key: 'mandatory' | 'savings', value: number) => {
     setAmounts((prev) => clampAllocationAmount(prev, key, value, available));
@@ -288,120 +305,11 @@ export default function AdventurePlanningScreen() {
         </Text>
       </LinearGradient>
 
-      {wizardStep === 'allocate' && (
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <Card padding="md" style={styles.availableCardSpacing}>
-            <Text style={[styles.availableLabel, { fontSize: scaledFont('sm') }]}>
-              Бюджет работы
-            </Text>
-            <CoinAmount
-              amount={available}
-              fontSize={scaledFont('hero')}
-              textStyle={styles.availableValue}
-            />
-            {fromWallet > 0 && (
-              <Text style={[styles.incomeBreakdown, { fontSize: scaledFont('sm') }]}>
-                {income} C за работу + {fromWallet} C из кошелька
-              </Text>
-            )}
-            <CoinAmount
-              amount={remainder}
-              prefix="Не распределено: "
-              fontSize={scaledFont('md')}
-              style={styles.remainderRow}
-              textStyle={[
-                styles.remainderValue,
-                { color: remainder >= 0 ? theme.success : theme.error },
-              ]}
-            />
-
-            {/* Свои монеты в бюджет смены: что не потратишь — вернётся. */}
-            <View style={styles.walletBlock}>
-              <Text style={[styles.walletTitle, { fontSize: scaledFont('md') }]}>
-                Добавить из кошелька
-              </Text>
-              <View style={styles.stepperRow}>
-                <TouchableOpacity
-                  onPress={() => {
-                    triggerHaptic('selection');
-                    changeFromWallet(fromWallet - STEP);
-                  }}
-                  style={styles.stepperButton}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Из кошелька: убрать ${STEP}`}
-                >
-                  <Ionicons name="remove" size={scale(20)} color={theme.textPrimary} />
-                </TouchableOpacity>
-                <Text
-                  style={[styles.walletValue, { fontSize: scaledFont('lg') }]}
-                  accessibilityLabel={`Из кошелька: ${formatCoins(fromWallet)}`}
-                >
-                  {fromWallet} C
-                </Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    triggerHaptic('selection');
-                    changeFromWallet(fromWallet + STEP);
-                  }}
-                  style={styles.stepperButton}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Из кошелька: добавить ${STEP}`}
-                >
-                  <Ionicons name="add" size={scale(20)} color={theme.textPrimary} />
-                </TouchableOpacity>
-              </View>
-              <Text style={[styles.walletCaption, { fontSize: scaledFont('sm') }]}>
-                В кошельке {formatPrice(wallet)}. Что не потратишь — вернётся после смены.
-              </Text>
-            </View>
-          </Card>
-
-          {CATEGORIES.map((category) => (
-            <Card key={category.key} padding="md" style={styles.categoryCardSpacing}>
-              <View style={styles.categoryHeaderRow}>
-                <Ionicons name={category.icon} size={scale(20)} color={category.color} />
-                <Text style={[styles.categoryTitle, { fontSize: scaledFont('md') }]}>
-                  {category.title}
-                </Text>
-              </View>
-              <Text style={[styles.categoryDescription, { fontSize: scaledFont('xs') }]}>
-                {category.description}
-              </Text>
-              {renderStepper(category, amounts[category.key], (next) =>
-                setAmount(category.key, next)
-              )}
-            </Card>
-          ))}
-
-          <TouchableOpacity
-            onPress={() => {
-              triggerHaptic('light');
-              setWizardStep('branch');
-            }}
-            disabled={!canProceed}
-            activeOpacity={0.8}
-            style={[styles.primaryButton, !canProceed && styles.primaryButtonDisabled]}
-          >
-            <Text style={[styles.primaryButtonText, { fontSize: scaledFont('lg') }]}>
-              Далее — выбрать тему
-            </Text>
-          </TouchableOpacity>
-        </ScrollView>
-      )}
-
       {wizardStep === 'branch' && (
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <TouchableOpacity style={styles.backLink} onPress={() => setWizardStep('allocate')}>
-            <Ionicons name="chevron-back" size={scale(16)} color={theme.primary} />
-            <Text style={[styles.backLinkText, { fontSize: scaledFont('sm') }]}>Назад к плану</Text>
-          </TouchableOpacity>
-
           {BRANCHES.map((branch) => {
             const { completed, total: totalLessons } = getBranchProgress(branch.id);
             const isDone = totalLessons > 0 && completed === totalLessons;
@@ -450,6 +358,8 @@ export default function AdventurePlanningScreen() {
                       <Text style={[styles.branchLessonText, { fontSize: scaledFont('sm') }]}>
                         {started ? 'Продолжить: ' : 'Урок: '}
                         {nextLesson.title}
+                        {salaryFor(branch.id) !== null &&
+                          ` · зарплата ${salaryFor(branch.id)} C${started ? ' за оставшиеся этапы' : ''}`}
                       </Text>
                     )
                   )}
@@ -462,16 +372,130 @@ export default function AdventurePlanningScreen() {
           })}
 
           <TouchableOpacity
-            onPress={handleConfirm}
-            disabled={currentAdventure.branchId === null || isConfirming}
+            onPress={() => {
+              triggerHaptic('light');
+              fitToBudget(available);
+              setWizardStep('allocate');
+            }}
+            disabled={currentAdventure.branchId === null}
             activeOpacity={0.8}
             style={[
               styles.primaryButton,
-              (currentAdventure.branchId === null || isConfirming) && styles.primaryButtonDisabled,
+              currentAdventure.branchId === null && styles.primaryButtonDisabled,
             ]}
           >
             <Text style={[styles.primaryButtonText, { fontSize: scaledFont('lg') }]}>
-              {isConfirming ? 'Начинаем...' : 'Начать работу'}
+              Далее — распределить зарплату
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      )}
+      {wizardStep === 'allocate' && (
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <TouchableOpacity style={styles.backLink} onPress={() => setWizardStep('branch')}>
+            <Ionicons name="chevron-back" size={scale(16)} color={theme.primary} />
+            <Text style={[styles.backLinkText, { fontSize: scaledFont('sm') }]}>Назад к теме</Text>
+          </TouchableOpacity>
+
+          <Card padding="md" style={styles.availableCardSpacing}>
+            <Text style={[styles.availableLabel, { fontSize: scaledFont('sm') }]}>
+              Бюджет смены — зарплата за урок
+            </Text>
+            <CoinAmount
+              amount={available}
+              fontSize={scaledFont('hero')}
+              textStyle={styles.availableValue}
+            />
+            {fromWallet > 0 && (
+              <Text style={[styles.incomeBreakdown, { fontSize: scaledFont('sm') }]}>
+                {income} C за смену + {fromWallet} C из кошелька
+              </Text>
+            )}
+            <CoinAmount
+              amount={remainder}
+              prefix="Не распределено: "
+              fontSize={scaledFont('md')}
+              style={styles.remainderRow}
+              textStyle={[
+                styles.remainderValue,
+                { color: remainder >= 0 ? theme.success : theme.error },
+              ]}
+            />
+
+            {/* Свои монеты в бюджет смены: что не потратишь — вернётся. */}
+            {SHOW_WALLET_CONTRIBUTION && (
+              <View style={styles.walletBlock}>
+                <Text style={[styles.walletTitle, { fontSize: scaledFont('md') }]}>
+                  Добавить из кошелька
+                </Text>
+                <View style={styles.stepperRow}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      triggerHaptic('selection');
+                      changeFromWallet(fromWallet - STEP);
+                    }}
+                    style={styles.stepperButton}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Из кошелька: убрать ${STEP}`}
+                  >
+                    <Ionicons name="remove" size={scale(20)} color={theme.textPrimary} />
+                  </TouchableOpacity>
+                  <Text
+                    style={[styles.walletValue, { fontSize: scaledFont('lg') }]}
+                    accessibilityLabel={`Из кошелька: ${formatCoins(fromWallet)}`}
+                  >
+                    {fromWallet} C
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      triggerHaptic('selection');
+                      changeFromWallet(fromWallet + STEP);
+                    }}
+                    style={styles.stepperButton}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Из кошелька: добавить ${STEP}`}
+                  >
+                    <Ionicons name="add" size={scale(20)} color={theme.textPrimary} />
+                  </TouchableOpacity>
+                </View>
+                <Text style={[styles.walletCaption, { fontSize: scaledFont('sm') }]}>
+                  В кошельке {formatPrice(wallet)}. Что не потратишь — вернётся после смены.
+                </Text>
+              </View>
+            )}
+          </Card>
+
+          {CATEGORIES.map((category) => (
+            <Card key={category.key} padding="md" style={styles.categoryCardSpacing}>
+              <View style={styles.categoryHeaderRow}>
+                <Ionicons name={category.icon} size={scale(20)} color={category.color} />
+                <Text style={[styles.categoryTitle, { fontSize: scaledFont('md') }]}>
+                  {category.title}
+                </Text>
+              </View>
+              <Text style={[styles.categoryDescription, { fontSize: scaledFont('xs') }]}>
+                {category.description}
+              </Text>
+              {renderStepper(category, amounts[category.key], (next) =>
+                setAmount(category.key, next)
+              )}
+            </Card>
+          ))}
+
+          <TouchableOpacity
+            onPress={handleConfirm}
+            disabled={!canProceed || isConfirming}
+            activeOpacity={0.8}
+            style={[
+              styles.primaryButton,
+              (!canProceed || isConfirming) && styles.primaryButtonDisabled,
+            ]}
+          >
+            <Text style={[styles.primaryButtonText, { fontSize: scaledFont('lg') }]}>
+              {isConfirming ? 'Начинаем...' : 'Начать смену'}
             </Text>
           </TouchableOpacity>
         </ScrollView>

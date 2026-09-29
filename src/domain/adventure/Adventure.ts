@@ -35,6 +35,15 @@ export interface AdventureRecord {
    * (computeAdventurePayout).
    */
   walletContribution: number;
+  /** Кофе в этой смене уже куплен — он один раз за смену (решение 29.09.2026). */
+  coffeeBought: boolean;
+  /**
+   * Сколько этапов урока было пройдено к старту смены (в прошлых сменах или
+   * на вкладке «Уроки»). Смена платит только за этапы, пройденные в ней
+   * (решение пользователя 29.09.2026): от этого числа считаются и зарплата
+   * смены (за оставшиеся этапы), и доля выплаты (shiftCompletionRatio).
+   */
+  stagesDoneAtStart: number;
   /**
    * Бюджет приключения — отдельный от хаба контур денег: доход приключения при
    * старте + награды событий − траты событий. Живёт только в приключении; в
@@ -147,6 +156,57 @@ export function computeAdventurePayout(
   return { toBank, toWallet: remaining - toBank };
 }
 
+/**
+ * Зарплата смены за оставшиеся этапы урока (решение пользователя 29.09.2026:
+ * смена платит только за этапы, пройденные в ней). Урок уже начат — в прошлой
+ * смене или на вкладке «Уроки» — зарплата только за оставшуюся часть, целые
+ * монеты. Так за один урок в сумме по всем сменам — не больше его зарплаты, а
+ * в смене нельзя потратить деньги, которые она не принесёт.
+ */
+export function remainingStagesSalary(
+  salary: number,
+  stagesDone: number,
+  stagesTotal: number
+): number {
+  if (stagesTotal <= 0) return salary;
+  const remaining = Math.max(0, stagesTotal - Math.max(0, stagesDone));
+  return Math.round((salary * remaining) / stagesTotal);
+}
+
+/**
+ * Доля выплаты при завершении смены: сколько из оставшихся к её старту этапов
+ * пройдено в ней. Урок пройден — 1; закончил раньше — доля; ничего не прошёл
+ * — 0 (раньше доля считалась по всему прогрессу урока, и «начал — сразу
+ * закончил» на начатом уроке приносило монеты снова и снова).
+ */
+export function shiftCompletionRatio(
+  stagesDone: number,
+  stagesDoneAtStart: number,
+  stagesTotal: number
+): number {
+  const remaining = stagesTotal - stagesDoneAtStart;
+  if (remaining <= 0) return 1;
+  return Math.max(0, Math.min(1, (stagesDone - stagesDoneAtStart) / remaining));
+}
+
+/**
+ * Кофе в смене — только после первого этапа, пройденного в ней (решение
+ * пользователя 29.09.2026). Иначе «начал смену → кофе → сразу закончил»
+ * давало бы энергию даром: бюджет смены, из которого платится кофе, при
+ * таком завершении всё равно не выплачивается.
+ */
+export function isCoffeeUnlocked(stagesDone: number, stagesDoneAtStart: number): boolean {
+  return stagesDone > stagesDoneAtStart;
+}
+
+/**
+ * Хватает ли энергии на вариант события «за энергию» (решение пользователя
+ * 29.09.2026: не хватает — вариант недоступен, как и платный без монет).
+ */
+export function canAffordEnergy(energyCost: number | undefined, energy: number): boolean {
+  return !energyCost || energy >= energyCost;
+}
+
 /** Оставшееся время приключения в мс на момент `nowMs` (не может быть отрицательным). */
 export function remainingMs(adventure: AdventureRecord, nowMs: number): number {
   if (!adventure.plannedEndAt) return 0;
@@ -162,4 +222,48 @@ export function isTimeUp(adventure: AdventureRecord, nowMs: number): boolean {
 /** §12.3: платный вариант события доступен, только если бюджета хватает целиком — без частичной оплаты. */
 export function canAfford(coinAmount: number, budget: number): boolean {
   return coinAmount >= 0 || budget >= -coinAmount;
+}
+
+/** Как выбор в событии ляжет на план смены — для окна события (макет 29.09.2026). */
+export interface EventChoicePreview {
+  budgetBefore: number;
+  budgetAfter: number;
+  /** Трата — в какую корзину факта; null — пополнение или бесплатный вариант. */
+  category: 'mandatory' | 'optional' | null;
+  cost: number;
+  factBefore: number;
+  factAfter: number;
+  /** «Потратить» по плану и потрачено до / после выбора (нужное + желаемое). */
+  spendPlan: number;
+  spendBefore: number;
+  spendAfter: number;
+  affordable: boolean;
+}
+
+/** Та же арифметика, что у applyLessonEventChoice, без изменения смены. */
+export function previewEventChoice(
+  adventure: AdventureRecord,
+  option: { coinAmount: number; category: 'mandatory' | 'optional' | null }
+): EventChoicePreview {
+  const affordable = canAfford(option.coinAmount, adventure.budget);
+  const spends = option.coinAmount < 0 && option.category !== null;
+  const cost = spends ? -option.coinAmount : 0;
+  const category = spends ? option.category : null;
+  const factBefore = category ? adventure.fact[category] : 0;
+  const spendBefore = actualSpend(adventure);
+  const budgetAfter = spends
+    ? adventure.budget - cost
+    : adventure.budget + Math.max(0, option.coinAmount);
+  return {
+    budgetBefore: adventure.budget,
+    budgetAfter,
+    category,
+    cost,
+    factBefore,
+    factAfter: factBefore + cost,
+    spendPlan: plannedSpend(adventure),
+    spendBefore,
+    spendAfter: spendBefore + cost,
+    affordable,
+  };
 }

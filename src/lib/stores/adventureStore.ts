@@ -6,22 +6,38 @@
 // или время вышло (completeIfExpired) — тогда урок продолжится в следующую
 // смену с того же места. Итоги показываются на хабе. Опыта смена не даёт —
 // его дают уроки (useLessonsStore.finishLesson), в том числе урок смены.
+// Смена платит только за этапы, пройденные в ней (решение 29.09.2026):
+// зарплата — за оставшиеся к старту этапы урока, выплата при досрочном
+// завершении — доля этапов этой смены (Adventure.shiftCompletionRatio).
 //
 // Смена НЕ создаётся автоматически при заходе на хаб — только явным действием
 // ребёнка (кнопка «Начать работу» / тап по ноутбуку), см. startPlanning().
 
-import { getAdventureRepository } from '@/data/local/repositories';
+import {
+  getAdventureRepository,
+  getProfileRepository,
+  getTransactionRepository,
+} from '@/data/local/repositories';
+import { runInTransaction } from '@/data/local/transaction';
 import {
   AdventureAllocation,
   AdventureRecord,
   BudgetCategory,
   canAfford,
   computeAdventurePayout,
+  isCoffeeUnlocked,
   isPlanBonusEligible,
   isTimeUp,
+  remainingStagesSalary,
+  shiftCompletionRatio,
   totalAllocation,
 } from '@/domain/adventure/Adventure';
-import type { LessonEventOptionContent } from '@/domain/content/LessonContent';
+import type {
+  LessonCoffeeContent,
+  LessonContent,
+  LessonEventOptionContent,
+} from '@/domain/content/LessonContent';
+import { lessonSalary } from '@/domain/lesson/lessonEconomy';
 import { planForLesson } from '@/domain/lesson/LessonPlan';
 import {
   completedNodeCount,
@@ -31,15 +47,21 @@ import {
 import { LESSONS, useLessonsStore, waitForLessonsLoaded } from '@/lib/hooks/useLessons';
 import { create } from 'zustand';
 import { useShopStore } from '@/lib/hooks/useShop';
+import { isPetEnergyFull, usePetStore } from './petStore';
 import { usePreferencesStore } from './preferencesStore';
-import { useSavingsStore } from './savingsStore';
+import {
+  finishPlannedDeposit,
+  persistPlannedDeposit,
+  planAdventureDeposit,
+  useSavingsStore,
+} from './savingsStore';
 import { useUserStore } from './userStore';
 import { waitForHydration } from './waitForHydration';
 
 /** Смена длится до 24 часов (решение пользователя 28.09.2026). */
 export const ADVENTURE_DURATION_MS = 24 * 60 * 60 * 1000;
-/** Доход смены — её стартовый бюджет (отдельный от хаба контур денег:
- * тратится только в событиях урока, остаток в конце уходит в хаб). */
+/** Доход смены до выбора темы — пока урок смены не известен. Потом —
+ * зарплата урока: price × надбавка предметов (lessonEconomy.lessonSalary). */
 export const ADVENTURE_BASE_INCOME = 100;
 const PLAN_BONUS = 10; // монет в бюджет смены — «факт трат ≤ план»
 
@@ -60,6 +82,8 @@ export interface ShiftLessonSummary {
   title: string;
   nodesDone: number;
   nodesTotal: number;
+  /** Сколько этапов было пройдено к старту смены — смена платит за остальные. */
+  nodesDoneAtStart: number;
   finished: boolean;
 }
 
@@ -72,7 +96,7 @@ export interface AdventureCompletionSummary {
   /** Бонус банка на переведённое «коплю» (новые деньги, §11.4). */
   bankBonus: number;
   toWallet: number;
-  /** Доля пройденного урока смены: 1 — урок пройден (полная награда), меньше 1 — смена кончилась раньше. */
+  /** Доля выплаты: сколько из оставшихся к старту этапов пройдено в этой смене (1 — урок пройден). */
   completionRatio: number;
   /** true — смена закончилась сама, потому что 24 часа вышли (completeIfExpired). */
   autoCompleted: boolean;
@@ -93,7 +117,8 @@ interface AdventureState {
   loadCurrent: (profileId: string) => Promise<void>;
   /** Явно начинает планирование новой смены (если текущей ещё нет). */
   startPlanning: (profileId: string) => Promise<void>;
-  /** Выбор темы — до подтверждения плана, только в памяти. */
+  /** Выбор темы — до подтверждения плана, только в памяти; доход смены —
+   * зарплата следующего урока темы. */
   setBranch: (branchId: number) => void;
   /** Редактирование распределения будущего дохода — до подтверждения, только в памяти. */
   updatePlan: (plan: AdventureAllocation) => void;
@@ -118,6 +143,15 @@ interface AdventureState {
    * идёт или на платный вариант не хватает (§12.3).
    */
   applyLessonEventChoice: (eventId: string, option: LessonEventOptionContent) => Promise<boolean>;
+  /**
+   * Трата из бюджета смены на желаемое (подсказка в игре, кофе): бюджет
+   * уменьшается, факт «хочу» растёт. false — смена не идёт или не хватает (§12.3).
+   */
+  spendOnWant: (amount: number) => Promise<boolean>;
+  /** Кофе — раз за смену, после её первого этапа: трата на желаемое и
+   * +энергия. false — уже куплен, этап смены ещё не пройден, энергия и так
+   * полная или не хватает бюджета. */
+  buyCoffee: (coffee: LessonCoffeeContent) => Promise<boolean>;
   /**
    * Завершает смену: урок пройден (LessonPlayer) или ✕ раньше времени. Если
    * урок не пройден, награда пропорциональна пройденной доле урока — это не
@@ -196,11 +230,27 @@ export function parseCompletionSummary(
       toWallet: stored.toWallet!,
       completionRatio: stored.completionRatio!,
       autoCompleted: stored.autoCompleted === true,
-      lesson: stored.lesson ?? null,
+      // Итоги, записанные до 29.09.2026, — без этапов к старту смены.
+      lesson: stored.lesson
+        ? { ...stored.lesson, nodesDoneAtStart: stored.lesson.nodesDoneAtStart ?? 0 }
+        : null,
     };
   } catch {
     return null;
   }
+}
+
+/** Этапы урока на треке: сколько пройдено сейчас и сколько всего (как у трека смены). */
+function lessonStages(lesson: LessonContent): { done: number; total: number; finished: boolean } {
+  const isDemo = useUserStore.getState().user?.is_demo ?? false;
+  const plan = planForLesson(lesson, isDemo);
+  const state =
+    useLessonsStore.getState().lessonStates[lesson.id] ?? createLessonProgress(lesson.id);
+  return {
+    done: completedNodeCount(plan, state),
+    total: totalNodeCount(plan),
+    finished: Boolean(state.completedAt),
+  };
 }
 
 /** Сколько урока смены пройдено сейчас (для выплаты и итогов). */
@@ -208,17 +258,29 @@ function shiftLessonProgress(adventure: AdventureRecord): ShiftLessonSummary | n
   if (adventure.lessonId === null) return null;
   const lesson = LESSONS.find((l) => l.id === adventure.lessonId);
   if (!lesson) return null;
-  const isDemo = useUserStore.getState().user?.is_demo ?? false;
-  const plan = planForLesson(lesson, isDemo);
-  const state =
-    useLessonsStore.getState().lessonStates[lesson.id] ?? createLessonProgress(lesson.id);
+  const stages = lessonStages(lesson);
   return {
     id: lesson.id,
     title: lesson.title,
-    nodesDone: completedNodeCount(plan, state),
-    nodesTotal: totalNodeCount(plan),
-    finished: Boolean(state.completedAt),
+    nodesDone: stages.done,
+    nodesTotal: stages.total,
+    nodesDoneAtStart: adventure.stagesDoneAtStart,
+    finished: stages.finished,
   };
+}
+
+/**
+ * Зарплата смены по теме: следующий непройденный урок × надбавка предметов —
+ * за оставшиеся этапы, если урок уже начат (смена платит только за свои).
+ * null — в теме не осталось уроков. Её же показывает планирование.
+ */
+export function shiftSalary(branchId: number | null): number | null {
+  if (branchId === null) return null;
+  const lesson = useLessonsStore.getState().getNextLessonInBranch(branchId);
+  if (!lesson) return null;
+  const salary = lessonSalary(lesson, useShopStore.getState().getTotalCoinBonusPercent());
+  const stages = lessonStages(lesson);
+  return remainingStagesSalary(salary, stages.done, stages.total);
 }
 
 export const useAdventureStore = create<AdventureState>((set, get) => {
@@ -231,14 +293,21 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
 
     const completedAt = new Date().toISOString();
     const lesson = shiftLessonProgress(currentAdventure);
-    // Доля награды — доля пройденного урока смены (урок пройден — полная).
-    // Иначе «начал смену и дождался конца» приносило бы весь бюджет, ничего
-    // не пройдя. Это не штраф: урок продолжится в следующую смену.
+    // Доля награды — сколько из оставшихся к старту этапов пройдено в ЭТОЙ
+    // смене (урок пройден — полная). Иначе «начал смену и дождался конца»
+    // приносило бы весь бюджет, ничего не пройдя, а на начатом уроке — снова
+    // и снова. Это не штраф: урок продолжится в следующую смену.
+    // Урок смены убрали из lessons.json — платить не за что (свои монеты из
+    // кошелька вернутся). Смена старой модели (без урока) — как раньше.
     // §18.2 демо-режим: завершение в любой момент — полная выплата (показ
     // итогов не ждёт прохождения урока целиком).
     const isDemo = useUserStore.getState().user?.is_demo ?? false;
-    const completionRatio =
-      isDemo || !lesson || lesson.finished ? 1 : lesson.nodesDone / lesson.nodesTotal;
+    const lessonMissing = currentAdventure.lessonId !== null && !lesson;
+    const completionRatio = lessonMissing
+      ? 0
+      : isDemo || !lesson || lesson.finished
+        ? 1
+        : shiftCompletionRatio(lesson.nodesDone, lesson.nodesDoneAtStart, lesson.nodesTotal);
     const fullBonus = isPlanBonusEligible(currentAdventure) ? PLAN_BONUS : 0;
     const bonusAwarded = Math.floor(fullBonus * completionRatio);
     const { toBank, toWallet } = computeAdventurePayout(
@@ -250,52 +319,13 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
     // Бонус банка на «коплю» — только за пройденный урок.
     const bankBonusAllowed = completionRatio >= 1;
 
-    try {
-      // Опыта смена не даёт (его дают уроки) — xp_awarded остаётся 0.
-      await getAdventureRepository().complete(currentAdventure.id, completedAt, 0);
-    } catch (error) {
-      console.error('[AdventureStore] Не удалось завершить смену:', error);
-      return null;
-    }
-
     // Выплата в хаб: «коплю» — в банк (новые деньги, с бонусом банка), остальное
     // — в кошелёк. Если банк ещё не загружен — всё в кошелёк, чтобы монеты не пропали.
-    let bankBonus = 0;
-    let paidToBank = 0;
-    let paidToWallet = toWallet;
-    if (toBank > 0) {
-      const deposited = await useSavingsStore
-        .getState()
-        .depositFromAdventure(toBank, bankBonusAllowed);
-      if (deposited === null) {
-        paidToWallet += toBank;
-      } else {
-        paidToBank = toBank;
-        bankBonus = deposited;
-      }
-    }
-    if (paidToWallet > 0) {
-      useUserStore
-        .getState()
-        .recordTransaction(
-          paidToWallet,
-          'adventure_payout',
-          `Итоги работы №${currentAdventure.adventureNumber}`
-        );
-    }
-    try {
-      const repo = getAdventureRepository();
-      if (paidToBank > 0) await repo.addFact(currentAdventure.id, 'savings', paidToBank);
-      await repo.setBudget(currentAdventure.id, 0);
-    } catch (error) {
-      console.warn('[AdventureStore] Не удалось сохранить выплату смены:', error);
-    }
-    // §11.5-аналог: стрик «без снятия» считается по каждому завершённому циклу дохода.
-    try {
-      await useSavingsStore.getState().registerPeriodOutcome();
-    } catch (error) {
-      console.warn('[AdventureStore] Не удалось обновить стрик накоплений:', error);
-    }
+    const deposit = toBank > 0 ? planAdventureDeposit(toBank, bankBonusAllowed) : null;
+    const paidToBank = deposit ? toBank : 0;
+    const paidToWallet = toWallet + (toBank > 0 && !deposit ? toBank : 0);
+    const user = useUserStore.getState().user;
+    const walletPaid = paidToWallet > 0 && user !== null;
 
     const summary: AdventureCompletionSummary = {
       adventure: {
@@ -308,19 +338,59 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
       },
       bonusAwarded,
       toBank: paidToBank,
-      bankBonus,
+      bankBonus: deposit?.bonus ?? 0,
       toWallet: paidToWallet,
       completionRatio,
       autoCompleted,
       lesson,
     };
-    set({ currentAdventure: null, lastCompletionSummary: summary });
-    // Итоги — к смене, пока окно не закрыто: закрыл приложение сразу после
-    // урока — хаб покажет их после перезапуска (§4.5).
-    getAdventureRepository()
-      .setPendingSummary(currentAdventure.id, serializeCompletionSummary(summary))
-      .catch((error) => console.warn('[AdventureStore] Не удалось сохранить итоги смены:', error));
 
+    // §4.5: смена, банк, кошелёк и итоги — одной транзакцией SQLite: либо всё,
+    // либо ничего. Раньше смена помечалась завершённой до выплаты, и сбой
+    // посередине терял монеты. Не записалось — смена остаётся активной, её
+    // можно завершить снова (двойной выплаты нет: ничего не применено).
+    try {
+      await runInTransaction(async () => {
+        const repo = getAdventureRepository();
+        // Опыта смена не даёт (его дают уроки) — xp_awarded остаётся 0.
+        await repo.complete(currentAdventure.id, completedAt, 0);
+        await repo.setBudget(currentAdventure.id, 0);
+        if (paidToBank > 0) await repo.addFact(currentAdventure.id, 'savings', paidToBank);
+        if (deposit) await persistPlannedDeposit(deposit);
+        if (walletPaid) {
+          await getTransactionRepository().add({
+            profileId: user.id,
+            amount: paidToWallet,
+            transactionType: 'adventure_payout',
+            description: `Итоги смены №${currentAdventure.adventureNumber}`,
+          });
+          // Баланс — от актуального в памяти на момент записи.
+          const balance = (useUserStore.getState().user?.liquid_balance ?? 0) + paidToWallet;
+          await getProfileRepository().updateBalance(user.id, balance);
+        }
+        // Итоги — к смене, пока окно не закрыто: закрыл приложение сразу после
+        // урока — хаб покажет их после перезапуска.
+        await repo.setPendingSummary(currentAdventure.id, serializeCompletionSummary(summary));
+      });
+    } catch (error) {
+      console.error('[AdventureStore] Не удалось завершить смену:', error);
+      return null;
+    }
+
+    // Записано — теперь память сторов. Кошелёк раньше банка: достигнутая цель
+    // (finishPlannedDeposit) пишет свою награду от баланса уже с выплатой.
+    if (walletPaid) {
+      useUserStore.getState().applyPersistedTransaction(paidToWallet, 'adventure_payout');
+    }
+    if (deposit) await finishPlannedDeposit(deposit);
+    // §11.5-аналог: стрик «без снятия» считается по каждому завершённому циклу дохода.
+    try {
+      await useSavingsStore.getState().registerPeriodOutcome();
+    } catch (error) {
+      console.warn('[AdventureStore] Не удалось обновить стрик накоплений:', error);
+    }
+
+    set({ currentAdventure: null, lastCompletionSummary: summary });
     return summary;
   };
 
@@ -368,6 +438,8 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
           lessonId: null,
           projectedIncome: ADVENTURE_BASE_INCOME,
           walletContribution: 0,
+          coffeeBought: false,
+          stagesDoneAtStart: 0,
           budget: 0,
           plan: EMPTY_ALLOCATION,
           fact: EMPTY_ALLOCATION,
@@ -387,7 +459,13 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
     setBranch: (branchId) => {
       const { currentAdventure } = get();
       if (!currentAdventure || currentAdventure.status !== 'planning') return;
-      set({ currentAdventure: { ...currentAdventure, branchId } });
+      set({
+        currentAdventure: {
+          ...currentAdventure,
+          branchId,
+          projectedIncome: shiftSalary(branchId) ?? currentAdventure.projectedIncome,
+        },
+      });
     },
 
     updatePlan: (plan) => {
@@ -423,7 +501,7 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
           .recordTransaction(
             -walletContribution,
             'adventure_budget',
-            `В бюджет работы №${currentAdventure.adventureNumber}`
+            `В бюджет смены №${currentAdventure.adventureNumber}`
           );
         if (!paid) return false;
       }
@@ -436,10 +514,16 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
         currentAdventure.branchId,
         currentAdventure.plan
       );
-      // Доход смены (и добавленное из кошелька) — её собственный бюджет: план
-      // распределяет ИМЕННО эту сумму на «потратить» и «коплю», тратят её
-      // события урока, остаток в конце уходит в хаб (см. finalizeAdventure).
-      const budget = currentAdventure.projectedIncome + walletContribution;
+      // Зарплата смены — price урока × надбавка предметов (и добавленное из
+      // кошелька) — её собственный бюджет: план распределяет ИМЕННО эту сумму на
+      // «потратить» и «коплю», тратят её события урока, подсказки и кофе,
+      // остаток в конце уходит в хаб (см. finalizeAdventure).
+      // Урок уже начат — зарплата только за оставшиеся этапы, и сколько их было
+      // пройдено к старту, запоминается: смена платит только за свои этапы.
+      const projectedIncome =
+        shiftSalary(currentAdventure.branchId) ?? currentAdventure.projectedIncome;
+      const budget = projectedIncome + walletContribution;
+      const stagesDoneAtStart = lessonStages(lesson).done;
       try {
         await getAdventureRepository().activate(
           currentAdventure.id,
@@ -447,7 +531,9 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
           plannedEndAt.toISOString(),
           budget,
           lesson.id,
-          walletContribution
+          walletContribution,
+          projectedIncome,
+          stagesDoneAtStart
         );
       } catch (error) {
         // Смена не началась — монеты возвращаются в кошелёк.
@@ -468,6 +554,8 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
           ...currentAdventure,
           status: 'active',
           lessonId: lesson.id,
+          projectedIncome,
+          stagesDoneAtStart,
           budget,
           startedAt: startedAt.toISOString(),
           plannedEndAt: plannedEndAt.toISOString(),
@@ -493,30 +581,35 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
       }
     },
 
+    // Траты смены (события, подсказки, кофе): проверка и новое состояние —
+    // бюджет, факт, отметка кофе — одним синхронным обновлением, до первого
+    // await. Иначе две быстрые траты (двойной тап) обе проходили проверку по
+    // старому бюджету: кофе покупался дважды, а бюджет мог уйти в минус.
     applyLessonEventChoice: async (eventId, option) => {
       const adventure = get().currentAdventure;
       if (!adventure || adventure.status !== 'active') return false;
       if (!canAfford(option.coinAmount, adventure.budget)) return false;
 
-      let budget = adventure.budget;
-      if (option.coinAmount < 0 && option.category) {
-        const cost = -option.coinAmount;
-        budget -= cost;
-        await get().recordFact(option.category, cost);
-      } else if (option.coinAmount > 0) {
-        budget += option.coinAmount;
-      }
-
-      // recordFact уже обновил currentAdventure — перечитываем, чтобы не затереть факт.
-      const latest = get().currentAdventure;
-      if (!latest) return false;
-      set({ currentAdventure: { ...latest, budget } });
+      const spend = option.coinAmount < 0 && option.category ? option.category : null;
+      const cost = spend ? -option.coinAmount : 0;
+      const income = Math.max(0, option.coinAmount);
+      const budget = adventure.budget - cost + income;
+      set({
+        currentAdventure: {
+          ...adventure,
+          budget,
+          fact: spend
+            ? { ...adventure.fact, [spend]: adventure.fact[spend] + cost }
+            : adventure.fact,
+        },
+      });
 
       try {
         const repo = getAdventureRepository();
-        await repo.setBudget(latest.id, budget);
+        await repo.setBudget(adventure.id, budget);
+        if (spend) await repo.addFact(adventure.id, spend, cost);
         await repo.logEvent(
-          latest.id,
+          adventure.id,
           eventId,
           option.id,
           option.category,
@@ -526,6 +619,64 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
         );
       } catch (error) {
         console.warn('[AdventureStore] Не удалось сохранить выбор в событии урока:', error);
+      }
+      return true;
+    },
+
+    spendOnWant: async (amount) => {
+      const adventure = get().currentAdventure;
+      if (!adventure || adventure.status !== 'active') return false;
+      if (amount <= 0) return true;
+      if (!canAfford(-amount, adventure.budget)) return false;
+      const budget = adventure.budget - amount;
+      set({
+        currentAdventure: {
+          ...adventure,
+          budget,
+          fact: { ...adventure.fact, optional: adventure.fact.optional + amount },
+        },
+      });
+      try {
+        const repo = getAdventureRepository();
+        await repo.setBudget(adventure.id, budget);
+        await repo.addFact(adventure.id, 'optional', amount);
+      } catch (error) {
+        console.warn('[AdventureStore] Не удалось сохранить трату смены:', error);
+      }
+      return true;
+    },
+
+    buyCoffee: async (coffee) => {
+      const adventure = get().currentAdventure;
+      if (!adventure || adventure.status !== 'active' || adventure.coffeeBought) return false;
+      // Только после первого этапа этой смены — иначе энергия даром (Adventure.isCoffeeUnlocked).
+      // Урок смены убрали из контента — проходить нечего, кофе тоже не нужен.
+      if (adventure.lessonId !== null) {
+        const lesson = shiftLessonProgress(adventure);
+        if (!lesson || !isCoffeeUnlocked(lesson.nodesDone, adventure.stagesDoneAtStart)) {
+          return false;
+        }
+      }
+      // Энергия и так полная — прибавлять нечего, монеты ушли бы впустую.
+      if (isPetEnergyFull()) return false;
+      if (!canAfford(-coffee.price, adventure.budget)) return false;
+      const budget = adventure.budget - coffee.price;
+      set({
+        currentAdventure: {
+          ...adventure,
+          budget,
+          coffeeBought: true,
+          fact: { ...adventure.fact, optional: adventure.fact.optional + coffee.price },
+        },
+      });
+      usePetStore.getState().restoreEnergy(coffee.energy);
+      try {
+        const repo = getAdventureRepository();
+        await repo.setBudget(adventure.id, budget);
+        await repo.addFact(adventure.id, 'optional', coffee.price);
+        await repo.setCoffeeBought(adventure.id);
+      } catch (error) {
+        console.warn('[AdventureStore] Не удалось сохранить покупку кофе:', error);
       }
       return true;
     },

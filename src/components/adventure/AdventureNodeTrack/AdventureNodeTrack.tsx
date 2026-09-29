@@ -1,8 +1,10 @@
 // src/components/adventure/AdventureNodeTrack/AdventureNodeTrack.tsx
 // Трек этапов урока смены (макет «Работа», 28.09.2026): кружки этапов,
-// соединённые линией. Пройденный — зелёный с галочкой, текущий — фиолетовый с
-// иконкой типа, будущие — серые с иконкой; последний — флажок (завершение
-// урока). Пройденный этап можно открыть — перечитать и перепройти; текущий —
+// соединённые линией. Первый — «Теория» (решение 29.09.2026), дальше этапы
+// заданий. Пройденный — зелёный с галочкой, текущий — фиолетовый с иконкой
+// типа, будущие — серые с иконкой; последний — флажок финиша: только
+// отметка, не кнопка (заключение и итоги идут сразу после последнего этапа).
+// Пройденный этап можно открыть — перечитать и перепройти; текущий —
 // продолжить. Состояние передают и иконка, и подпись для скринридера (§23).
 
 import { Ionicons } from '@expo/vector-icons';
@@ -19,12 +21,14 @@ import type { IconName } from '@/types/icons';
 import { createAdventureNodeTrackStyles } from './AdventureNodeTrack.styles';
 
 export const NODE_KIND_ICONS: Record<LessonNodeKind, IconName> = {
-  test: 'book',
+  theory: 'book',
+  test: 'help-circle',
   minigame: 'game-controller',
   event: 'flash',
 };
 
 const NODE_KIND_NAMES: Record<LessonNodeKind, string> = {
+  theory: 'теория',
   test: 'тест',
   minigame: 'мини-игра',
   event: 'событие',
@@ -67,8 +71,9 @@ export function AdventureNodeTrack({
       icon: NODE_KIND_ICONS[node.kind],
       name: NODE_KIND_NAMES[node.kind],
     })),
-    { index: plan.nodes.length, icon: 'flag' as IconName, name: 'завершение урока' },
+    { index: plan.nodes.length, icon: 'flag' as IconName, name: 'финиш урока' },
   ];
+  const isFinish = (index: number) => index === plan.nodes.length;
 
   return (
     <View style={styles.row}>
@@ -81,11 +86,11 @@ export function AdventureNodeTrack({
           <View key={item.index} style={styles.cell}>
             <TouchableOpacity
               onPress={() => onPressNode(item.index)}
-              disabled={state === 'future'}
+              disabled={state === 'future' || isFinish(item.index)}
               activeOpacity={0.8}
               style={styles.touch}
-              accessibilityRole="button"
-              accessibilityState={{ disabled: state === 'future' }}
+              accessibilityRole={isFinish(item.index) ? 'image' : 'button'}
+              accessibilityState={{ disabled: state === 'future' || isFinish(item.index) }}
               accessibilityLabel={`Этап ${i + 1}, ${item.name}: ${
                 state === 'done' ? 'пройден' : state === 'current' ? 'сейчас' : 'впереди'
               }`}

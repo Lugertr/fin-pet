@@ -13,6 +13,10 @@ export function useFeedback() {
     feedback.playSound(type);
   }, []);
 
+  const stopSound = useCallback((type: SoundType) => {
+    feedback.stopSound(type);
+  }, []);
+
   const triggerHaptic = useCallback((type: HapticType) => {
     feedback.triggerHaptic(type);
   }, []);
@@ -20,6 +24,7 @@ export function useFeedback() {
   return {
     trigger,
     playSound,
+    stopSound,
     triggerHaptic,
   };
 }

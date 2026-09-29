@@ -34,3 +34,15 @@ export function evaluateGuess(guess: string, target: string): LetterResult[] {
 
   return result;
 }
+
+/**
+ * Какую букву открыть подсказкой «Открыть букву» (решение 29.09.2026): первую
+ * слева, которую игрок ещё не отгадал на её месте (не зелёная ни в одной
+ * попытке). Все отгаданы — первую.
+ */
+export function letterToReveal(results: LetterResult[][], length: number): number {
+  for (let i = 0; i < length; i++) {
+    if (!results.some((row) => row[i] === 'correct')) return i;
+  }
+  return 0;
+}
