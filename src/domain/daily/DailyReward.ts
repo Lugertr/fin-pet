@@ -4,7 +4,7 @@
 // не показывается — в этот день ребёнок получает стартовый капитал за
 // создание персонажа.
 
-import { differenceInCalendarDays, isSameDay } from 'date-fns';
+import { differenceInCalendarDays, isSameDay, subDays } from 'date-fns';
 
 export function shouldOfferDailyReward({
   profileCreatedAt,
@@ -27,4 +27,9 @@ export function shouldOfferDailyReward({
 export function daysWithFinni(profileCreatedAt: string | null | undefined, now: Date): number {
   if (!profileCreatedAt) return 1;
   return Math.max(1, differenceInCalendarDays(now, new Date(profileCreatedAt)) + 1);
+}
+
+/** Та же отметка времени сутками раньше — «Пропустить день» в демо (lib/daily/skipDemoDay). */
+export function dayEarlier(iso: string): string {
+  return subDays(new Date(iso), 1).toISOString();
 }

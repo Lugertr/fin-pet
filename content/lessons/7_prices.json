@@ -1,0 +1,1002 @@
+[
+  {
+    "id": 940,
+    "branch_id": 7,
+    "title": "Почему цены меняются",
+    "order_index": 1,
+    "price": 60,
+    "nodeEnergyCost": 10,
+    "coffee": {
+      "price": 30,
+      "energy": 10
+    },
+    "situation": {
+      "title": "Яблоки осенью",
+      "text": "У тебя 60 C. Тетрадь стоит 10 C. Летом яблоки в лавке стоили 20 C, а осенью 15 C."
+    },
+    "nodes": [
+      {
+        "energyCost": 10,
+        "cards": [
+          {
+            "title": "Цена меняется",
+            "text": "Цена — это сколько монет просит продавец. Она может расти и снижаться."
+          }
+        ],
+        "activities": [
+          {
+            "type": "test",
+            "questions": [
+              {
+                "id": 99376,
+                "question_text": "Почему яблоки осенью дешевле, чем летом?",
+                "options": [
+                  "Их много",
+                  "Они никому не нужны",
+                  "Продавец забыл цену",
+                  "Они невкусные"
+                ],
+                "correct_answer": "Их много",
+                "question_type": "test"
+              },
+              {
+                "id": 99377,
+                "question_text": "Что влияет на цену товара?",
+                "options": [
+                  "Место и время",
+                  "Твой рост",
+                  "Цвет портфеля",
+                  "Имя продавца"
+                ],
+                "correct_answer": "Место и время",
+                "question_type": "test"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "energyCost": 10,
+        "cards": [
+          {
+            "title": "Когда цена растёт",
+            "text": "Цена зависит от места, времени и числа покупателей. Когда покупателей много, товар дорожает."
+          }
+        ],
+        "activities": [
+          {
+            "type": "event",
+            "pool": [
+              {
+                "id": "shift940-ev1",
+                "title": "Тетрадь для урока",
+                "description": "Нужна тетрадь в клетку. В лавке она стоит 10 C.",
+                "icon": "📓",
+                "options": [
+                  {
+                    "id": "buy_notebook",
+                    "label": "Купить тетрадь",
+                    "category": "mandatory",
+                    "coinAmount": -10
+                  },
+                  {
+                    "id": "old_notebook",
+                    "label": "Дописать в старой",
+                    "category": null,
+                    "coinAmount": 0,
+                    "energyCost": 30
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "energyCost": 15,
+        "cards": [
+          {
+            "title": "Много и мало",
+            "text": "Когда товара много, цена обычно ниже. Когда товара мало, цена растёт."
+          }
+        ],
+        "activities": [
+          {
+            "type": "minigame",
+            "minigame_type": "quiz",
+            "questions": [
+              {
+                "id": 99378,
+                "question_text": "Товара мало, а желающих купить много. Что будет с ценой?",
+                "options": [
+                  "Цена вырастет",
+                  "Цена упадёт",
+                  "Цена не изменится",
+                  "Товар станет бесплатным"
+                ],
+                "correct_answer": "Цена вырастет",
+                "question_type": "minigame"
+              }
+            ]
+          },
+          {
+            "type": "minigame",
+            "minigame_type": "tinder_swipe",
+            "hintPrice": 5,
+            "questions": [
+              {
+                "id": 99379,
+                "question_text": "Арбузы зимой обычно дороже, чем летом?",
+                "options": [
+                  "Да",
+                  "Нет"
+                ],
+                "correct_answer": "Да",
+                "question_type": "minigame",
+                "explanation": "Зимой арбузов мало, поэтому продавцы просят больше монет.",
+                "hint": "Когда арбузов больше?"
+              },
+              {
+                "id": 99380,
+                "question_text": "Если вещь не срочная, можно подождать, пока цена снизится?",
+                "options": [
+                  "Да",
+                  "Нет"
+                ],
+                "correct_answer": "Да",
+                "question_type": "minigame",
+                "explanation": "Ожидание помогает найти цену ниже, если вещь не нужна прямо сейчас."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "energyCost": 10,
+        "cards": [
+          {
+            "title": "Выбирай время",
+            "text": "Перед покупкой подумай, срочная вещь или нет. Несрочную можно купить, когда цена ниже."
+          }
+        ],
+        "activities": [
+          {
+            "type": "event",
+            "pool": [
+              {
+                "id": "shift940-ev2",
+                "title": "Яблоки в лавке",
+                "description": "Осенью в лавке продают яблоки по 15 C за пакет. В плане их нет.",
+                "icon": "🍎",
+                "options": [
+                  {
+                    "id": "buy_apples",
+                    "label": "Купить яблоки",
+                    "category": "optional",
+                    "coinAmount": -15
+                  },
+                  {
+                    "id": "skip_apples",
+                    "label": "Не покупать яблоки",
+                    "category": null,
+                    "coinAmount": 0
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "minigame",
+            "minigame_type": "five_letters",
+            "word": "ТОВАР",
+            "hintPrice": 5
+          }
+        ]
+      }
+    ],
+    "conclusion": {
+      "title": "Цена не стоит на месте",
+      "text": "Цена зависит от места, времени и количества товара. Когда товара много, цена ниже, а когда мало — выше."
+    }
+  },
+  {
+    "id": 941,
+    "branch_id": 7,
+    "title": "Скидки и ловушки",
+    "order_index": 2,
+    "price": 60,
+    "nodeEnergyCost": 10,
+    "coffee": {
+      "price": 30,
+      "energy": 10
+    },
+    "situation": {
+      "title": "Набор тетрадей",
+      "text": "У тебя 60 C. Набор тетрадей по скидке стоит 20 C вместо 30 C. Рядом лежат наклейки за 10 C с надписью «Только сегодня»."
+    },
+    "nodes": [
+      {
+        "energyCost": 10,
+        "cards": [
+          {
+            "title": "Что такое скидка",
+            "text": "Скидка — это когда вещь продают дешевле обычного. Сравни старую цену с новой."
+          }
+        ],
+        "activities": [
+          {
+            "type": "test",
+            "questions": [
+              {
+                "id": 99381,
+                "question_text": "Тетради стоили 30 C, а по скидке 20 C. Сколько ты сэкономишь?",
+                "options": [
+                  "10 C",
+                  "20 C",
+                  "30 C",
+                  "50 C"
+                ],
+                "correct_answer": "10 C",
+                "question_type": "test"
+              },
+              {
+                "id": 99382,
+                "question_text": "Что такое скидка?",
+                "options": [
+                  "Цена ниже обычной",
+                  "Цена выше обычной",
+                  "Подарок без причины",
+                  "Долг магазину"
+                ],
+                "correct_answer": "Цена ниже обычной",
+                "question_type": "test"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "energyCost": 10,
+        "cards": [
+          {
+            "title": "Скидка на нужное",
+            "text": "Скидка полезна, когда вещь нужна тебе на самом деле. Тогда монеты остаются в кошельке."
+          }
+        ],
+        "activities": [
+          {
+            "type": "event",
+            "pool": [
+              {
+                "id": "shift941-ev1",
+                "title": "Тетради по скидке",
+                "description": "В школе нужны новые тетради. Набор в лавке стоит 20 C вместо 30 C.",
+                "icon": "📚",
+                "options": [
+                  {
+                    "id": "buy_set",
+                    "label": "Купить набор тетрадей",
+                    "category": "mandatory",
+                    "coinAmount": -20
+                  },
+                  {
+                    "id": "old_notebooks",
+                    "label": "Взять старые тетради дома",
+                    "category": null,
+                    "coinAmount": 0,
+                    "energyCost": 30
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "energyCost": 15,
+        "cards": [
+          {
+            "title": "Ловушка скидки",
+            "text": "Скидка на ненужную вещь — это не экономия. Ты всё равно отдаёшь свои монеты."
+          }
+        ],
+        "activities": [
+          {
+            "type": "minigame",
+            "minigame_type": "quiz",
+            "questions": [
+              {
+                "id": 99383,
+                "question_text": "Скидка на вещь, которая тебе не нужна. Что это?",
+                "options": [
+                  "Ловушка для покупки",
+                  "Настоящая экономия",
+                  "Подарок от магазина",
+                  "Обязательный платёж"
+                ],
+                "correct_answer": "Ловушка для покупки",
+                "question_type": "minigame"
+              }
+            ]
+          },
+          {
+            "type": "minigame",
+            "minigame_type": "tinder_swipe",
+            "hintPrice": 5,
+            "questions": [
+              {
+                "id": 99384,
+                "question_text": "На игрушку скидка, но в плане её нет. Купить?",
+                "options": [
+                  "Не покупать",
+                  "Купить"
+                ],
+                "correct_answer": "Не покупать",
+                "question_type": "minigame",
+                "explanation": "Вещь не из плана остаётся лишней тратой, даже со скидкой.",
+                "hint": "Загляни в план."
+              },
+              {
+                "id": 99385,
+                "question_text": "Надпись «Только сегодня» может торопить с покупкой?",
+                "options": [
+                  "Да",
+                  "Нет"
+                ],
+                "correct_answer": "Да",
+                "question_type": "minigame",
+                "explanation": "Такая надпись заставляет решать быстро, без раздумий."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "energyCost": 10,
+        "cards": [
+          {
+            "title": "Сравни цены",
+            "text": "Проверь цену со скидкой в другом магазине. Иногда обычная цена там ниже."
+          }
+        ],
+        "activities": [
+          {
+            "type": "event",
+            "pool": [
+              {
+                "id": "shift941-ev2",
+                "title": "Наклейки только сегодня",
+                "description": "Яркий плакат зовёт купить набор наклеек за 10 C. Их нет в плане.",
+                "icon": "⭐",
+                "options": [
+                  {
+                    "id": "buy_stickers",
+                    "label": "Купить наклейки",
+                    "category": "optional",
+                    "coinAmount": -10
+                  },
+                  {
+                    "id": "skip_stickers",
+                    "label": "Пройти мимо",
+                    "category": null,
+                    "coinAmount": 0
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "minigame",
+            "minigame_type": "five_letters",
+            "word": "АКЦИЯ",
+            "hintPrice": 5
+          }
+        ]
+      }
+    ],
+    "conclusion": {
+      "title": "Скидка и польза",
+      "text": "Скидка помогает, когда вещь нужна. Если вещь не нужна, скидка только подталкивает к лишней трате."
+    }
+  },
+  {
+    "id": 942,
+    "branch_id": 7,
+    "title": "Реклама и блогеры",
+    "order_index": 3,
+    "price": 60,
+    "nodeEnergyCost": 10,
+    "coffee": {
+      "price": 30,
+      "energy": 10
+    },
+    "situation": {
+      "title": "Модная игрушка",
+      "text": "У тебя 60 C. Блогер показывает модную игрушку за 20 C. Тебе нужна линейка за 10 C для урока."
+    },
+    "nodes": [
+      {
+        "energyCost": 10,
+        "cards": [
+          {
+            "title": "Что такое реклама",
+            "text": "Реклама — это картинка или видео, которые хотят, чтобы ты купил вещь."
+          }
+        ],
+        "activities": [
+          {
+            "type": "test",
+            "questions": [
+              {
+                "id": 99386,
+                "question_text": "Зачем нужна реклама?",
+                "options": [
+                  "Чтобы захотелось купить",
+                  "Чтобы помочь с уроками",
+                  "Чтобы дать монеты",
+                  "Чтобы заменить чек"
+                ],
+                "correct_answer": "Чтобы захотелось купить",
+                "question_type": "test"
+              },
+              {
+                "id": 99387,
+                "question_text": "Блогер хвалит игрушку. Что это может быть?",
+                "options": [
+                  "Реклама за плату",
+                  "Твой личный совет",
+                  "Приказ взрослого",
+                  "Подарок тебе"
+                ],
+                "correct_answer": "Реклама за плату",
+                "question_type": "test"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "energyCost": 10,
+        "cards": [
+          {
+            "title": "Сначала нужное",
+            "text": "Реклама показывает красивые вещи, но тебе сначала нужны нужные. Проверь свой план."
+          }
+        ],
+        "activities": [
+          {
+            "type": "event",
+            "pool": [
+              {
+                "id": "shift942-ev1",
+                "title": "Линейка для урока",
+                "description": "Для чертежа нужна линейка. В магазине она стоит 10 C.",
+                "icon": "📏",
+                "options": [
+                  {
+                    "id": "buy_ruler",
+                    "label": "Купить линейку",
+                    "category": "mandatory",
+                    "coinAmount": -10
+                  },
+                  {
+                    "id": "borrow_ruler",
+                    "label": "Взять у соседа по парте",
+                    "category": null,
+                    "coinAmount": 0,
+                    "energyCost": 30
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "energyCost": 15,
+        "cards": [
+          {
+            "title": "Блогер и плата",
+            "text": "Блогер может получать плату за показ вещи. Его слова не всегда честный совет."
+          }
+        ],
+        "activities": [
+          {
+            "type": "minigame",
+            "minigame_type": "quiz",
+            "questions": [
+              {
+                "id": 99388,
+                "question_text": "Блогер восторгается игрушкой. Что стоит сделать?",
+                "options": [
+                  "Сверить с планом и спросить взрослого",
+                  "Сразу купить",
+                  "Купить две штуки",
+                  "Забыть про план"
+                ],
+                "correct_answer": "Сверить с планом и спросить взрослого",
+                "question_type": "minigame"
+              }
+            ]
+          },
+          {
+            "type": "minigame",
+            "minigame_type": "tinder_swipe",
+            "hintPrice": 5,
+            "questions": [
+              {
+                "id": 99389,
+                "question_text": "Блогер говорит, что игрушка нужна всем. Поверить сразу?",
+                "options": [
+                  "Не верить сразу",
+                  "Поверить"
+                ],
+                "correct_answer": "Не верить сразу",
+                "question_type": "minigame",
+                "explanation": "Блогер может получать плату за показ, поэтому слова нужно проверять.",
+                "hint": "Кто платит блогеру?"
+              },
+              {
+                "id": 99390,
+                "question_text": "Реклама показывает только красивую сторону вещи?",
+                "options": [
+                  "Да",
+                  "Нет"
+                ],
+                "correct_answer": "Да",
+                "question_type": "minigame",
+                "explanation": "Реклама хочет продать вещь, поэтому про недостатки молчит."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "energyCost": 10,
+        "cards": [
+          {
+            "title": "Подожди и подумай",
+            "text": "После рекламы подожди день и проверь, хочется ли вещь до сих пор."
+          }
+        ],
+        "activities": [
+          {
+            "type": "event",
+            "pool": [
+              {
+                "id": "shift942-ev2",
+                "title": "Игрушка от блогера",
+                "description": "Блогер называет игрушку лучшей. В магазине она стоит 20 C.",
+                "icon": "🧸",
+                "options": [
+                  {
+                    "id": "buy_toy",
+                    "label": "Купить игрушку",
+                    "category": "optional",
+                    "coinAmount": -20
+                  },
+                  {
+                    "id": "wait_day",
+                    "label": "Подождать до завтра",
+                    "category": null,
+                    "coinAmount": 0
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "minigame",
+            "minigame_type": "five_letters",
+            "word": "ОБМАН",
+            "hintPrice": 5
+          }
+        ]
+      }
+    ],
+    "conclusion": {
+      "title": "Проверяй рекламу",
+      "text": "Реклама и блогеры хотят, чтобы ты купил вещь. Сверяй покупку с планом и спрашивай совета у взрослых."
+    }
+  },
+  {
+    "id": 943,
+    "branch_id": 7,
+    "title": "Спрос и сезон",
+    "order_index": 4,
+    "price": 60,
+    "nodeEnergyCost": 10,
+    "coffee": {
+      "price": 30,
+      "energy": 10
+    },
+    "situation": {
+      "title": "Первый мороз",
+      "text": "Наступила зима, и у тебя 60 C. Варежки стоят 15 C, а мандарины 10 C. Летом варежки стоили заметно дешевле."
+    },
+    "nodes": [
+      {
+        "energyCost": 10,
+        "cards": [
+          {
+            "title": "Что такое спрос",
+            "text": "Спрос — это то, как сильно люди хотят купить вещь. Когда спрос растёт, цена часто растёт тоже."
+          }
+        ],
+        "activities": [
+          {
+            "type": "test",
+            "questions": [
+              {
+                "id": 99391,
+                "question_text": "Что такое спрос?",
+                "options": [
+                  "Как сильно люди хотят купить вещь",
+                  "Сколько вещей лежит на полке",
+                  "Название магазина",
+                  "Цвет ценника"
+                ],
+                "correct_answer": "Как сильно люди хотят купить вещь",
+                "question_type": "test"
+              },
+              {
+                "id": 99392,
+                "question_text": "Когда варежки обычно дороже?",
+                "options": [
+                  "Зимой",
+                  "Летом",
+                  "Никогда",
+                  "Всегда одинаково"
+                ],
+                "correct_answer": "Зимой",
+                "question_type": "test"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "energyCost": 10,
+        "cards": [
+          {
+            "title": "Что такое сезон",
+            "text": "Сезон — это время года, когда вещь нужна особенно. Зимой варежки нужны всем, поэтому они дороже."
+          }
+        ],
+        "activities": [
+          {
+            "type": "event",
+            "pool": [
+              {
+                "id": "shift943-ev1",
+                "title": "Варежки на мороз",
+                "description": "На улице мороз, а старые варежки потерялись. Новые в магазине стоят 15 C.",
+                "icon": "🧤",
+                "options": [
+                  {
+                    "id": "buy_mittens",
+                    "label": "Купить варежки",
+                    "category": "mandatory",
+                    "coinAmount": -15
+                  },
+                  {
+                    "id": "old_gloves",
+                    "label": "Надеть старые перчатки",
+                    "category": null,
+                    "coinAmount": 0,
+                    "energyCost": 30
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "energyCost": 15,
+        "cards": [
+          {
+            "title": "Вещь вне сезона",
+            "text": "Вещь вне сезона часто стоит дешевле. Санки летом можно купить выгоднее, чем в декабре."
+          }
+        ],
+        "activities": [
+          {
+            "type": "minigame",
+            "minigame_type": "quiz",
+            "questions": [
+              {
+                "id": 99393,
+                "question_text": "Почему зонты дороже в дождливый сезон?",
+                "options": [
+                  "Спрос выше",
+                  "Зонтов совсем нет",
+                  "Зонты сделаны из золота",
+                  "Цены никогда не меняются"
+                ],
+                "correct_answer": "Спрос выше",
+                "question_type": "minigame"
+              }
+            ]
+          },
+          {
+            "type": "minigame",
+            "minigame_type": "tinder_swipe",
+            "hintPrice": 5,
+            "questions": [
+              {
+                "id": 99394,
+                "question_text": "Летом купальники нужны больше, чем зимой. Спрос летом выше?",
+                "options": [
+                  "Да",
+                  "Нет"
+                ],
+                "correct_answer": "Да",
+                "question_type": "minigame",
+                "explanation": "Летом люди чаще ходят купаться, поэтому купальники покупают охотнее.",
+                "hint": "Вспомни, когда жарко."
+              },
+              {
+                "id": 99395,
+                "question_text": "Вещь не срочная. Можно подождать, пока спрос снизится?",
+                "options": [
+                  "Можно",
+                  "Нельзя"
+                ],
+                "correct_answer": "Можно",
+                "question_type": "minigame",
+                "explanation": "Когда спрос падает, цена часто становится ниже, и ты экономишь монеты."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "energyCost": 10,
+        "cards": [
+          {
+            "title": "Жди удобное время",
+            "text": "Если вещь не срочная, подожди, пока сезон пройдёт. Так можно сэкономить монеты."
+          }
+        ],
+        "activities": [
+          {
+            "type": "event",
+            "pool": [
+              {
+                "id": "shift943-ev2",
+                "title": "Мандарины на рынке",
+                "description": "Зимой мандарины пользуются большим спросом. Пакет на рынке стоит 10 C.",
+                "icon": "🍊",
+                "options": [
+                  {
+                    "id": "buy_tangerines",
+                    "label": "Купить мандарины",
+                    "category": "optional",
+                    "coinAmount": -10
+                  },
+                  {
+                    "id": "skip_tangerines",
+                    "label": "Не покупать мандарины",
+                    "category": null,
+                    "coinAmount": 0
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "minigame",
+            "minigame_type": "five_letters",
+            "word": "СПРОС",
+            "hintPrice": 5
+          }
+        ]
+      }
+    ],
+    "conclusion": {
+      "title": "Время влияет на цену",
+      "text": "Цена зависит от спроса и сезона. Когда вещь нужна многим, она дороже, а вне сезона часто дешевле."
+    }
+  },
+  {
+    "id": 944,
+    "branch_id": 7,
+    "title": "Ценник и касса",
+    "order_index": 5,
+    "price": 60,
+    "nodeEnergyCost": 10,
+    "coffee": {
+      "price": 30,
+      "energy": 10
+    },
+    "situation": {
+      "title": "Пенал в лавке",
+      "text": "У тебя 60 C. Пенал на ценнике стоит 25 C, а ластики 10 C. Проверь, что кассир пробил ту же цену."
+    },
+    "nodes": [
+      {
+        "energyCost": 10,
+        "cards": [
+          {
+            "title": "Читай ценник",
+            "text": "Ценник показывает название и цену вещи. Перед покупкой прочитай его внимательно."
+          }
+        ],
+        "activities": [
+          {
+            "type": "test",
+            "questions": [
+              {
+                "id": 99396,
+                "question_text": "Что важно проверить на кассе?",
+                "options": [
+                  "Совпадает ли цена в чеке с ценником",
+                  "Какого цвета касса",
+                  "Сколько людей в очереди",
+                  "Как зовут кассира"
+                ],
+                "correct_answer": "Совпадает ли цена в чеке с ценником",
+                "question_type": "test"
+              },
+              {
+                "id": 99397,
+                "question_text": "На акционном ценнике старая цена 40 C, новая 30 C. Сколько платишь?",
+                "options": [
+                  "30 C",
+                  "40 C",
+                  "70 C",
+                  "10 C"
+                ],
+                "correct_answer": "30 C",
+                "question_type": "test"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "energyCost": 10,
+        "cards": [
+          {
+            "title": "Акционный ценник",
+            "text": "На акционном ценнике видны две цены: старая и новая. Платишь ты новую, а старая показывает выгоду."
+          }
+        ],
+        "activities": [
+          {
+            "type": "event",
+            "pool": [
+              {
+                "id": "shift944-ev1",
+                "title": "Пенал для школы",
+                "description": "Старый пенал порвался. Новый в лавке по ценнику стоит 25 C.",
+                "icon": "✏️",
+                "options": [
+                  {
+                    "id": "buy_case",
+                    "label": "Купить пенал",
+                    "category": "mandatory",
+                    "coinAmount": -25
+                  },
+                  {
+                    "id": "old_case",
+                    "label": "Носить ручки в кармане",
+                    "category": null,
+                    "coinAmount": 0,
+                    "energyCost": 30
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "energyCost": 15,
+        "cards": [
+          {
+            "title": "Сверь на кассе",
+            "text": "На кассе сверь цену в чеке с ценником. Если цены разные, вежливо скажи кассиру."
+          }
+        ],
+        "activities": [
+          {
+            "type": "minigame",
+            "minigame_type": "quiz",
+            "questions": [
+              {
+                "id": 99398,
+                "question_text": "Цена на ценнике 25 C, а в чеке 30 C. Что сделать?",
+                "options": [
+                  "Вежливо сказать кассиру",
+                  "Молча заплатить",
+                  "Убежать из магазина",
+                  "Выбросить чек"
+                ],
+                "correct_answer": "Вежливо сказать кассиру",
+                "question_type": "minigame"
+              }
+            ]
+          },
+          {
+            "type": "minigame",
+            "minigame_type": "tinder_swipe",
+            "hintPrice": 5,
+            "questions": [
+              {
+                "id": 99399,
+                "question_text": "Ценник и чек показывают разные цены. Спросить кассира?",
+                "options": [
+                  "Спросить",
+                  "Промолчать"
+                ],
+                "correct_answer": "Спросить",
+                "question_type": "minigame",
+                "explanation": "Кассир мог ошибиться, и вопрос помогает исправить это сразу.",
+                "hint": "Ошибку проще исправить у кассы."
+              },
+              {
+                "id": 99400,
+                "question_text": "Чек стоит проверить, пока ты ещё стоишь у кассы?",
+                "options": [
+                  "Да",
+                  "Нет"
+                ],
+                "correct_answer": "Да",
+                "question_type": "minigame",
+                "explanation": "У кассы ошибку исправить проще, чем после ухода из магазина."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "energyCost": 10,
+        "cards": [
+          {
+            "title": "Сохрани чек",
+            "text": "Сохрани чек, пока не убедишься, что всё в порядке. С ним можно вернуть вещь."
+          }
+        ],
+        "activities": [
+          {
+            "type": "event",
+            "pool": [
+              {
+                "id": "shift944-ev2",
+                "title": "Ластики у кассы",
+                "description": "Рядом с кассой продают ластики по 10 C. В твоём пенале ластика нет.",
+                "icon": "🧽",
+                "options": [
+                  {
+                    "id": "buy_eraser",
+                    "label": "Купить ластик",
+                    "category": "optional",
+                    "coinAmount": -10
+                  },
+                  {
+                    "id": "skip_eraser",
+                    "label": "Не покупать ластик",
+                    "category": null,
+                    "coinAmount": 0
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "minigame",
+            "minigame_type": "five_letters",
+            "word": "ЛАВКА",
+            "hintPrice": 5
+          }
+        ]
+      }
+    ],
+    "conclusion": {
+      "title": "Цена и чек",
+      "text": "Цена на ценнике должна совпасть с ценой в чеке. Проверяй это у кассы и сохраняй чек."
+    }
+  }
+]

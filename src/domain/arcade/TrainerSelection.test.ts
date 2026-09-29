@@ -4,7 +4,7 @@
 import arcadeSwipeCardsJson from '../../../content/arcade_swipe_cards.json';
 import branchesJson from '../../../content/branches.json';
 import fiveLettersWordsJson from '../../../content/five_letters_words.json';
-import lessonsJson from '../../../content/lessons.json';
+import { ALL_LESSONS } from '@/data/content/lessonFiles';
 import {
   ArcadeSwipeCardsContent,
   BranchContent,
@@ -142,13 +142,19 @@ describe('buildBranchGameSession', () => {
 
 describe('контент Аркады', () => {
   const realSources: BranchArcadeSources = {
-    lessons: lessonsJson as unknown as LessonContent[],
+    lessons: ALL_LESSONS,
     swipeCards: arcadeSwipeCardsJson as ArcadeSwipeCardsContent[],
     words: fiveLettersWordsJson as FiveLettersWordContent[],
   };
 
-  it('в каждой теме доступны все три мини-игры', () => {
-    for (const branch of branchesJson as BranchContent[]) {
+  it('в каждой теме с уроками доступны все три мини-игры', () => {
+    // Викторина собирается из вопросов уроков темы — у темы без уроков (пока
+    // «Цены», уроки добавит пользователь) её быть не может.
+    const withLessons = (branchesJson as BranchContent[]).filter((branch) =>
+      realSources.lessons.some((lesson) => lesson.branch_id === branch.id)
+    );
+    expect(withLessons.length).toBeGreaterThan(0);
+    for (const branch of withLessons) {
       expect(listBranchGames(branch.id, realSources).map((g) => g.type)).toEqual([
         'quiz',
         'tinder_swipe',

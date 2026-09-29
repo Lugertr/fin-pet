@@ -5,8 +5,9 @@
 // Ежедневная награда — модалка DailyRewardModal при первом за день заходе
 // (не в день создания профиля, см. domain/daily/DailyReward.ts). Если цели
 // накопления нет, а купить ещё есть что, — обязательный выбор цели
-// (RequiredGoalPicker). Окна идут по очереди: итоги приключения → выбор
-// цели → ежедневная награда. Этот файл отвечает
+// (RequiredGoalPicker). Окна идут по очереди: итоги смены → «Опыт и
+// уровень» (если урок смены дал опыт, ShiftLevelModal) → выбор цели →
+// ежедневная награда. Этот файл отвечает
 // за загрузку общих данных (сторы, эффекты) и рендер комнаты; фоновая
 // загрузка прогресса/накоплений/текущего приключения остаётся здесь, даже
 // когда сами карточки не видны на этом экране — это данные для других экранов
@@ -30,7 +31,7 @@ import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
-import { AdventureSummaryModal } from '@/components/adventure';
+import { AdventureSummaryModal, ShiftLevelModal } from '@/components/adventure';
 import { DailyRewardModal, HubHeader } from '@/components/hub';
 import { RequiredGoalPicker } from '@/components/savings';
 import { useAdventureCountdown } from '@/lib/adventure/useAdventureCountdown';
@@ -78,6 +79,10 @@ export default function HubScreen() {
   const completeIfExpired = useAdventureStore((s) => s.completeIfExpired);
   const completionSummary = useAdventureStore((s) => s.lastCompletionSummary);
   const dismissCompletionSummary = useAdventureStore((s) => s.dismissCompletionSummary);
+  const levelReport = useAdventureStore((s) => s.pendingLevelReport);
+  const dismissLevelReport = useAdventureStore((s) => s.dismissLevelReport);
+  // «Новая смена» в итогах, а следом окно уровня — планирование после него.
+  const startNewAfterLevel = useRef(false);
   const countdown = useAdventureCountdown();
   const adventureExpired = countdown.active && countdown.expired;
   // Вкладка хаба остаётся смонтированной, пока ребёнок на других экранах, —
@@ -86,11 +91,11 @@ export default function HubScreen() {
   const isFocused = useIsFocused();
   const alertVisible = useAlertStore((s) => s.visible);
   const goalGate = useSavingsGoalGate();
-  // Ежедневная награда — только на открытом хабе, после итогов приключения и
-  // выбора цели (окна подряд, а не друг поверх друга). goalGate.ready — ждём
-  // загрузки банка, иначе награда успела бы всплыть раньше окна выбора цели.
+  // Ежедневная награда — только на открытом хабе, после итогов смены, окна
+  // уровня и выбора цели (окна подряд, а не друг поверх друга). goalGate.ready —
+  // ждём загрузки банка, иначе награда успела бы всплыть раньше выбора цели.
   const dailyOffer = useDailyRewardOffer(
-    isFocused && !completionSummary && goalGate.ready && !goalGate.needsGoal
+    isFocused && !completionSummary && !levelReport && goalGate.ready && !goalGate.needsGoal
   );
   const savings = useSavingsStore((s) => s.savings);
   const loadOrCreateSavings = useSavingsStore((s) => s.loadOrCreate);
@@ -185,14 +190,31 @@ export default function HubScreen() {
           onClose={dismissCompletionSummary}
           onStartNew={() => {
             dismissCompletionSummary();
-            openWorkOrExplain();
+            if (useAdventureStore.getState().pendingLevelReport) startNewAfterLevel.current = true;
+            else openWorkOrExplain();
+          }}
+        />
+      )}
+
+      {isFocused && !completionSummary && levelReport && (
+        <ShiftLevelModal
+          key={levelReport.adventureId}
+          report={levelReport.report}
+          onClose={() => {
+            dismissLevelReport();
+            if (startNewAfterLevel.current) {
+              startNewAfterLevel.current = false;
+              openWorkOrExplain();
+            }
           }}
         />
       )}
 
       <RequiredGoalPicker
         gate={goalGate}
-        visible={isFocused && !completionSummary && !dailyOffer.visible && !alertVisible}
+        visible={
+          isFocused && !completionSummary && !levelReport && !dailyOffer.visible && !alertVisible
+        }
       />
 
       {dailyOffer.visible && (

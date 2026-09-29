@@ -5,10 +5,10 @@
 // конце: true, если слово отгадано в пределах попыток, иначе false — тогда
 // MinigameStep переигрывает то же слово заново (см. MinigameStep.tsx), и
 // игрок уже видел разгадку в feedback-баннере ниже.
-// Подсказки (решение пользователя 29.09.2026) — две, каждая один раз на
-// слово: описание слова и «Открыть букву» (первая ещё не отгаданная буква —
-// текстом над полем и бледной буквой в её клетке текущей строки). В уроке
-// каждая стоит hintPrice (lessons.json), в Аркаде — бесплатно.
+// Подсказки (решение пользователя 29.09.2026): описание слова — бесплатно и
+// сразу над полем; «Открыть букву» — один раз на слово (первая ещё не
+// отгаданная буква — текстом над полем и бледной буквой в её клетке текущей
+// строки), в уроке стоит hintPrice (content/lessons), в Аркаде — бесплатно.
 
 import { Ionicons } from '@expo/vector-icons';
 import { useRef, useState } from 'react';
@@ -46,12 +46,8 @@ const STATE_RANK: Record<CellState, number> = {
 interface FiveLettersGameProps {
   word: string;
   hint?: string;
-  /** Цена подсказки (урок: hintPrice в lessons.json); 0/нет — бесплатно. */
+  /** Цена «Открыть букву» (урок: hintPrice в content/lessons); 0/нет — бесплатно. */
   hintPrice?: number;
-  /** Подсказка куплена — показывается. */
-  hintUnlocked?: boolean;
-  /** Купить подсказку (платит вызывающий код). */
-  onUnlockHint?: () => void;
   /** Открытая буква (позиция в слове). Передаёт урок: куплена — видна и при
    * повторе раунда. Без onRevealLetter (Аркада) игра хранит её сама. */
   revealedLetterIndex?: number;
@@ -65,15 +61,11 @@ export function FiveLettersGame({
   word,
   hint,
   hintPrice = 0,
-  hintUnlocked = false,
-  onUnlockHint,
   revealedLetterIndex,
   onRevealLetter,
   onAnswer,
   disabled = false,
 }: FiveLettersGameProps) {
-  // Платная подсказка (решение 29.09.2026): пока не куплена — кнопка с ценой.
-  const hintLocked = Boolean(hint) && hintPrice > 0 && !hintUnlocked;
   const { theme } = useTheme();
   const { scale, scaledFont } = useResponsive();
   const { trigger, triggerHaptic } = useFeedback();
@@ -159,7 +151,8 @@ export function FiveLettersGame({
 
   return (
     <View style={styles.container}>
-      {hint && !hintLocked && (
+      {/* Описание слова — бесплатно и сразу (решение 29.09.2026). */}
+      {hint && (
         <View style={styles.hintCard}>
           <Text style={[styles.hintText, { fontSize: scaledFont('sm') }]}>💡 {hint}</Text>
         </View>
@@ -171,39 +164,24 @@ export function FiveLettersGame({
           </Text>
         </View>
       )}
-      {!isDone && (hintLocked || revealedIndex === undefined) && (
+      {!isDone && revealedIndex === undefined && (
         <View style={styles.hintButtons}>
-          {hint && hintLocked && (
-            <TouchableOpacity
-              onPress={onUnlockHint}
-              activeOpacity={0.7}
-              style={styles.hintButton}
-              accessibilityRole="button"
-              accessibilityLabel={`Описание слова за ${formatCoins(hintPrice)}`}
-            >
-              <Text style={[styles.hintButtonText, { fontSize: scaledFont('sm') }]}>
-                💡 Описание слова{priceSuffix}
-              </Text>
-            </TouchableOpacity>
-          )}
-          {revealedIndex === undefined && (
-            <TouchableOpacity
-              onPress={handleRevealLetter}
-              disabled={disabled}
-              activeOpacity={0.7}
-              style={styles.hintButton}
-              accessibilityRole="button"
-              accessibilityLabel={
-                hintPrice > 0
-                  ? `Открыть одну букву за ${formatCoins(hintPrice)}`
-                  : 'Открыть одну букву'
-              }
-            >
-              <Text style={[styles.hintButtonText, { fontSize: scaledFont('sm') }]}>
-                🔤 Открыть букву{priceSuffix}
-              </Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            onPress={handleRevealLetter}
+            disabled={disabled}
+            activeOpacity={0.7}
+            style={styles.hintButton}
+            accessibilityRole="button"
+            accessibilityLabel={
+              hintPrice > 0
+                ? `Открыть одну букву за ${formatCoins(hintPrice)}`
+                : 'Открыть одну букву'
+            }
+          >
+            <Text style={[styles.hintButtonText, { fontSize: scaledFont('sm') }]}>
+              🔤 Открыть букву{priceSuffix}
+            </Text>
+          </TouchableOpacity>
         </View>
       )}
 

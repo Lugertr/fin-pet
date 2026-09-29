@@ -77,7 +77,7 @@ function optionCaption(option: LessonEventOptionContent, showEnergy: boolean) {
     parts.push(`+${formatPrice(option.coinAmount)}`);
     a11y.push(`принесёт ${formatCoins(option.coinAmount)}`);
   }
-  // Энергия вместо денег (lessons.json: energyCost) — только в смене.
+  // Энергия вместо денег (content/lessons: energyCost) — только в смене.
   if (showEnergy && (option.energyCost ?? 0) > 0) {
     parts.push(`${option.energyCost}⚡`);
     a11y.push(`стоит ${option.energyCost} энергии`);

@@ -11,9 +11,10 @@ import { useFeedback } from '@/lib/hooks/useFeedback';
 import { Alert } from '@/lib/utils/alert';
 import { FURNITURE_CATEGORIES, FurnitureCategory, useShopStore } from '@/lib/hooks/useShop';
 import { formatPrice } from '@/lib/utils/formatters';
-import { getEffectDescription } from '@/lib/utils/shopItems';
+import { getEffectDescription, shopPrice } from '@/lib/utils/shopItems';
 import { equipSkin, unequipSkinIfSold } from '@/lib/pet/petSkin';
 import { usePetStore } from '@/lib/stores/petStore';
+import { useUserStore } from '@/lib/stores/userStore';
 import { useResponsive, useTheme } from '@/theme';
 import { radius, spacing } from '@/theme/tokens';
 import { OwnedItem } from '../InventoryItemCard';
@@ -51,7 +52,9 @@ export function ItemDetailModal({
 
   const styles = createItemDetailModalStyles({ theme });
   const effect = getEffectDescription(item);
-  const sellPrice = Math.floor(item.price / 2);
+  // Продажа — 50% цены; в демо магазин бесплатный, и продажа за 0 (shopPrice).
+  const isDemo = useUserStore((s) => s.user?.is_demo ?? false);
+  const sellPrice = Math.floor(shopPrice(item, isDemo) / 2);
   const isEquippedSkin = item.category === 'skin' && item.skin_variant === equippedSkinVariant;
   const isFurniture = FURNITURE_CATEGORIES.includes(item.category as FurnitureCategory);
   const isEquippedFurniture = isFurniture && equippedFurniture[item.category] === item.id;

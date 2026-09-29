@@ -2,12 +2,11 @@
 // Награда за урок — опыт: тема уроков целиком — ровно +1 уровень (CLAUDE.md:
 // рост «стадии» — здесь уровня игрока). Монет за урок нет (29.09.2026).
 
-import lessonsJson from '../../../content/lessons.json';
-import { LessonContent } from '@/domain/content/LessonContent';
+import { ALL_LESSONS } from '@/data/content/lessonFiles';
 import { XP_PER_LEVEL, computeLevel } from '@/domain/player/PlayerLevel';
 import { lessonRewardXp, lessonXp } from './lessonRewards';
 
-const LESSONS = lessonsJson as unknown as LessonContent[];
+const LESSONS = ALL_LESSONS;
 const BRANCH_IDS = [...new Set(LESSONS.map((l) => l.branch_id))];
 
 describe('lessonXp — опыт темы делится между её уроками', () => {

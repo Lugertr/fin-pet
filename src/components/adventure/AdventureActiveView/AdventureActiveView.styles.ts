@@ -5,7 +5,7 @@
 // не растягивалась на весь экран.
 
 import type { Theme } from '@/theme';
-import { fontSizes, fontWeights, radius, spacing } from '@/theme/tokens';
+import { fontSizes, fontWeights, radius, spacing, touchTarget } from '@/theme/tokens';
 import { StyleSheet } from 'react-native';
 
 interface AdventureActiveViewStylesParams {
@@ -69,6 +69,21 @@ export function createAdventureActiveViewStyles({ theme }: AdventureActiveViewSt
       color: theme.onGradient,
       fontWeight: fontWeights.bold,
       fontSize: fontSizes.lg,
+    },
+    // Демо: «Завершить урок» — под главной кнопкой, вторичная (контур).
+    demoFinishButton: {
+      minHeight: touchTarget.recommended,
+      borderRadius: radius.xl,
+      borderWidth: 2,
+      borderColor: theme.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: spacing.lg,
+    },
+    demoFinishButtonText: {
+      color: theme.primary,
+      fontWeight: fontWeights.bold,
+      fontSize: fontSizes.md,
     },
     // Модалка «План» — карточка по центру экрана фиксированной ширины (не
     // растягивается на широких экранах), высота — по содержимому.

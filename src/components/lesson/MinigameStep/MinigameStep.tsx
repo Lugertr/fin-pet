@@ -39,7 +39,7 @@ export function MinigameStep({
   /** Копится в StepRunner на весь урок — «идеальный урок» для RewardStep
    * значит ровно 0 вызовов, включая переигранные раунды. */
   onWrongAnswer?: () => void;
-  /** Цена подсказки (lessons.json: hintPrice); 0 — бесплатно. */
+  /** Цена подсказки (content/lessons: hintPrice); 0 — бесплатно. */
   hintPrice?: number;
   /** Оплатить подсказку; true — оплачено. Купленная видна и при повторе раунда. */
   onBuyHint?: (price: number) => Promise<boolean>;
@@ -55,8 +55,11 @@ export function MinigameStep({
   const [attempt, setAttempt] = useState(0);
   const question: Question | undefined = step.questions[index];
   const wordRound = step.words?.[index];
+  // Платная подсказка свайпа — одна на вопрос, купленная видна и при повторе.
+  // В «5 буквах» описание слова бесплатное (решение 29.09.2026), платная —
+  // только «Открыть букву» (ниже).
   const [unlockedHints, setUnlockedHints] = useState<Set<string>>(() => new Set());
-  const hintKey = isFiveLetters ? `w:${wordRound?.word}` : `q:${question?.id}`;
+  const hintKey = `q:${question?.id}`;
   const unlockHint = async () => {
     if (!onBuyHint || !(await onBuyHint(hintPrice))) return;
     setUnlockedHints((prev) => new Set(prev).add(hintKey));
@@ -119,7 +122,7 @@ export function MinigameStep({
           key={`${wordRound.word}-${attempt}`}
           word={wordRound.word}
           hint={wordRound.hint}
-          {...hintProps}
+          hintPrice={onBuyHint ? hintPrice : 0}
           revealedLetterIndex={revealedLetters[wordRound.word]}
           onRevealLetter={(position) => void revealLetter(position)}
           onAnswer={handleAnswer}

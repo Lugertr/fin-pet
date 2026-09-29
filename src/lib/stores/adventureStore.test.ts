@@ -391,21 +391,17 @@ describe('adventureStore — смена платит только за свои 
 describe('adventureStore — траты смены без гонок (29.09.2026)', () => {
   const coffee = { price: 30, energy: 10 };
 
-  it('кофе до первого этапа этой смены не продаётся — энергия не даром', async () => {
+  it('кофе можно с первого этапа смены — ни одного этапа ещё не пройдено', async () => {
     seedShiftLesson(2);
     // Два этапа пройдены до смены, в самой смене — ещё ни одного.
     seedActiveAdventure({ stagesDoneAtStart: 2 });
     usePetStore.setState({ currentMood: 20 });
 
-    expect(await useAdventureStore.getState().buyCoffee(coffee)).toBe(false);
-    expect(useAdventureStore.getState().currentAdventure).toMatchObject({
-      budget: 100,
-      coffeeBought: false,
-    });
-
-    // Прошёл этап в смене — кофе открылся.
-    seedShiftLesson(3);
     expect(await useAdventureStore.getState().buyCoffee(coffee)).toBe(true);
+    expect(useAdventureStore.getState().currentAdventure).toMatchObject({
+      budget: 70,
+      coffeeBought: true,
+    });
   });
 
   it('кофе при полной энергии не продаётся — монеты не уходят впустую', async () => {
@@ -623,17 +619,20 @@ describe('adventureStore — бюджет смены (отдельный кон�
   it('урок пройден не весь — выплачивается пройденная доля, без бонуса копилки', async () => {
     seedWallet(0);
     seedBank();
-    // «Теория» + 3 этапа заданий + финиш: пройдено 2 из 5.
-    expect(SHIFT_PLAN.nodes.length + 1).toBe(5);
+    // «Теория» + этапы заданий + финиш; пройдено 2 этапа (сколько всего —
+    // зависит от урока в content/lessons).
+    const total = SHIFT_PLAN.nodes.length + 1;
     seedShiftLesson(2);
     seedActiveAdventure({ budget: 100 });
 
     const result = await useAdventureStore.getState().completeAdventure();
 
-    expect(result?.completionRatio).toBe(0.4);
-    // floor((100 + 10) × 0.4) = 44: в банк floor(30 × 0.4) = 12, в кошелёк 32.
-    expect(result?.toBank).toBe(12);
-    expect(result?.toWallet).toBe(32);
+    const ratio = 2 / total;
+    expect(result?.completionRatio).toBeCloseTo(ratio);
+    // Бюджет 100 + бонус за план 10, по доле; «коплю» 30 — тоже по доле.
+    const paid = Math.floor(110 * ratio);
+    expect(result?.toBank).toBe(Math.floor(30 * ratio));
+    expect(result?.toWallet).toBe(paid - Math.floor(30 * ratio));
     expect(result?.bankBonus).toBe(0);
   });
 });

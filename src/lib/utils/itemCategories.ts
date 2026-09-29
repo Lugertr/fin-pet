@@ -25,7 +25,7 @@ export function isLockedRoomSkin(item: Pick<ItemContent, 'category' | 'is_starte
 }
 
 /** Еды в магазине нет (решение пользователя 29.09.2026): энергию в смене
- * пополняет кофе (раз за смену, lessons.json), остальное — время. Товары и
+ * пополняет кофе (раз за смену, content/lessons), остальное — время. Товары и
  * код еды остаются. */
 export const FOOD_IN_SHOP = false;
 

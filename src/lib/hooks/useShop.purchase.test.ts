@@ -25,13 +25,13 @@ function seedPetEnergy(mood: number) {
   });
 }
 
-function seedUser(liquidBalance: number) {
+function seedUser(liquidBalance: number, isDemo = false) {
   useUserStore.getState().setUser({
     id: 'test-profile',
     username: 'Тест',
     liquid_balance: liquidBalance,
     created_at: new Date().toISOString(),
-    is_demo: false,
+    is_demo: isDemo,
   });
 }
 
@@ -135,5 +135,37 @@ describe('еда — вынужденная мера (только голодн�
     for (const food of SHOP_CATALOG.filter((i) => i.category === 'food')) {
       expect(food.price / food.energy_restore).toBeGreaterThanOrEqual(10);
     }
+  });
+});
+
+describe('демо-режим — магазин бесплатный', () => {
+  // Улучшенный ноутбук — мебель, которую в демо иначе не на что купить.
+  const LAPTOP = SHOP_CATALOG.find((i) => i.category === 'laptop' && !i.is_starter)!;
+
+  it('любой товар покупается при пустом кошельке, баланс не меняется', () => {
+    seedUser(0, true);
+
+    const result = useShopStore.getState().purchaseItem(LAPTOP.id);
+
+    expect(LAPTOP.price).toBeGreaterThan(0);
+    expect(result.success).toBe(true);
+    expect(useUserStore.getState().user?.liquid_balance).toBe(0);
+    expect(useShopStore.getState().ownedItems[LAPTOP.id]).toBe(1);
+  });
+
+  it('продажа в демо — за 0: бесплатный товар не превращается в монеты', () => {
+    seedUser(0, true);
+    useShopStore.getState().purchaseItem(LAPTOP.id);
+
+    const result = useShopStore.getState().sellItem(LAPTOP.id);
+
+    expect(result.success).toBe(true);
+    expect(useUserStore.getState().user?.liquid_balance).toBe(0);
+  });
+
+  it('вне демо та же покупка при пустом кошельке блокируется', () => {
+    seedUser(0);
+
+    expect(useShopStore.getState().purchaseItem(LAPTOP.id).success).toBe(false);
   });
 });

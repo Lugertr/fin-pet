@@ -202,6 +202,34 @@ export function recordActivityResult(
   };
 }
 
+/**
+ * Демо-режим, «Завершить урок» на экране смены (решение пользователя
+ * 29.09.2026): весь урок засчитан разом — все этапы прочитаны, все действия
+ * пройдены. Без «идеально» и без попыток: звезду даёт только прохождение без
+ * ошибок; события не разыграны — трат из бюджета смены нет. Уже пройденное
+ * остаётся как было.
+ */
+export function completeAllActivities(
+  plan: LessonPlan,
+  state: LessonProgressState
+): LessonProgressState {
+  let next = state;
+  for (const node of plan.nodes) {
+    if (!isReadingDone(next, node)) next = markReadingDone(next, node.index);
+    for (const activity of node.activities) {
+      if (isActivityDone(next, activity)) continue;
+      next = {
+        ...next,
+        results: {
+          ...next.results,
+          [activity.id]: { completed: true, perfect: false, attempts: 0 },
+        },
+      };
+    }
+  }
+  return next;
+}
+
 function scoredActivities(plan: LessonPlan): PlanActivity[] {
   return plan.nodes.flatMap((node) =>
     node.activities.filter((a) => a.content.type === 'test' || a.content.type === 'minigame')

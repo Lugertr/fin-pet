@@ -120,3 +120,26 @@ describe('finishLesson — опыт и уровни', () => {
     });
   });
 });
+
+describe('completeLessonNow — «Завершить урок» в демо', () => {
+  it('урок завершён сразу: целый уровень опыта, без звезды', () => {
+    seedUser(true);
+
+    const result = useLessonsStore.getState().completeLessonNow(LESSON.id);
+
+    expect(result?.firstCompletion).toBe(true);
+    expect(result?.reward.xp).toBe(computeLevel(0).xpForNext);
+    expect(result?.reward.levelUp?.to).toBe(2);
+    expect(hasStar(useLessonsStore.getState().lessonStates[LESSON.id])).toBe(false);
+    expect(useLessonsStore.getState().lessonStates[LESSON.id]?.completedAt).not.toBeNull();
+  });
+
+  it('уже пройденный урок второй раз не засчитывается — опыт не удваивается', () => {
+    seedUser(true);
+    useLessonsStore.getState().completeLessonNow(LESSON.id);
+    const xp = useLessonsStore.getState().totalXp;
+
+    expect(useLessonsStore.getState().completeLessonNow(LESSON.id)).toBeNull();
+    expect(useLessonsStore.getState().totalXp).toBe(xp);
+  });
+});

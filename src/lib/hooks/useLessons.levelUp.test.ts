@@ -33,6 +33,14 @@ describe('useLessonsStore.addXp — награда за уровень', () => {
     expect(useUserStore.getState().user?.liquid_balance).toBe(100);
   });
 
+  it('новый облик ложится в хранилище и сам не надевается — карточка уровня предлагает', () => {
+    const result = useLessonsStore.getState().addXp(XP_PER_LEVEL);
+
+    expect(result?.skinItemId).not.toBeNull();
+    expect(useShopStore.getState().ownedItems[result!.skinItemId!]).toBe(1);
+    expect(usePetStore.getState().equippedSkinVariant).toBe(0);
+  });
+
   it('облик, выбранный при создании, не выдаётся повторно — приходит следующий', () => {
     useShopStore.getState().addItem(13, 1); // выбран «Робот: Оранжевый»
     usePetStore.getState().setEquippedSkinVariant(1);

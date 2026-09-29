@@ -10,6 +10,7 @@ import { useUserStore } from '@/lib/stores/userStore';
 import { formatPrice } from '@/lib/utils/formatters';
 import { isLockedRoomSkin } from '@/lib/utils/itemCategories';
 import { isPetHungry } from '@/lib/utils/moodCalculator';
+import { shopPrice } from '@/lib/utils/shopItems';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
@@ -143,7 +144,8 @@ export const useShopStore = create<ShopState>()(
           return { success: false, message: 'Пользователь не найден' };
         }
 
-        const totalCost = item.price * quantity;
+        // В демо-режиме магазин бесплатный (shopPrice).
+        const totalCost = shopPrice(item, user.is_demo) * quantity;
         if (user.liquid_balance < totalCost) {
           return { success: false, message: 'Недостаточно монет' };
         }
@@ -151,9 +153,12 @@ export const useShopStore = create<ShopState>()(
         // Списываем монеты и пишем транзакцию в леджер. Магазин — контур хаба:
         // в бюджет и факт приключения покупки не пишутся (у приключения свой
         // бюджет, его тратят события, см. adventureStore).
-        const charged = useUserStore
-          .getState()
-          .recordTransaction(-totalCost, 'purchase', `Покупка: ${item.name} x${quantity}`);
+        // Бесплатное (демо) — без записи в леджер: операции на 0 C там не нужны.
+        const charged =
+          totalCost === 0 ||
+          useUserStore
+            .getState()
+            .recordTransaction(-totalCost, 'purchase', `Покупка: ${item.name} x${quantity}`);
         if (!charged) {
           return { success: false, message: 'Недостаточно монет' };
         }
@@ -184,7 +189,9 @@ export const useShopStore = create<ShopState>()(
           return { success: false, message: 'Недостаточно предметов для продажи' };
         }
 
-        const refund = Math.floor((item.price * quantity) / 2); // §12.4 — 50% цены
+        // §12.4 — 50% цены; в демо цена 0 — и продажа за 0 (shopPrice).
+        const isDemo = useUserStore.getState().user?.is_demo ?? false;
+        const refund = Math.floor((shopPrice(item, isDemo) * quantity) / 2);
         const remaining = owned - quantity;
 
         const newOwnedItems = { ...ownedItems };
@@ -228,9 +235,11 @@ export const useShopStore = create<ShopState>()(
           equippedFurniture: newEquippedFurniture,
         });
 
-        useUserStore
-          .getState()
-          .recordTransaction(refund, 'item_sale', `Продажа: ${item.name} x${quantity}`);
+        if (refund > 0) {
+          useUserStore
+            .getState()
+            .recordTransaction(refund, 'item_sale', `Продажа: ${item.name} x${quantity}`);
+        }
 
         return {
           success: true,

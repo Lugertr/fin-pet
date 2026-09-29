@@ -1,5 +1,5 @@
 // constants/eventIcons.ts
-// Иконка события урока (поле icon в content/lessons.json, решение
+// Иконка события урока (поле icon в content/lessons/*.json, решение
 // пользователя 29.09.2026) — одно из трёх:
 // - "question" / "reward" — персонаж: питомец ребёнка в текущем облике
 //   (плитки question/reward из assets/images/pets, как в карточках урока);

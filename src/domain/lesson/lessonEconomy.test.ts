@@ -1,11 +1,10 @@
 // domain/lesson/lessonEconomy.test.ts
 // Экономика урока в смене (решение пользователя 29.09.2026): зарплата смены
 // из price урока × надбавка предметов, энергия за этап, кофе, цена подсказки —
-// всё из lessons.json, без полей — значения по умолчанию. Пример урока со
-// всеми полями (content/lessons.example.json) обязан проходить проверку.
+// всё из content/lessons, без полей — значения по умолчанию. Файла-примера
+// больше нет (уроки пользователь пишет сам) — здесь свой урок со всеми полями.
 
-import exampleJson from '../../../content/lessons.example.json';
-import lessonsJson from '../../../content/lessons.json';
+import { ALL_LESSONS } from '@/data/content/lessonFiles';
 import { LessonContent } from '@/domain/content/LessonContent';
 import {
   DEFAULT_COFFEE,
@@ -18,10 +17,44 @@ import {
   lessonSalary,
   nodeEnergyCost,
 } from './lessonEconomy';
-import { validateNodeLesson } from './LessonPlan';
 
-const EXAMPLE = (exampleJson as unknown as LessonContent[])[0];
-const LESSONS = lessonsJson as unknown as LessonContent[];
+const LESSONS = ALL_LESSONS;
+
+const question = {
+  id: 1,
+  question_text: 'Купить?',
+  options: ['Нет', 'Да'],
+  correct_answer: 'Нет',
+  question_type: 'minigame' as const,
+  hint: 'Сравни с остатком.',
+};
+
+/** Урок со всеми полями экономики. */
+const EXAMPLE: LessonContent = {
+  id: 1,
+  branch_id: 1,
+  title: 'Пример',
+  order_index: 1,
+  price: 60,
+  nodeEnergyCost: 10,
+  coffee: { price: 30, energy: 10 },
+  situation: { title: 'Ситуация', text: 'Текст' },
+  nodes: [
+    {
+      cards: [{ title: 'Карточка', text: 'Текст' }],
+      activities: [{ type: 'test', questions: [{ ...question, question_type: 'test' }] }],
+    },
+    {
+      energyCost: 15,
+      cards: [{ title: 'Карточка', text: 'Текст' }],
+      activities: [
+        { type: 'minigame', minigame_type: 'tinder_swipe', hintPrice: 5, questions: [question] },
+      ],
+    },
+  ],
+  conclusion: { title: 'Итог', text: 'Текст' },
+};
+
 const BARE: LessonContent = {
   ...EXAMPLE,
   price: undefined,
@@ -99,39 +132,8 @@ describe('economyErrors — проверка полей', () => {
       expect.stringContaining('coffee.energy'),
     ]);
   });
-});
 
-describe('content/lessons.example.json — пример урока со всеми полями', () => {
-  it('проходит ту же проверку, что и уроки приложения', () => {
-    expect(validateNodeLesson(EXAMPLE)).toEqual([]);
-  });
-
-  it('использует все поля экономики и все виды заданий', () => {
-    expect(EXAMPLE.price).toBeDefined();
-    expect(EXAMPLE.nodeEnergyCost).toBeDefined();
-    expect(EXAMPLE.coffee).toBeDefined();
-    expect(EXAMPLE.nodes.some((node) => node.energyCost !== undefined)).toBe(true);
-
-    const activities = EXAMPLE.nodes.flatMap((node) => node.activities);
-    const minigames = activities.flatMap((a) => (a.type === 'minigame' ? [a] : []));
-    expect(new Set(minigames.map((m) => m.minigame_type))).toEqual(
-      new Set(['quiz', 'tinder_swipe', 'five_letters'])
-    );
-    expect(minigames.some((m) => m.hintPrice !== undefined)).toBe(true);
-    expect(activities.some((a) => a.type === 'test')).toBe(true);
-
-    const options = activities.flatMap((a) =>
-      a.type === 'event' ? a.pool.flatMap((event) => event.options) : []
-    );
-    expect(options.some((o) => o.energyCost !== undefined)).toBe(true);
-    expect(new Set(options.map((o) => o.category))).toEqual(
-      new Set(['mandatory', 'optional', null])
-    );
-  });
-
-  it('пример — 1-й урок темы «Бюджет» в lessons.json, совпадает с файлом примера', () => {
-    const inLessons = LESSONS.find((l) => l.id === EXAMPLE.id);
-    expect(inLessons).toEqual(EXAMPLE);
-    expect(EXAMPLE).toMatchObject({ branch_id: 1, order_index: 1 });
+  it('у всех уроков content/lessons поля экономики корректны', () => {
+    expect(LESSONS.flatMap(economyErrors)).toEqual([]);
   });
 });

@@ -69,7 +69,7 @@ export interface PlanNode {
   cards: TheoryCardContent[];
   activities: PlanActivity[];
   kind: LessonNodeKind;
-  /** Энергия за этап в смене (lessons.json: nodeEnergyCost / energyCost узла). */
+  /** Энергия за этап в смене (content/lessons: nodeEnergyCost / energyCost узла). */
   energyCost: number;
 }
 
@@ -206,8 +206,11 @@ export function swipeQuestionErrors(where: string, questions: QuestionContent[])
  * Ошибки состава урока из узлов; пустой список — урок корректен.
  * - есть ситуация и заключение, хотя бы один узел;
  * - каждый узел начинается с карточек и содержит хотя бы одно действие;
- * - первый узел — по ситуации: тест или мини-игра и событие;
- * - два события подряд нельзя (по всей цепочке действий урока);
+ * - два события подряд нельзя внутри одного узла (этапа). Между этапами можно,
+ *   и состав первого узла свободный: теперь урок начинается с отдельного
+ *   этапа «Теория», а каждый узел — свой этап (решение пользователя 29.09.2026,
+ *   раньше первый узел требовал тест/игру и событие, а события подряд
+ *   запрещались по всему уроку);
  * - вопросы с вариантами и верным ответом, id вопросов в уроке не повторяются;
  * - мини-игра известного типа (quiz и tinder_swipe — с вопросами; свайп —
  *   вопрос «да / нет» с вариантами [нет, да]);
@@ -231,7 +234,6 @@ export function validateNodeLesson(lesson: LessonContent): string[] {
 
   const questionIds = new Set<number>();
   const eventIds = new Set<string>();
-  let previousType: LessonActivityContent['type'] | null = null;
 
   lesson.nodes.forEach((node, nodeIndex) => {
     const nodeAt = `${at}, узел ${nodeIndex + 1}`;
@@ -241,14 +243,8 @@ export function validateNodeLesson(lesson: LessonContent): string[] {
     }
     if (node.activities.length === 0) errors.push(`${nodeAt}: нет действий`);
 
-    if (nodeIndex === 0) {
-      const types = node.activities.map((a) => a.type);
-      if (!types.includes('test') && !types.includes('minigame')) {
-        errors.push(`${nodeAt}: в первом узле нужен тест или мини-игра`);
-      }
-      if (!types.includes('event')) errors.push(`${nodeAt}: в первом узле нужно событие`);
-    }
-
+    // События подряд — только внутри этапа (узла); между этапами можно.
+    let previousType: LessonActivityContent['type'] | null = null;
     node.activities.forEach((activity, activityIndex) => {
       const activityAt = `${nodeAt}, действие ${activityIndex + 1}`;
       if (activity.type === 'event' && previousType === 'event') {

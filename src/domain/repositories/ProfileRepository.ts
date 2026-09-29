@@ -9,6 +9,8 @@ export interface ProfileRepository {
   create(profile: LocalProfile): Promise<void>;
   update(profile: LocalProfile): Promise<void>;
   updateBalance(profileId: string, liquidBalance: number): Promise<void>;
+  /** Демо-режим, «Пропустить день»: дата создания профиля — на сутки раньше. */
+  setCreatedAt(profileId: string, createdAt: string): Promise<void>;
   /** Полный сброс — используется разделом для взрослого (§17.2). */
   reset(): Promise<void>;
 }

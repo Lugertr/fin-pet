@@ -34,7 +34,7 @@ import {
   itemMatchesCategoryFilter,
   isShopItem,
 } from '@/lib/utils/itemCategories';
-import { getEffectDescription } from '@/lib/utils/shopItems';
+import { getEffectDescription, shopPrice } from '@/lib/utils/shopItems';
 import { useResponsive, useTheme } from '@/theme';
 import { circleRadius, spacing } from '@/theme/tokens';
 import { createShopStyles } from '../../styles/screens/tabs/_shop.styles';
@@ -58,6 +58,8 @@ export default function ShopScreen() {
   const petType = usePreferencesStore((s) => s.petType);
 
   const balance = user?.liquid_balance || 0;
+  // В демо-режиме магазин бесплатный (shopPrice).
+  const isDemo = user?.is_demo ?? false;
   const giftsCount = pendingGifts.length;
 
   // Скрытые предметы (§12.4/§14) не продаются в магазине — только через подарки.
@@ -81,9 +83,10 @@ export default function ShopScreen() {
       Alert.alert('Питомец сыт', FOOD_ONLY_WHEN_HUNGRY_MESSAGE);
       return;
     }
-    if (balance < item.price) {
+    const price = shopPrice(item, isDemo);
+    if (balance < price) {
       trigger('error');
-      const missing = item.price - balance;
+      const missing = price - balance;
       Alert.alert(
         'Недостаточно монет',
         `Для покупки «${item.name}» не хватает ${formatPrice(missing)}. Начни смену или заходи каждый день за ежедневной наградой, чтобы заработать монеты.`,
@@ -101,7 +104,7 @@ export default function ShopScreen() {
     const details = [
       `Категория: ${CATEGORY_DISPLAY_NAMES[item.category] ?? item.category}`,
       effect ? `Эффект: ${effect}` : null,
-      `Цена: ${formatPrice(item.price)}`,
+      `Цена: ${formatPrice(price)}`,
     ]
       .filter(Boolean)
       .join('\n');
@@ -225,6 +228,7 @@ export default function ShopScreen() {
             <ShopItemCard
               key={item.id}
               item={item}
+              price={shopPrice(item, isDemo)}
               balance={balance}
               onPurchase={() => handlePurchase(item)}
             />

@@ -69,6 +69,8 @@
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\"",
     "pets:animations": "node scripts/build-pet-animations.js",
+    "lessons:check": "node scripts/check-lessons.js",
+    "lessons:fix": "node scripts/fix-lessons.js",
     "build": "npx expo export --platform web",
     "build:docs": "npx expo export --platform web --output-dir docs && node -e \"const fs=require('fs');fs.writeFileSync('docs/.nojekyll','');fs.copyFileSync('docs/index.html','docs/404.html')\""
   },

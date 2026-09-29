@@ -7,23 +7,22 @@
 
 import achievementsJson from '../../../content/achievements.json';
 import itemsJson from '../../../content/items.json';
-import lessonsJson from '../../../content/lessons.json';
+import { ALL_LESSONS } from '@/data/content/lessonFiles';
 import { AchievementDefinition } from '@/domain/achievement/Achievement';
 import { ItemContent } from '@/domain/content/ItemContent';
-import { LessonContent } from '@/domain/content/LessonContent';
 import { lessonSalary } from '@/domain/lesson/lessonEconomy';
 import { QUIZ_TRAINER_QUESTION_COUNT } from '@/domain/arcade/TrainerSelection';
 import { ARCADE_COINS_PER_CORRECT, ARCADE_ENERGY_COST } from '@/constants/gameplay';
 
 const ITEMS = itemsJson as ItemContent[];
-const LESSONS = lessonsJson as unknown as LessonContent[];
+const LESSONS = ALL_LESSONS;
 
 /** Бонус за план — в бюджет смены. */
 const PLAN_BONUS = 10;
 
 /**
  * Верхняя граница денег за одну идеальную смену (смена = один урок): самая
- * большая зарплата урока (price из lessons.json, стартовый ноутбук без
+ * большая зарплата урока (price из content/lessons, стартовый ноутбук без
  * надбавки) с бонусом за план и самые щедрые варианты всех событий самого
  * «денежного» урока. Монет за урок в кошелёк нет (решение 29.09.2026).
  * Награды за уровень — отдельные вехи, в эту границу не входят.

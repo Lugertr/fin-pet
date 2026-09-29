@@ -2,13 +2,12 @@
 // Дорожка уроков на вкладке «Уроки»: звезда у идеально пройденных уроков,
 // отметка «продолжить» у начатого, «следующий» — с него начнётся смена.
 
-import lessonsJson from '../../../content/lessons.json';
-import { LessonContent } from '@/domain/content/LessonContent';
+import { ALL_LESSONS } from '@/data/content/lessonFiles';
 import { buildLessonPath } from './buildLessonPath';
 import { planForLesson } from './LessonPlan';
 import { LessonProgressState, createLessonProgress, totalNodeCount } from './lessonProgress';
 
-const LESSONS = lessonsJson as unknown as LessonContent[];
+const LESSONS = ALL_LESSONS;
 const BUDGET = LESSONS.filter((l) => l.branch_id === 1);
 const [FIRST, SECOND, THIRD] = [...BUDGET].sort((a, b) => a.order_index - b.order_index);
 

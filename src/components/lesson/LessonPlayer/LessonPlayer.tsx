@@ -12,7 +12,7 @@
 // звезда и бонус (в том числе при перепрохождении); остальные повторы — без
 // награды (§9.7). Тап по пройденному этапу на треке смены открывает обзор
 // одного этапа (focusNode) — так же.
-// Экономика урока — в lessons.json (lessonEconomy.ts): в смене этап стоит
+// Экономика урока — в content/lessons (lessonEconomy.ts): в смене этап стоит
 // энергии (списывается, когда этап пройден), вариант события может стоить
 // энергии, подсказка в игре — монет (в смене из бюджета работы, вне смены —
 // из кошелька). Монет за урок нет — урок оплачивается зарплатой смены.
@@ -63,7 +63,7 @@ import {
   LessonRewardResult,
   useLessonsStore,
 } from '@/lib/hooks/useLessons';
-import { canAffordEnergy, isCoffeeUnlocked } from '@/domain/adventure/Adventure';
+import { canAffordEnergy } from '@/domain/adventure/Adventure';
 import { useAdventureStore } from '@/lib/stores/adventureStore';
 import { usePetStore } from '@/lib/stores/petStore';
 import { useUserStore } from '@/lib/stores/userStore';
@@ -301,7 +301,7 @@ export function LessonPlayer({
       ((position.kind === 'reading' || position.kind === 'activity') &&
         position.node.index !== finishedNodeIndex);
     if (isPaidShiftPlay && stageFinished) {
-      // Этап пройден — его энергия (lessons.json: nodeEnergyCost / energyCost).
+      // Этап пройден — его энергия (content/lessons: nodeEnergyCost / energyCost).
       usePetStore.getState().spendEnergy(plan.nodes[finishedNodeIndex]?.energyCost ?? 0);
     }
     // Дальше — ещё один этап: назад к работе. Финал (заключение и награда,
@@ -374,8 +374,9 @@ export function LessonPlayer({
     const result = finishLesson(plan, progressRef.current);
     progressRef.current = result.state;
     setProgress(result.state);
-    // Урок смены пройден — смена завершается (полная доля), итоги — на хабе.
-    if (result.firstCompletion && isPaidShiftPlay) void completeAdventure();
+    // Урок смены пройден — смена завершается (полная доля), итоги — на хабе,
+    // следом окно «Опыт и уровень» (опыт урока — в итогах смены).
+    if (result.firstCompletion && isPaidShiftPlay) void completeAdventure(result.reward);
     show({
       kind: 'reward',
       reward: result.reward,
@@ -387,7 +388,7 @@ export function LessonPlayer({
   };
 
   /**
-   * Подсказка в игре платная (hintPrice в lessons.json): в смене — из бюджета
+   * Подсказка в игре платная (hintPrice в content/lessons): в смене — из бюджета
    * работы (желаемое), вне смены — из кошелька. Не хватает — объяснение.
    */
   const buyHint = async (price: number): Promise<boolean> => {
@@ -448,12 +449,7 @@ export function LessonPlayer({
         event={event}
         adventure={isPaidShiftPlay ? activeAdventure : null}
         showEnergy={isPaidShiftPlay}
-        coffeeAvailable={
-          isPaidShiftPlay &&
-          !!activeAdventure &&
-          !activeAdventure.coffeeBought &&
-          isCoffeeUnlocked(completedNodeCount(plan, progress), activeAdventure.stagesDoneAtStart)
-        }
+        coffeeAvailable={isPaidShiftPlay && !!activeAdventure && !activeAdventure.coffeeBought}
         onChoose={(optionId) => handleEventChoice(activity, event, optionId)}
       />
     );

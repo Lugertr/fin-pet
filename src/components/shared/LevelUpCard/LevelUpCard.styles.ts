@@ -8,8 +8,6 @@ import { StyleSheet } from 'react-native';
 export function createLevelUpCardStyles({ theme }: { theme: Theme }) {
   return StyleSheet.create({
     card: {
-      flexDirection: 'row',
-      alignItems: 'center',
       alignSelf: 'stretch',
       gap: spacing.md,
       padding: spacing.lg,
@@ -17,6 +15,11 @@ export function createLevelUpCardStyles({ theme }: { theme: Theme }) {
       backgroundColor: withAlpha(theme.primary, 0.1),
       borderWidth: 1,
       borderColor: withAlpha(theme.primary, 0.3),
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
     },
     body: {
       flex: 1,
@@ -30,6 +33,16 @@ export function createLevelUpCardStyles({ theme }: { theme: Theme }) {
       color: theme.textSecondary,
       fontSize: fontSizes.md,
       marginTop: 2,
+    },
+    lookStatus: {
+      color: theme.textPrimary,
+      fontSize: fontSizes.md,
+      fontWeight: fontWeights.semibold,
+    },
+    // «Надеть» / «Оставить текущий» — друг под другом во всю ширину карточки:
+    // рядом «Оставить текущий» на телефоне переносился на две строки.
+    lookActions: {
+      gap: spacing.sm,
     },
   });
 }

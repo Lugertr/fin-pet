@@ -1,13 +1,12 @@
 // data/content/LocalJsonContentRepository.ts
 // Локальная реализация ContentRepository поверх content/*.json.
 //
-// ВАЖНО: content/branches.json и content/lessons.json — единственное место с
+// ВАЖНО: content/branches.json и content/lessons/ — единственное место с
 // текстами уроков; ничего из этого не должно дублироваться в UI/логике (§25 ТЗ).
-// Сознательное отступление от дерева §25 (branches.json + один lessons.json
-// вместо lessons/lesson_NNN.json на каждый урок) — при 19 уроках множество
-// однотипных файлов не даёт выгоды, содержимое каждого урока и так изолировано
-// одним объектом массива; при необходимости расщепить на отдельные файлы —
-// не потребует менять ничего, кроме этого файла.
+// Уроки — по файлу на тему (content/lessons/<id>_<тема>.json, решение
+// пользователя 29.09.2026), собирает их lessonFiles.ts. Отступление от дерева
+// §25 (lessons/lesson_NNN.json на каждый урок): файл на тему удобнее
+// редактировать, а урок и так изолирован одним объектом массива.
 
 import { AchievementDefinition } from '@/domain/achievement/Achievement';
 import { AiStubContent } from '@/domain/ai/AiAssistant';
@@ -32,11 +31,11 @@ import documentsJson from '../../../content/documents.json';
 import fiveLettersWordsJson from '../../../content/five_letters_words.json';
 import glossaryJson from '../../../content/glossary.json';
 import itemsJson from '../../../content/items.json';
-import lessonsJson from '../../../content/lessons.json';
 import screenHelpJson from '../../../content/screen_help.json';
+import { ALL_LESSONS } from './lessonFiles';
 
 const BRANCHES_CONTENT = branchesJson as BranchContent[];
-const LESSONS_CONTENT = lessonsJson as unknown as LessonContent[];
+const LESSONS_CONTENT = ALL_LESSONS;
 const ITEMS_CONTENT = itemsJson as ItemContent[];
 const ACHIEVEMENTS_CONTENT = achievementsJson as AchievementDefinition[];
 const AI_STUB_CONTENT = aiStubResponsesJson as AiStubContent;

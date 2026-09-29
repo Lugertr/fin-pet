@@ -1,10 +1,12 @@
 // lib/stores/adventureStore.summary.test.ts
 // §4.5 «полное восстановление после перезапуска»: итоги смены хранятся к
 // смене, пока окно итогов не закрыто, — закрыл приложение сразу после урока
-// смены, и хаб покажет итоги после перезапуска. Вместо SQLite — репозиторий
-// в памяти.
+// смены, и хаб покажет итоги после перезапуска. Опыт урока смены — в итогах,
+// следом окно «Опыт и уровень», оно тоже переживает перезапуск. Вместо
+// SQLite — репозиторий в памяти.
 
 import { AdventureRecord } from '@/domain/adventure/Adventure';
+import type { LessonRewardResult } from '@/lib/hooks/useLessons';
 import { useUserStore } from './userStore';
 import { ADVENTURE_DURATION_MS, parseCompletionSummary, useAdventureStore } from './adventureStore';
 
@@ -58,14 +60,28 @@ const ACTIVE: AdventureRecord = {
 
 /** «Перезапуск»: память стора пуста, данные — только в хранилище. */
 function restart(): void {
-  useAdventureStore.setState({ currentAdventure: null, lastCompletionSummary: null });
+  useAdventureStore.setState({
+    currentAdventure: null,
+    lastCompletionSummary: null,
+    pendingLevelReport: null,
+  });
 }
+
+/** Награда урока смены: опыт и новый уровень с обликом в хранилище. */
+const LESSON_REWARD: LessonRewardResult = {
+  xp: 300,
+  levelUp: { from: 1, to: 2, coins: 100, skinName: 'Робот: Розовый скин', skinItemId: 14 },
+};
 
 beforeEach(() => {
   mockAdventures.clear();
   mockPending.clear();
   mockAdventures.set(ACTIVE.id, ACTIVE);
-  useAdventureStore.setState({ currentAdventure: ACTIVE, lastCompletionSummary: null });
+  useAdventureStore.setState({
+    currentAdventure: ACTIVE,
+    lastCompletionSummary: null,
+    pendingLevelReport: null,
+  });
   useUserStore.getState().setUser({
     id: PROFILE,
     username: 'Тест',
@@ -131,5 +147,73 @@ describe('итоги смены переживают перезапуск', () =
       lesson: { id: 1, title: 'Урок', nodesDone: 2, nodesTotal: 4, finished: false },
     });
     expect(parseCompletionSummary(ACTIVE, old)?.lesson).toMatchObject({ nodesDoneAtStart: 0 });
+  });
+});
+
+describe('опыт урока смены — окно «Опыт и уровень» после итогов', () => {
+  it('опыт и новый уровень — в итогах и в хранилище', async () => {
+    const summary = await useAdventureStore.getState().completeAdventure(LESSON_REWARD);
+    await flush();
+
+    expect(summary?.xp).toMatchObject({ gained: 300, levelUp: LESSON_REWARD.levelUp });
+    const stored = JSON.parse(mockPending.get(ACTIVE.id)!);
+    expect(stored.xp.levelUp.skinItemId).toBe(14);
+  });
+
+  it('смена без опыта (✕ раньше урока) — окна уровня не будет', async () => {
+    await useAdventureStore.getState().completeAdventure();
+    await flush();
+    useAdventureStore.getState().dismissCompletionSummary();
+    await flush();
+
+    expect(useAdventureStore.getState().pendingLevelReport).toBeNull();
+    expect(mockPending.get(ACTIVE.id)).toBeNull();
+  });
+
+  it('итоги закрыли — ждёт окно уровня, и после перезапуска тоже (без повтора итогов)', async () => {
+    await useAdventureStore.getState().completeAdventure(LESSON_REWARD);
+    await flush();
+    useAdventureStore.getState().dismissCompletionSummary();
+    await flush();
+    expect(useAdventureStore.getState().pendingLevelReport?.report.gained).toBe(300);
+    restart();
+
+    await useAdventureStore.getState().loadCurrent(PROFILE);
+
+    expect(useAdventureStore.getState().lastCompletionSummary).toBeNull();
+    expect(useAdventureStore.getState().pendingLevelReport).toMatchObject({
+      adventureId: ACTIVE.id,
+      report: { gained: 300, levelUp: { to: 2, skinItemId: 14 } },
+    });
+  });
+
+  it('окно уровня закрыли — больше не показывается', async () => {
+    await useAdventureStore.getState().completeAdventure(LESSON_REWARD);
+    await flush();
+    useAdventureStore.getState().dismissCompletionSummary();
+    useAdventureStore.getState().dismissLevelReport();
+    await flush();
+    restart();
+
+    await useAdventureStore.getState().loadCurrent(PROFILE);
+
+    expect(useAdventureStore.getState().pendingLevelReport).toBeNull();
+    expect(mockPending.get(ACTIVE.id)).toBeNull();
+  });
+
+  it('итоги без опыта или с битым опытом читаются без окна уровня', () => {
+    const base = {
+      bonusAwarded: 0,
+      toBank: 0,
+      bankBonus: 0,
+      toWallet: 50,
+      completionRatio: 1,
+      autoCompleted: false,
+      lesson: null,
+    };
+    expect(parseCompletionSummary(ACTIVE, JSON.stringify(base))?.xp).toBeNull();
+    expect(
+      parseCompletionSummary(ACTIVE, JSON.stringify({ ...base, xp: { gained: 'много' } }))?.xp
+    ).toBeNull();
   });
 });

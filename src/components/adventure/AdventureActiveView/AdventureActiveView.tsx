@@ -9,6 +9,9 @@
 // треке открывается, чтобы перечитать и перепройти. В шапке: «назад» на хаб, «?» и ✕ — закончить
 // смену раньше. Итоги здесь не показываются: смена завершилась (урок пройден,
 // ✕ или 24 часа вышли) — экран сам возвращается на хаб, там итоги.
+// Демо-режим: под «Начать задание» — «Завершить урок» (решение пользователя
+// 29.09.2026): урок засчитан разом (без звезды), смена закрыта с его опытом —
+// на хабе итоги и окно «Опыт и уровень».
 
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -22,9 +25,9 @@ import { IconButton } from '@/components/ui';
 import {
   AdventureRecord,
   computeAdventurePayout,
-  isCoffeeUnlocked,
   planSpendRemaining,
 } from '@/domain/adventure/Adventure';
+import { MOOD_MAX } from '@/constants/gameplay';
 import { planForLesson } from '@/domain/lesson/LessonPlan';
 import {
   completedNodeCount,
@@ -81,6 +84,7 @@ export function AdventureActiveView() {
   const lessonStates = useLessonsStore((s) => s.lessonStates);
   const petType = usePreferencesStore((s) => s.petType);
   const currentMood = usePetStore((s) => s.currentMood);
+  const moodMaxBonus = usePetStore((s) => s.moodMaxBonus);
   const equippedSkinVariant = usePetStore((s) => s.equippedSkinVariant);
   const coins = useUserStore((s) => s.user?.liquid_balance ?? 0);
   const isDemo = useUserStore((s) => s.user?.is_demo ?? false);
@@ -120,7 +124,7 @@ export function AdventureActiveView() {
 
   const openLesson = (node?: number) => {
     if (!lesson) return;
-    // Новый этап стоит энергии (lessons.json) — не хватает, не пускаем с
+    // Новый этап стоит энергии (content/lessons) — не хватает, не пускаем с
     // объяснением; перечитать пройденный этап (node) — бесплатно.
     if (node === undefined && !ensureStageEnergy(lesson.id, lesson.branch_id)) return;
     triggerHaptic('light');
@@ -133,7 +137,7 @@ export function AdventureActiveView() {
   const done = plan && progress ? completedNodeCount(plan, progress) : 0;
   const total = plan ? totalNodeCount(plan) : 0;
   const lessonDone = position?.kind === 'done';
-  // Урок смены убрали из lessons.json (обновление контента) — проходить нечего.
+  // Урок смены убрали из content/lessons (обновление контента) — проходить нечего.
   const lessonMissing = adventure.lessonId !== null && !lesson;
   // Цена текущего этапа — в кнопке «Начать задание» (финальный этап бесплатный).
   const stageCost =
@@ -141,23 +145,15 @@ export function AdventureActiveView() {
   // Первый этап — «Теория» (решение 29.09.2026): кнопка так и называется.
   const isTheoryStage = position?.kind === 'reading' && position.node.kind === 'theory';
   const startLabel = isTheoryStage ? 'Читать теорию' : 'Начать задание';
-  // Кофе — раз за смену, из бюджета работы (lessons.json: coffee).
+  // Кофе — раз за смену, из бюджета работы (content/lessons: coffee).
   const coffee = lesson ? lessonCoffee(lesson) : null;
-  // Кофе — только после первого этапа этой смены (иначе энергия даром).
-  const coffeeLocked =
-    adventure.lessonId !== null && !isCoffeeUnlocked(done, adventure.stagesDoneAtStart);
+  // Кофе можно с первого этапа, но не при полной энергии (решение 29.09.2026):
+  // прибавлять нечего, монеты ушли бы впустую — кнопка заблокирована.
+  const energyFull = currentMood >= MOOD_MAX + moodMaxBonus;
   const handleCoffee = async () => {
     if (!coffee) return;
     triggerHaptic('light');
-    if (!adventure.coffeeBought && coffeeLocked) {
-      Alert.alert(
-        'Кофе — после первого этапа',
-        'Пройди первый этап этой смены — и кофе откроется. Он продаётся один раз за смену.'
-      );
-      return;
-    }
-    // Энергия и так полная — кофе не продаётся, монеты ушли бы впустую.
-    if (!adventure.coffeeBought && isPetEnergyFull()) {
+    if (!adventure.coffeeBought && (energyFull || isPetEnergyFull())) {
       Alert.alert(
         'Энергия и так полная',
         'Кофе пригодится, когда энергии станет меньше. Он продаётся один раз за смену.'
@@ -222,6 +218,18 @@ export function AdventureActiveView() {
     );
   };
 
+  // Демо: урок засчитан целиком (опыт — уровень), смена закрыта с его опытом.
+  const handleDemoFinishLesson = async () => {
+    if (!lesson) return;
+    triggerHaptic('medium');
+    const result = useLessonsStore.getState().completeLessonNow(lesson.id);
+    if (!result) return;
+    const summary = await completeAdventure(result.reward);
+    if (!summary && useAdventureStore.getState().currentAdventure) {
+      Alert.alert('Не получилось', 'Не удалось закончить смену, попробуй ещё раз');
+    }
+  };
+
   const handleNodePress = (index: number) => {
     if (!plan || !progress) return;
     if (index < plan.nodes.length && isNodeComplete(plan, progress, index)) {
@@ -282,7 +290,7 @@ export function AdventureActiveView() {
               <CoffeeButton
                 coffee={coffee}
                 used={adventure.coffeeBought}
-                locked={coffeeLocked}
+                energyFull={energyFull}
                 onPress={() => void handleCoffee()}
               />
             )}
@@ -323,6 +331,20 @@ export function AdventureActiveView() {
                 : startLabel}
           </Text>
         </TouchableOpacity>
+
+        {isDemo && lesson && !lessonDone && (
+          <TouchableOpacity
+            onPress={() => void handleDemoFinishLesson()}
+            activeOpacity={0.85}
+            style={styles.demoFinishButton}
+            accessibilityRole="button"
+            accessibilityLabel="Демо: завершить урок сразу"
+          >
+            <Text style={[styles.demoFinishButtonText, { fontSize: scaledFont('md') }]}>
+              Завершить урок (демо)
+            </Text>
+          </TouchableOpacity>
+        )}
 
         <ShiftBudgetCard
           adventure={adventure}

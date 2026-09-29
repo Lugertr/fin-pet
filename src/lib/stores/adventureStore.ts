@@ -10,6 +10,9 @@
 // зарплата — за оставшиеся к старту этапы урока, выплата при досрочном
 // завершении — доля этапов этой смены (Adventure.shiftCompletionRatio).
 //
+// Опыт урока смены (и новый уровень) попадает в итоги: после окна итогов хаб
+// показывает окно «Опыт и уровень» (решение пользователя 29.09.2026).
+//
 // Смена НЕ создаётся автоматически при заходе на хаб — только явным действием
 // ребёнка (кнопка «Начать работу» / тап по ноутбуку), см. startPlanning().
 
@@ -25,7 +28,6 @@ import {
   BudgetCategory,
   canAfford,
   computeAdventurePayout,
-  isCoffeeUnlocked,
   isPlanBonusEligible,
   isTimeUp,
   remainingStagesSalary,
@@ -44,7 +46,13 @@ import {
   createLessonProgress,
   totalNodeCount,
 } from '@/domain/lesson/lessonProgress';
-import { LESSONS, useLessonsStore, waitForLessonsLoaded } from '@/lib/hooks/useLessons';
+import {
+  LESSONS,
+  LessonRewardResult,
+  LevelUpResult,
+  useLessonsStore,
+  waitForLessonsLoaded,
+} from '@/lib/hooks/useLessons';
 import { create } from 'zustand';
 import { useShopStore } from '@/lib/hooks/useShop';
 import { isPetEnergyFull, usePetStore } from './petStore';
@@ -87,6 +95,16 @@ export interface ShiftLessonSummary {
   finished: boolean;
 }
 
+/** Опыт за смену — окно «Опыт и уровень» на хабе после итогов. */
+export interface ShiftXpReport {
+  /** Опыт за урок смены (> 0). */
+  gained: number;
+  /** Опыт игрока после начисления: полоска идёт от (totalAfter − gained). */
+  totalAfter: number;
+  /** Переход уровня (уже выдан: монеты, облик в хранилище). */
+  levelUp: LevelUpResult | null;
+}
+
 export interface AdventureCompletionSummary {
   adventure: AdventureRecord;
   /** Бонус за план — добавлен в бюджет смены перед выплатой. */
@@ -102,6 +120,14 @@ export interface AdventureCompletionSummary {
   autoCompleted: boolean;
   /** null — смена старой модели, без урока. */
   lesson: ShiftLessonSummary | null;
+  /** Опыт урока смены; null — урок в этой смене не пройден, опыта не было. */
+  xp: ShiftXpReport | null;
+}
+
+/** Окно «Опыт и уровень» ждёт показа: итоги уже закрыты, id смены — для хранилища. */
+export interface PendingLevelReport {
+  adventureId: number;
+  report: ShiftXpReport;
 }
 
 interface AdventureState {
@@ -112,6 +138,12 @@ interface AdventureState {
    * их не закроют; хранятся и в SQLite (pending_summary), переживают перезапуск.
    */
   lastCompletionSummary: AdventureCompletionSummary | null;
+  /**
+   * Окно «Опыт и уровень» — после итогов смены, если урок смены дал опыт.
+   * Пока его не закрыли, итоги смены остаются в SQLite (с пометкой, что
+   * окно итогов уже закрыто) — окно переживает перезапуск.
+   */
+  pendingLevelReport: PendingLevelReport | null;
 
   /** Загружает текущую незавершённую смену профиля, ничего не создавая. */
   loadCurrent: (profileId: string) => Promise<void>;
@@ -148,20 +180,26 @@ interface AdventureState {
    * уменьшается, факт «хочу» растёт. false — смена не идёт или не хватает (§12.3).
    */
   spendOnWant: (amount: number) => Promise<boolean>;
-  /** Кофе — раз за смену, после её первого этапа: трата на желаемое и
-   * +энергия. false — уже куплен, этап смены ещё не пройден, энергия и так
-   * полная или не хватает бюджета. */
+  /** Кофе — раз за смену, с первого этапа: трата на «Хочу» и +энергия.
+   * false — уже куплен, энергия и так полная или не хватает бюджета. */
   buyCoffee: (coffee: LessonCoffeeContent) => Promise<boolean>;
   /**
    * Завершает смену: урок пройден (LessonPlayer) или ✕ раньше времени. Если
    * урок не пройден, награда пропорциональна пройденной доле урока — это не
    * штраф, а выбор ребёнка; урок продолжится в следующую смену.
    */
-  completeAdventure: () => Promise<AdventureCompletionSummary | null>;
+  completeAdventure: (
+    lessonReward?: LessonRewardResult
+  ) => Promise<AdventureCompletionSummary | null>;
   /** 24 часа вышли — завершает смену (итоги — в lastCompletionSummary для показа на хабе). */
   completeIfExpired: () => Promise<AdventureCompletionSummary | null>;
-  /** Модалку итогов на хабе закрыли — итоги больше не показываются и после перезапуска. */
+  /**
+   * Модалку итогов на хабе закрыли — итоги больше не показываются и после
+   * перезапуска. Урок смены дал опыт — дальше окно «Опыт и уровень».
+   */
   dismissCompletionSummary: () => void;
+  /** Окно «Опыт и уровень» закрыли — оно больше не показывается. */
+  dismissLevelReport: () => void;
   /** Тема активной смены — бейдж и подсветка на вкладке «Уроки». */
   isActiveBranch: (branchId: number) => boolean;
   /**
@@ -192,9 +230,15 @@ async function withCompletionLock(
 }
 
 /** Итоги без самой смены — то, что хранится к смене до показа (pending_summary). */
-type StoredSummary = Omit<AdventureCompletionSummary, 'adventure'>;
+type StoredSummary = Omit<AdventureCompletionSummary, 'adventure'> & {
+  /** Окно итогов закрыто, ждёт только окно «Опыт и уровень». */
+  summaryShown?: boolean;
+};
 
-export function serializeCompletionSummary(summary: AdventureCompletionSummary): string {
+export function serializeCompletionSummary(
+  summary: AdventureCompletionSummary,
+  summaryShown = false
+): string {
   const stored: StoredSummary = {
     bonusAwarded: summary.bonusAwarded,
     toBank: summary.toBank,
@@ -203,8 +247,33 @@ export function serializeCompletionSummary(summary: AdventureCompletionSummary):
     completionRatio: summary.completionRatio,
     autoCompleted: summary.autoCompleted,
     lesson: summary.lesson,
+    xp: summary.xp,
+    ...(summaryShown ? { summaryShown: true } : {}),
   };
   return JSON.stringify(stored);
+}
+
+function isNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+/** Опыт смены из хранилища; битый или без опыта — null (окна уровня не будет). */
+function parseXpReport(value: unknown): ShiftXpReport | null {
+  if (!value || typeof value !== 'object') return null;
+  const xp = value as Partial<ShiftXpReport>;
+  if (!isNumber(xp.gained) || xp.gained <= 0 || !isNumber(xp.totalAfter)) return null;
+  const levelUp = xp.levelUp as Partial<LevelUpResult> | null | undefined;
+  const validLevelUp =
+    levelUp && isNumber(levelUp.from) && isNumber(levelUp.to)
+      ? {
+          from: levelUp.from,
+          to: levelUp.to,
+          coins: isNumber(levelUp.coins) ? levelUp.coins : 0,
+          skinName: typeof levelUp.skinName === 'string' ? levelUp.skinName : null,
+          skinItemId: isNumber(levelUp.skinItemId) ? levelUp.skinItemId : null,
+        }
+      : null;
+  return { gained: xp.gained, totalAfter: xp.totalAfter, levelUp: validLevelUp };
 }
 
 /** Итоги из хранилища; битые данные — null (окно просто не покажется). */
@@ -221,7 +290,7 @@ export function parseCompletionSummary(
       stored.toWallet,
       stored.completionRatio,
     ];
-    if (!numbers.every((n) => typeof n === 'number' && Number.isFinite(n))) return null;
+    if (!numbers.every(isNumber)) return null;
     return {
       adventure,
       bonusAwarded: stored.bonusAwarded!,
@@ -234,9 +303,20 @@ export function parseCompletionSummary(
       lesson: stored.lesson
         ? { ...stored.lesson, nodesDoneAtStart: stored.lesson.nodesDoneAtStart ?? 0 }
         : null,
+      // Итоги, записанные до 29.09.2026, — без опыта.
+      xp: parseXpReport(stored.xp),
     };
   } catch {
     return null;
+  }
+}
+
+/** Окно итогов уже закрыто — после перезапуска ждёт только окно уровня. */
+function isSummaryShown(json: string): boolean {
+  try {
+    return (JSON.parse(json) as StoredSummary).summaryShown === true;
+  } catch {
+    return false;
   }
 }
 
@@ -286,7 +366,8 @@ export function shiftSalary(branchId: number | null): number | null {
 export const useAdventureStore = create<AdventureState>((set, get) => {
   /** Общая часть ручного и автоматического завершения (вызывается под withCompletionLock). */
   const finalizeAdventure = async (
-    autoCompleted: boolean
+    autoCompleted: boolean,
+    lessonReward?: LessonRewardResult
   ): Promise<AdventureCompletionSummary | null> => {
     const { currentAdventure } = get();
     if (!currentAdventure || currentAdventure.status !== 'active') return null;
@@ -297,7 +378,7 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
     // смене (урок пройден — полная). Иначе «начал смену и дождался конца»
     // приносило бы весь бюджет, ничего не пройдя, а на начатом уроке — снова
     // и снова. Это не штраф: урок продолжится в следующую смену.
-    // Урок смены убрали из lessons.json — платить не за что (свои монеты из
+    // Урок смены убрали из content/lessons — платить не за что (свои монеты из
     // кошелька вернутся). Смена старой модели (без урока) — как раньше.
     // §18.2 демо-режим: завершение в любой момент — полная выплата (показ
     // итогов не ждёт прохождения урока целиком).
@@ -343,6 +424,15 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
       completionRatio,
       autoCompleted,
       lesson,
+      // Опыт урока уже начислен (finishLesson) — здесь только для окна уровня.
+      xp:
+        lessonReward && lessonReward.xp > 0
+          ? {
+              gained: lessonReward.xp,
+              totalAfter: useLessonsStore.getState().totalXp,
+              levelUp: lessonReward.levelUp,
+            }
+          : null,
     };
 
     // §4.5: смена, банк, кошелёк и итоги — одной транзакцией SQLite: либо всё,
@@ -398,6 +488,7 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
     currentAdventure: null,
     isLoading: true,
     lastCompletionSummary: null,
+    pendingLevelReport: null,
 
     loadCurrent: async (profileId) => {
       set({ isLoading: true });
@@ -405,11 +496,20 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
         const repo = getAdventureRepository();
         const current = await repo.getCurrent(profileId);
         set({ currentAdventure: current, isLoading: false });
-        // Непоказанные итоги прошлой смены (приложение закрыли до окна итогов).
-        if (!get().lastCompletionSummary) {
+        // Непоказанные итоги прошлой смены (приложение закрыли до окна итогов)
+        // или непоказанное окно уровня (итоги закрыли, окно уровня — нет).
+        if (!get().lastCompletionSummary && !get().pendingLevelReport) {
           const pending = await repo.getPendingSummary(profileId);
           const summary = pending && parseCompletionSummary(pending.adventure, pending.summaryJson);
-          if (summary && !get().lastCompletionSummary) set({ lastCompletionSummary: summary });
+          if (pending && summary && !get().lastCompletionSummary && !get().pendingLevelReport) {
+            if (!isSummaryShown(pending.summaryJson)) {
+              set({ lastCompletionSummary: summary });
+            } else if (summary.xp) {
+              set({
+                pendingLevelReport: { adventureId: summary.adventure.id, report: summary.xp },
+              });
+            }
+          }
         }
       } catch (error) {
         console.error('[AdventureStore] Не удалось загрузить смену:', error);
@@ -649,15 +749,8 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
     buyCoffee: async (coffee) => {
       const adventure = get().currentAdventure;
       if (!adventure || adventure.status !== 'active' || adventure.coffeeBought) return false;
-      // Только после первого этапа этой смены — иначе энергия даром (Adventure.isCoffeeUnlocked).
-      // Урок смены убрали из контента — проходить нечего, кофе тоже не нужен.
-      if (adventure.lessonId !== null) {
-        const lesson = shiftLessonProgress(adventure);
-        if (!lesson || !isCoffeeUnlocked(lesson.nodesDone, adventure.stagesDoneAtStart)) {
-          return false;
-        }
-      }
-      // Энергия и так полная — прибавлять нечего, монеты ушли бы впустую.
+      // Кофе можно с первого же этапа (решение пользователя 29.09.2026), но не
+      // при полной энергии — прибавлять нечего, монеты ушли бы впустую.
       if (isPetEnergyFull()) return false;
       if (!canAfford(-coffee.price, adventure.budget)) return false;
       const budget = adventure.budget - coffee.price;
@@ -681,7 +774,8 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
       return true;
     },
 
-    completeAdventure: () => withCompletionLock(() => finalizeAdventure(false)),
+    completeAdventure: (lessonReward) =>
+      withCompletionLock(() => finalizeAdventure(false, lessonReward)),
 
     completeIfExpired: () =>
       withCompletionLock(async () => {
@@ -704,14 +798,28 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
 
     dismissCompletionSummary: () => {
       const summary = get().lastCompletionSummary;
-      set({ lastCompletionSummary: null });
-      if (summary) {
-        getAdventureRepository()
-          .setPendingSummary(summary.adventure.id, null)
-          .catch((error) =>
-            console.warn('[AdventureStore] Не удалось закрыть итоги смены:', error)
-          );
-      }
+      if (!summary) return;
+      // Урок смены дал опыт — следом окно «Опыт и уровень»; итоги остаются в
+      // хранилище с пометкой «окно итогов закрыто», пока не закроют и его.
+      const levelReport = summary.xp
+        ? { adventureId: summary.adventure.id, report: summary.xp }
+        : null;
+      set({ lastCompletionSummary: null, pendingLevelReport: levelReport });
+      getAdventureRepository()
+        .setPendingSummary(
+          summary.adventure.id,
+          levelReport ? serializeCompletionSummary(summary, true) : null
+        )
+        .catch((error) => console.warn('[AdventureStore] Не удалось закрыть итоги смены:', error));
+    },
+
+    dismissLevelReport: () => {
+      const pending = get().pendingLevelReport;
+      if (!pending) return;
+      set({ pendingLevelReport: null });
+      getAdventureRepository()
+        .setPendingSummary(pending.adventureId, null)
+        .catch((error) => console.warn('[AdventureStore] Не удалось закрыть окно уровня:', error));
     },
 
     isActiveBranch: (branchId) => {
@@ -737,6 +845,7 @@ export const useAdventureStore = create<AdventureState>((set, get) => {
         currentAdventure: null,
         isLoading: true,
         lastCompletionSummary: null,
+        pendingLevelReport: null,
       }),
   };
 });

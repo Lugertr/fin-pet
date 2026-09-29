@@ -146,7 +146,7 @@ export interface LessonCoffeeContent {
   energy: number;
 }
 
-/** Урок — как он лежит в content/lessons.json (формат — README, «Формат урока»). */
+/** Урок — как он лежит в content/lessons/*.json (формат — README, «Формат урока»). */
 export interface LessonContent {
   id: number;
   branch_id: number;

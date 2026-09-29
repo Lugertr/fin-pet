@@ -6,12 +6,14 @@
 // «Продолжить работу» с остатком времени смены) и рядом — Аркада (решение
 // пользователя 28.09.2026: переехала из смены на хаб). Статы/период/дневная
 // награда/совет дня убраны отсюда полностью; ежедневная награда — модалка при
-// первом за день заходе (см. app/(tabs)/index.tsx).
+// первом за день заходе (см. app/(tabs)/index.tsx). В демо-режиме рядом —
+// «+1 день» (lib/daily/skipDemoDay): проверить ежедневную награду сразу.
 
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 import { openWorkOrExplain } from '@/lib/adventure/openWork';
+import { skipDemoDay } from '@/lib/daily/skipDemoDay';
 import { TouchableOpacity, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,6 +25,8 @@ import { useFeedback } from '@/lib/hooks/useFeedback';
 import { formatDuration } from '@/lib/adventure/formatDuration';
 import { useAdventureCountdown } from '@/lib/adventure/useAdventureCountdown';
 import { useAdventureStore } from '@/lib/stores/adventureStore';
+import { useUserStore } from '@/lib/stores/userStore';
+import { Alert } from '@/lib/utils/alert';
 import { useResponsive, useTheme } from '@/theme';
 import { spacing } from '@/theme/tokens';
 import { createHubHeaderStyles } from './HubHeader.styles';
@@ -52,6 +56,7 @@ export function HubHeader({
   const headerPadding = useAppHeaderPadding();
   const styles = createHubHeaderStyles({ theme });
   const adventureStatus = useAdventureStore((s) => s.currentAdventure?.status);
+  const isDemo = useUserStore((s) => s.user?.is_demo ?? false);
   // Новые уроки проходятся только в смене, поэтому главное действие хаба —
   // начать её (или вернуться к недоделанному планированию).
   const mainCtaLabel =
@@ -120,6 +125,24 @@ export function HubHeader({
           </View>
           <Ionicons name="play" size={scale(14)} color={theme.onGradient} />
         </TouchableOpacity>
+        {isDemo && (
+          <TouchableOpacity
+            onPress={() => {
+              triggerHaptic('light');
+              skipDemoDay().catch((error) => {
+                console.warn('[Hub] Не удалось пропустить день:', error);
+                Alert.alert('Не получилось', 'Не удалось пропустить день, попробуй ещё раз');
+              });
+            }}
+            activeOpacity={0.85}
+            style={styles.demoDayButton}
+            accessibilityRole="button"
+            accessibilityLabel="Демо: пропустить день — проверить ежедневную награду"
+          >
+            <Ionicons name="play-skip-forward" size={scale(18)} color={theme.primary} />
+            <Text style={[styles.demoDayText, { fontSize: scaledFont('xs') }]}>+1 день</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
           onPress={() => {
             triggerHaptic('light');

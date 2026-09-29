@@ -14,10 +14,13 @@ import { createShopItemCardStyles } from './ShopItemCard.styles';
 
 export function ShopItemCard({
   item,
+  price,
   balance,
   onPurchase,
 }: {
   item: ShopItem;
+  /** Цена для профиля (lib/utils/shopItems.shopPrice): в демо — 0. */
+  price: number;
   balance: number;
   onPurchase: () => void;
 }) {
@@ -25,7 +28,7 @@ export function ShopItemCard({
   const { scale, scaledFont } = useResponsive();
 
   const styles = createShopItemCardStyles({ theme });
-  const canAfford = balance >= item.price;
+  const canAfford = balance >= price;
   const effect = getEffectDescription(item);
 
   return (
@@ -66,7 +69,7 @@ export function ShopItemCard({
       {/* Цена и кнопка */}
       <View style={styles.itemPriceContainer}>
         <CoinAmount
-          amount={item.price}
+          amount={price}
           fontSize={scaledFont('lg')}
           style={{ marginBottom: scale(spacing.sm) }}
           textStyle={[

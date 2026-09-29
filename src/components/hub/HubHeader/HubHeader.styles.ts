@@ -40,6 +40,20 @@ export function createHubHeaderStyles({ theme }: HubHeaderStylesParams) {
       justifyContent: 'center',
       backgroundColor: withAlpha(theme.warning, 0.15),
     },
+    // Демо: «+1 день» — такая же квадратная кнопка, подпись — не только иконка.
+    demoDayButton: {
+      width: touchTarget.recommended + spacing.sm,
+      minHeight: touchTarget.recommended,
+      borderRadius: radius.lg,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: withAlpha(theme.primary, 0.12),
+    },
+    demoDayText: {
+      color: theme.primary,
+      fontWeight: fontWeights.bold,
+      fontSize: fontSizes.xs,
+    },
     ctaMainButton: {
       flex: 1,
       backgroundColor: theme.accent,

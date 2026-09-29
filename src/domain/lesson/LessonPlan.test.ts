@@ -1,9 +1,9 @@
 // domain/lesson/LessonPlan.test.ts
 // Урок из узлов (28.09.2026): план для плеера и правила состава — в том
-// числе на всём content/lessons.json.
+// числе на всём content/lessons/*.json.
 
 import fiveLettersWordsJson from '../../../content/five_letters_words.json';
-import lessonsJson from '../../../content/lessons.json';
+import { ALL_LESSONS } from '@/data/content/lessonFiles';
 import {
   LessonContent,
   FiveLettersWordContent,
@@ -173,9 +173,13 @@ describe('validateNodeLesson', () => {
     );
   });
 
-  it('первый узел — тест или мини-игра и событие', () => {
-    const errors = validateNodeLesson(lesson({ nodes: [{ cards: [card], activities: [test()] }] }));
-    expect(errors).toEqual([expect.stringContaining('в первом узле нужно событие')]);
+  it('состав первого узла свободный — урок начинается с этапа «Теория» (29.09.2026)', () => {
+    expect(
+      validateNodeLesson(lesson({ nodes: [{ cards: [card], activities: [test()] }] }))
+    ).toEqual([]);
+    expect(
+      validateNodeLesson(lesson({ nodes: [{ cards: [card], activities: [event()] }] }))
+    ).toEqual([]);
   });
 
   it('узел без карточек или без действий', () => {
@@ -191,7 +195,7 @@ describe('validateNodeLesson', () => {
     );
   });
 
-  it('два события подряд нельзя — и внутри узла, и на стыке узлов', () => {
+  it('два события подряд нельзя внутри узла, а на стыке этапов можно (29.09.2026)', () => {
     const inside = lesson({
       nodes: [{ cards: [card], activities: [test(), event(), event()] }],
     });
@@ -203,7 +207,7 @@ describe('validateNodeLesson', () => {
         { cards: [card], activities: [event(), test()] },
       ],
     });
-    expect(validateNodeLesson(across)).toEqual([expect.stringContaining('два события подряд')]);
+    expect(validateNodeLesson(across)).toEqual([]);
   });
 
   it('узел из одного события допустим, если рядом не событие', () => {
@@ -368,8 +372,8 @@ describe('fiveLettersWordFor — слово для «5 букв»', () => {
   });
 });
 
-describe('content/lessons.json', () => {
-  const lessons = lessonsJson as unknown as LessonContent[];
+describe('content/lessons/*.json', () => {
+  const lessons = ALL_LESSONS;
 
   it('все уроки — в формате этапов: ситуация, этапы, заключение', () => {
     expect(lessons.length).toBeGreaterThan(0);

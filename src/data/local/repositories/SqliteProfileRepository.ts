@@ -96,6 +96,11 @@ export class SqliteProfileRepository implements ProfileRepository {
     ]);
   }
 
+  async setCreatedAt(profileId: string, createdAt: string): Promise<void> {
+    const db = await this.getDb();
+    await db.runAsync('UPDATE profiles SET created_at = ? WHERE id = ?', [createdAt, profileId]);
+  }
+
   async reset(): Promise<void> {
     const db = await this.getDb();
     // Таблицы periods/pet_progress/savings/savings_transactions появились после

@@ -4,6 +4,17 @@
 
 import type { ShopItem } from '@/lib/hooks/useShop';
 
+/**
+ * Цена товара для профиля. В демо-режиме магазин бесплатный (решение
+ * пользователя 29.09.2026): за время показа не заработать на мебель, а
+ * показать нужно всё. Продажа в демо — от этой же цены, то есть за 0 C, иначе
+ * «взял даром — продал за половину» давало бы монеты из ничего. Цели банка
+ * (накопления) — по настоящей цене, это другой контур.
+ */
+export function shopPrice(item: Pick<ShopItem, 'price'>, isDemo: boolean): number {
+  return isDemo ? 0 : item.price;
+}
+
 export function getEffectDescription(item: ShopItem): string | null {
   if (item.energy_restore > 0) return `+${item.energy_restore}⚡ энергии сразу`;
   if (item.energy_max_bonus > 0) return `+${item.energy_max_bonus}⚡ к максимуму энергии`;

@@ -1,10 +1,11 @@
 // src/components/adventure/CoffeeButton/CoffeeButton.tsx
 // «Выпить кофе» — квадратная кнопка в левом верхнем углу сцены на экране
 // работы (решение пользователя 29.09.2026): раз за смену, из бюджета работы,
-// прибавляет энергию (lessons.json: coffee). Сцена всегда светлая, поэтому
+// прибавляет энергию (content/lessons: coffee). Сцена всегда светлая, поэтому
 // кнопка — светлая карточка в тёплых тонах в обеих темах. Цена и энергия —
-// текстом в чипах, а не только цветом (§23). До первого этапа этой смены кофе
-// закрыт: замок и «после 1-го этапа».
+// текстом в чипах, а не только цветом (§23). Кофе можно с первого этапа, но
+// при полной энергии кнопка заблокирована с подписью «энергия полная»
+// (решение 29.09.2026) — монеты не уходят впустую.
 
 import { Ionicons } from '@expo/vector-icons';
 import { TouchableOpacity, View } from 'react-native';
@@ -23,44 +24,44 @@ const ICON_CIRCLE_SIZE = 40;
 export function CoffeeButton({
   coffee,
   used,
-  locked,
+  energyFull,
   onPress,
 }: {
   coffee: LessonCoffeeContent;
   /** Кофе уже был в этой смене. */
   used: boolean;
-  /** Ни одного этапа в этой смене ещё не пройдено — кофе пока закрыт
-   * (решение 29.09.2026); тап объясняет, когда он откроется. */
-  locked: boolean;
+  /** Энергия полная — кофе ничего не прибавит, кнопка заблокирована. */
+  energyFull: boolean;
   onPress: () => void;
 }) {
+  const blocked = used || energyFull;
   const { scale, scaledFont } = useResponsive();
   const styles = createCoffeeButtonStyles();
 
   return (
     <TouchableOpacity
       onPress={onPress}
-      disabled={used}
+      disabled={blocked}
       activeOpacity={0.85}
       style={[
         styles.button,
         { width: scale(BUTTON_SIZE), minHeight: scale(BUTTON_SIZE) },
-        (used || locked) && styles.buttonUsed,
+        blocked && styles.buttonUsed,
       ]}
       accessibilityRole="button"
       accessibilityLabel={
         used
           ? 'Кофе уже выпит в этой смене'
-          : locked
-            ? 'Кофе откроется после первого этапа этой смены'
+          : energyFull
+            ? 'Выпить кофе нельзя: энергия и так полная'
             : `Выпить кофе: ${formatCoins(coffee.price)} из бюджета смены, плюс ${coffee.energy} энергии. Один раз за смену`
       }
-      accessibilityState={{ disabled: used }}
+      accessibilityState={{ disabled: blocked }}
     >
       <View
         style={[
           styles.iconCircle,
-          used && styles.iconCircleUsed,
+          blocked && styles.iconCircleUsed,
           {
             width: scale(ICON_CIRCLE_SIZE),
             height: scale(ICON_CIRCLE_SIZE),
@@ -68,9 +69,9 @@ export function CoffeeButton({
         ]}
       >
         <Ionicons
-          name={used ? 'checkmark' : locked ? 'lock-closed' : 'cafe'}
+          name={used ? 'checkmark' : energyFull ? 'battery-full' : 'cafe'}
           size={scale(22)}
-          color={used || locked ? colorPalettes.slate[500] : colorPalettes.amber[700]}
+          color={blocked ? colorPalettes.slate[500] : colorPalettes.amber[700]}
         />
       </View>
 
@@ -80,8 +81,8 @@ export function CoffeeButton({
 
       {used ? (
         <Text style={[styles.usedHint, { fontSize: scaledFont('sm') }]}>раз за смену</Text>
-      ) : locked ? (
-        <Text style={[styles.usedHint, { fontSize: scaledFont('sm') }]}>после 1-го этапа</Text>
+      ) : energyFull ? (
+        <Text style={[styles.usedHint, { fontSize: scaledFont('sm') }]}>энергия полная</Text>
       ) : (
         <View style={styles.chips}>
           <View style={[styles.chip, styles.priceChip]}>

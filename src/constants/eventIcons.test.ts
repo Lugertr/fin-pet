@@ -1,17 +1,13 @@
 // constants/eventIcons.test.ts
-// Иконка события в lessons.json: эмодзи, персонаж (question/reward) или ключ
+// Иконка события в content/lessons: эмодзи, персонаж (question/reward) или ключ
 // картинки из EVENT_ICON_IMAGES — опечатка в ключе не должна тихо стать
 // «эмодзи» из латинских букв.
 
-import exampleJson from '../../content/lessons.example.json';
-import lessonsJson from '../../content/lessons.json';
+import { ALL_LESSONS } from '@/data/content/lessonFiles';
 import { LessonContent } from '@/domain/content/LessonContent';
 import { isUnknownEventIconKey, resolveEventIcon } from './eventIcons';
 
-const ALL_LESSONS = [
-  ...(lessonsJson as unknown as LessonContent[]),
-  ...(exampleJson as unknown as LessonContent[]),
-];
+const LESSONS = ALL_LESSONS;
 
 const eventIcons = (lessons: LessonContent[]) =>
   lessons.flatMap((lesson) =>
@@ -45,18 +41,9 @@ describe('resolveEventIcon', () => {
 
 describe('иконки событий в контенте', () => {
   it('у каждого события иконка есть и она известна', () => {
-    const icons = eventIcons(ALL_LESSONS);
+    const icons = eventIcons(LESSONS);
     expect(icons.length).toBeGreaterThan(0);
     const bad = icons.filter(({ icon }) => !icon?.trim() || isUnknownEventIconKey(icon));
     expect(bad).toEqual([]);
-  });
-
-  it('пример урока показывает все виды иконок', () => {
-    const kinds = new Set(
-      eventIcons(exampleJson as unknown as LessonContent[]).map(
-        ({ icon }) => resolveEventIcon(icon).kind
-      )
-    );
-    expect(kinds).toEqual(new Set(['pet', 'image', 'emoji']));
   });
 });

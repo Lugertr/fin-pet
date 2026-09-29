@@ -28,6 +28,7 @@ import { LessonPlan, lessonStructureKey, planForLesson } from '@/domain/lesson/L
 import {
   LessonProgressState,
   alignProgressWithStructure,
+  completeAllActivities,
   createLessonProgress,
   settleLesson,
 } from '@/domain/lesson/lessonProgress';
@@ -37,24 +38,27 @@ import { importLegacyLessonProgress } from '../lessons/importLegacyLessonProgres
 import { useAchievementsStore } from '../stores/achievementsStore';
 import { usePetStore } from '../stores/petStore';
 import { usePreferencesStore } from '../stores/preferencesStore';
-import { equipSkin, getSkinsForPetType } from '../pet/petSkin';
+import { getSkinsForPetType } from '../pet/petSkin';
 import { SHOP_CATALOG, useShopStore } from './useShop';
 import { useUserStore } from '../stores/userStore';
 
 /**
  * Выдаёт настроенную в PlayerLevel награду за каждый пересечённый уровень —
  * монеты/предмет из таблицы, плюс на уровнях из LOOK_REWARD_LEVELS (2 и 3)
- * облик питомца, которого у ребёнка ещё нет (PlayerLevel.pickLookToGrant):
- * цветной сразу надевается, классический просто появляется в инвентаре.
+ * облик питомца, которого у ребёнка ещё нет (PlayerLevel.pickLookToGrant).
+ * Облик кладётся в хранилище (инвентарь) и сам не надевается (решение
+ * пользователя 29.09.2026): карточка уровня предлагает «Надеть» или
+ * «Оставить текущий» (LevelUpCard).
  */
 /** Возвращает, что реально выдано — для объяснения награды на экране (§8.4). */
 function grantLevelUpRewards(
   fromLevel: number,
   toLevel: number
-): { coins: number; skinName: string | null } {
+): { coins: number; skinName: string | null; skinItemId: number | null } {
   const petType = usePreferencesStore.getState().petType;
   let coins = 0;
   let skinName: string | null = null;
+  let skinItemId: number | null = null;
 
   for (let level = fromLevel + 1; level <= toLevel; level += 1) {
     const reward = LEVEL_REWARDS[level];
@@ -82,13 +86,13 @@ function grantLevelUpRewards(
       // вида с одним обликом (сейчас — мишка) выдавать нечего.
       if (skinItem) {
         useShopStore.getState().addItem(skinItem.id, 1);
-        if ((skinItem.skin_variant ?? 0) > 0) void equipSkin(skinItem);
         skinName = skinItem.name;
+        skinItemId = skinItem.id;
       }
     }
   }
   useAchievementsStore.getState().recordLevelReached(toLevel);
-  return { coins, skinName };
+  return { coins, skinName, skinItemId };
 }
 
 /** §15.2 «Кибер-защитник»: сообщает achievementsStore актуальный прогресс по ветке. */
@@ -134,8 +138,10 @@ export interface LevelUpResult {
   to: number;
   /** Монеты, реально начисленные за все пересечённые уровни. */
   coins: number;
-  /** Название выданного и надетого скина, если он действительно выдан. */
+  /** Название выданного облика, если он действительно выдан (лежит в хранилище). */
   skinName: string | null;
+  /** Предмет выданного облика — «Надеть» в карточке уровня. */
+  skinItemId: number | null;
 }
 
 // Ветки и уроки — из бандла content/*.json через репозиторий (см. заголовок файла)
@@ -245,6 +251,12 @@ interface LessonsState {
    * завершение; при первом завершении — ещё прогресс ветки и достижения.
    */
   finishLesson: (plan: LessonPlan, state: LessonProgressState) => LessonFinishResult;
+  /**
+   * Демо-режим, «Завершить урок» на экране смены: все этапы засчитаны разом
+   * (completeAllActivities, без звезды) и урок завершён с наградой, как через
+   * заключение. null — урока нет или он уже был пройден.
+   */
+  completeLessonNow: (lessonId: number) => LessonFinishResult | null;
   startLesson: (lessonId: number) => Lesson;
   isLessonAvailable: (lessonId: number) => boolean;
   getBranchProgress: (branchId: number) => { completed: number; total: number };
@@ -334,6 +346,15 @@ export const useLessonsStore = create<LessonsState>()((set, get) => {
         reportLessonCompleted(plan.lessonId, get().lessonStates, get().getBranchProgress);
       }
       return { ...result, reward: { xp, levelUp } };
+    },
+
+    completeLessonNow: (lessonId) => {
+      const lesson = LESSONS.find((l) => l.id === lessonId);
+      if (!lesson || isCompleted(lessonId)) return null;
+      const plan = planForLesson(lesson, useUserStore.getState().user?.is_demo ?? false);
+      const state = get().lessonStates[lessonId] ?? createLessonProgress(lessonId);
+      const result = get().finishLesson(plan, completeAllActivities(plan, state));
+      return result.firstCompletion ? result : null;
     },
 
     startLesson: (lessonId) => {

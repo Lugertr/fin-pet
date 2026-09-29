@@ -31,12 +31,12 @@ interface TinderSwipeGameProps {
   question: string;
   options: string[];
   correctAnswer: string;
-  /** Текст баннера обратной связи после свайпа (см. content/lessons.json) —
+  /** Текст баннера обратной связи после свайпа (см. content/lessons/*.json) —
    * баннера не будет, если для вопроса не задан. */
   explanation?: string;
   /** Текст под ссылкой «Подсказка» — сама ссылка не показывается без него. */
   hint?: string;
-  /** Цена подсказки (урок: hintPrice в lessons.json); 0/нет — бесплатно. */
+  /** Цена подсказки (урок: hintPrice в content/lessons); 0/нет — бесплатно. */
   hintPrice?: number;
   /** Подсказка куплена. */
   hintUnlocked?: boolean;

@@ -8,6 +8,7 @@ import { LessonPlan, planForLesson } from './LessonPlan';
 import {
   LessonProgressState,
   alignProgressWithStructure,
+  completeAllActivities,
   completedNodeCount,
   createLessonProgress,
   currentPosition,
@@ -273,5 +274,37 @@ describe('alignProgressWithStructure — контент урока поменя�
     const aligned = alignProgressWithStructure(done, 'test|test');
     expect(aligned.completedAt).toBe(done.completedAt);
     expect(hasStar(aligned)).toBe(true);
+  });
+});
+
+describe('completeAllActivities — «Завершить урок» в демо', () => {
+  it('засчитывает все этапы: дальше только заключение, урок завершается', () => {
+    const state = completeAllActivities(plan, createLessonProgress(LESSON.id));
+
+    expect(currentPosition(plan, state)).toEqual({ kind: 'final' });
+    expect(completedNodeCount(plan, state)).toBe(plan.nodes.length);
+    expect(settleLesson(plan, state, '2026-09-29T10:00:00.000Z').firstCompletion).toBe(true);
+  });
+
+  it('без звезды: пропуск — не прохождение без ошибок', () => {
+    const state = completeAllActivities(plan, createLessonProgress(LESSON.id));
+    const settled = settleLesson(plan, state, '2026-09-29T10:00:00.000Z');
+
+    expect(isLessonPerfect(plan, state)).toBe(false);
+    expect(settled.firstPerfect).toBe(false);
+    expect(hasStar(settled.state)).toBe(false);
+  });
+
+  it('уже пройденное не меняется: результат и выбор в событии остаются', () => {
+    let state = createLessonProgress(LESSON.id);
+    state = markReadingDone(state, 0);
+    state = recordActivityResult(state, testActivity, { perfect: true });
+    state = recordActivityResult(state, eventActivity, { perfect: true, optionId: 'skip' });
+
+    const next = completeAllActivities(plan, state);
+
+    expect(next.results[testActivity.id]).toEqual(state.results[testActivity.id]);
+    expect(next.results[eventActivity.id]?.optionId).toBe('skip');
+    expect(next.results[gameActivity.id]).toEqual({ completed: true, perfect: false, attempts: 0 });
   });
 });
